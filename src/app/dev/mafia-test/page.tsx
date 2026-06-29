@@ -128,6 +128,9 @@ export default function MafiaTestPage() {
                 <Button variant="secondary" onClick={() => emitDev("dev_fill_bots")}>
                   Добрать до 5 игроков
                 </Button>
+                {room.phase === "LOBBY" ? (
+                  <DevSettings room={room} emitDev={emitDev} />
+                ) : null}
                 <Button onClick={() => emitDev("start_game")} disabled={room.phase !== "LOBBY"}>
                   Запустить игру
                 </Button>
@@ -164,6 +167,54 @@ export default function MafiaTestPage() {
         </section>
       )}
     </AppShell>
+  );
+}
+
+function DevSettings({
+  room,
+  emitDev
+}: {
+  room: PublicRoom;
+  emitDev: (event: string, payload?: unknown) => void;
+}) {
+  return (
+    <div className="rounded-xl border border-line bg-cloud p-3">
+      <p className="font-semibold text-ink">Настройки ролей</p>
+      <label className="mt-3 grid gap-1 text-sm text-slate-600">
+        Количество мафии
+        <select
+          className="rounded-md border border-line bg-white px-3 py-2 text-ink outline-none focus:border-ocean"
+          value={room.settings.mafiaCount}
+          onChange={(event) =>
+            emitDev("update_settings", {
+              mafiaCount: event.target.value === "auto" ? "auto" : Number(event.target.value)
+            })
+          }
+        >
+          <option value="auto">Авто</option>
+          <option value="1">1 мафия</option>
+          <option value="2">2 мафии</option>
+          <option value="3">3 мафии</option>
+          <option value="4">4 мафии</option>
+        </select>
+      </label>
+      <label className="mt-3 flex items-center justify-between gap-3 text-sm text-slate-700">
+        Комиссар / шериф
+        <input
+          type="checkbox"
+          checked={room.settings.hasDetective}
+          onChange={(event) => emitDev("update_settings", { hasDetective: event.target.checked })}
+        />
+      </label>
+      <label className="mt-2 flex items-center justify-between gap-3 text-sm text-slate-700">
+        Доктор
+        <input
+          type="checkbox"
+          checked={room.settings.hasDoctor}
+          onChange={(event) => emitDev("update_settings", { hasDoctor: event.target.checked })}
+        />
+      </label>
+    </div>
   );
 }
 

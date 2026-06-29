@@ -145,6 +145,22 @@ export function registerRoomSockets(io: Server) {
       emitOwnRoom(io, socket);
     });
 
+    socket.on("update_settings", (payload: Partial<Room["settings"]>, ack) => {
+      const result = withHostRoom(socket, (room) => {
+        if (room.phase !== "LOBBY") return { ok: false, error: "Настройки можно менять только в лобби" };
+        const nextSettings = {
+          ...room.settings,
+          ...sanitizeSettings(payload)
+        };
+        const validationError = getSettingsConfigError(nextSettings);
+        if (validationError) return { ok: false, error: validationError };
+        room.settings = nextSettings;
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
     socket.on("dev_mafia_choose_target", (payload: { targetId: string }, ack) => {
       const result = withDevHostRoom(socket, (room) => {
         if (room.phase !== "NIGHT_MAFIA") return { ok: false, error: "Сейчас не ход мафии" };
@@ -228,6 +244,8 @@ export function registerRoomSockets(io: Server) {
         if (connectedPlayers.length < 5) {
           return { ok: false, error: "Для старта нужно минимум 5 игроков" };
         }
+        const validationError = getSettingsError(connectedPlayers.length, room.settings);
+        if (validationError) return { ok: false, error: validationError };
 
         room.players = assignRoles(room.players, room);
         room.phase = "ROLE_REVEAL";
@@ -393,6 +411,34 @@ function withDevHostRoom(socket: Socket, action: (room: Room) => { ok: boolean; 
 
 function findAlivePlayer(room: Room, playerId?: string) {
   return room.players.find((player) => player.id === playerId && player.alive);
+}
+
+function sanitizeSettings(settings: Partial<Room["settings"]>) {
+  const sanitized: Partial<Room["settings"]> = {};
+  if (settings.mafiaCount === "auto" || typeof settings.mafiaCount === "number") {
+    sanitized.mafiaCount = settings.mafiaCount;
+  }
+  if (typeof settings.hasDetective === "boolean") sanitized.hasDetective = settings.hasDetective;
+  if (typeof settings.hasDoctor === "boolean") sanitized.hasDoctor = settings.hasDoctor;
+  return sanitized;
+}
+
+function getSettingsError(playerCount: number, settings: Room["settings"]) {
+  const mafiaCount =
+    settings.mafiaCount === "auto" ? Math.max(1, Math.floor(playerCount / 4)) : settings.mafiaCount;
+  const specialRolesCount = Number(settings.hasDetective) + Number(settings.hasDoctor);
+
+  if (mafiaCount < 1) return "Нужна хотя бы одна мафия";
+  if (mafiaCount > Math.max(1, playerCount - 1)) return "Мафии не может быть столько же, сколько всех игроков";
+  if (mafiaCount + specialRolesCount > playerCount) return "Ролей больше, чем игроков";
+  return undefined;
+}
+
+function getSettingsConfigError(settings: Room["settings"]) {
+  if (typeof settings.mafiaCount === "number" && (settings.mafiaCount < 1 || settings.mafiaCount > 10)) {
+    return "Количество мафии должно быть от 1 до 10";
+  }
+  return undefined;
 }
 
 function simulateCurrentPhase(room: Room) {

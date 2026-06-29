@@ -204,12 +204,69 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
 }
 
 function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string, payload?: unknown) => void }) {
+  const connectedPlayersCount = room.players.filter((player) => player.connected).length;
+  const resolvedMafiaCount =
+    room.settings.mafiaCount === "auto" ? Math.max(1, Math.floor(connectedPlayersCount / 4)) : room.settings.mafiaCount;
+
+  function updateSettings(payload: Partial<PublicRoom["settings"]>) {
+    emitAction("update_settings", payload);
+  }
+
   return (
     <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-soft">
       <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-500">Ведущий</p>
+      <div className="mt-3 rounded-xl border border-line bg-white p-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-semibold text-ink">Настройки матча</p>
+          <span className="text-xs font-medium text-slate-500">{resolvedMafiaCount} мафия</span>
+        </div>
+        {room.phase === "LOBBY" ? (
+          <div className="mt-3 grid gap-3">
+            <label className="grid gap-1 text-sm text-slate-600">
+              Количество мафии
+              <select
+                className="rounded-md border border-line bg-white px-3 py-2 text-ink outline-none focus:border-ocean"
+                value={room.settings.mafiaCount}
+                onChange={(event) =>
+                  updateSettings({
+                    mafiaCount: event.target.value === "auto" ? "auto" : Number(event.target.value)
+                  })
+                }
+              >
+                <option value="auto">Авто</option>
+                <option value="1">1 мафия</option>
+                <option value="2">2 мафии</option>
+                <option value="3">3 мафии</option>
+                <option value="4">4 мафии</option>
+              </select>
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-md border border-line bg-cloud px-3 py-2 text-sm text-slate-700">
+              Комиссар / шериф
+              <input
+                type="checkbox"
+                checked={room.settings.hasDetective}
+                onChange={(event) => updateSettings({ hasDetective: event.target.checked })}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-md border border-line bg-cloud px-3 py-2 text-sm text-slate-700">
+              Доктор
+              <input
+                type="checkbox"
+                checked={room.settings.hasDoctor}
+                onChange={(event) => updateSettings({ hasDoctor: event.target.checked })}
+              />
+            </label>
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-slate-600">
+            Комиссар / шериф: {room.settings.hasDetective ? "есть" : "нет"}. Доктор:{" "}
+            {room.settings.hasDoctor ? "есть" : "нет"}.
+          </p>
+        )}
+      </div>
       <div className="mt-4 grid gap-2">
         {room.phase === "LOBBY" ? (
-          <Button onClick={() => emitAction("start_game")} disabled={room.players.filter((player) => player.connected).length < 5}>
+          <Button onClick={() => emitAction("start_game")} disabled={connectedPlayersCount < 5}>
             Начать игру
           </Button>
         ) : null}

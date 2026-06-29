@@ -6,6 +6,7 @@ export type GameConfig = {
   minPlayers: number;
   maxPlayers: number;
   route: string;
+  illustration: string;
 };
 
 export const games: GameConfig[] = [
@@ -16,7 +17,8 @@ export const games: GameConfig[] = [
     status: "available",
     minPlayers: 5,
     maxPlayers: 15,
-    route: "/games/mafia"
+    route: "/games/mafia",
+    illustration: "/game-cards/mafia.svg"
   },
   {
     id: "bunker",
@@ -25,7 +27,8 @@ export const games: GameConfig[] = [
     status: "coming_soon",
     minPlayers: 4,
     maxPlayers: 16,
-    route: "/games/bunker"
+    route: "/games/bunker",
+    illustration: "/game-cards/bunker.svg"
   },
   {
     id: "spy",
@@ -34,7 +37,8 @@ export const games: GameConfig[] = [
     status: "coming_soon",
     minPlayers: 3,
     maxPlayers: 12,
-    route: "/games/spy"
+    route: "/games/spy",
+    illustration: "/game-cards/spy.svg"
   },
   {
     id: "whoami",
@@ -43,6 +47,7 @@ export const games: GameConfig[] = [
     status: "coming_soon",
     minPlayers: 3,
     maxPlayers: 12,
-    route: "/games/whoami"
+    route: "/games/whoami",
+    illustration: "/game-cards/whoami.svg"
   }
 ];

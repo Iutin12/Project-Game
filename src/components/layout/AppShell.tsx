@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -14,6 +15,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link className="rounded-full px-3 py-2 hover:bg-slate-100 hover:text-ink" href="/rules/mafia">
             Правила
           </Link>
+          <ThemeToggle />
         </nav>
       </header>
       {children}
