@@ -1,0 +1,14 @@
+.next/
+node_modules/
+.pnpm-store/
+tsconfig.tsbuildinfo
+dist/
+coverage/
+.env
+.env.local
+.env.*.local
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

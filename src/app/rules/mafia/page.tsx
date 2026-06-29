@@ -1,0 +1,26 @@
+import { AppShell } from "@/components/layout/AppShell";
+
+export default function MafiaRulesPage() {
+  return (
+    <AppShell>
+      <article className="mx-auto max-w-3xl py-12">
+        <p className="text-sm uppercase tracking-[0.28em] text-red-200/60">Правила</p>
+        <h1 className="mt-3 font-display text-5xl text-white">Мафия</h1>
+        <div className="mt-8 space-y-6 text-white/72">
+          <p>
+            Мирные жители пытаются вычислить мафию днем, а мафия ночью выбирает жертву.
+            Комиссар проверяет игроков, доктор может спасти одного игрока от ночного убийства.
+          </p>
+          <p>
+            Мирные побеждают, если среди живых игроков не осталось мафии. Мафия побеждает,
+            если живых мафиози осталось столько же или больше, чем остальных игроков.
+          </p>
+          <p>
+            В MVP игра идет в ручном режиме ведущего: хост переводит комнату между фазами,
+            запускает голосование и может вернуть всех в лобби.
+          </p>
+        </div>
+      </article>
+    </AppShell>
+  );
+}

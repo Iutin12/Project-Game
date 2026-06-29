@@ -1,0 +1,67 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { AppShell } from "@/components/layout/AppShell";
+import { Button } from "@/components/ui/Button";
+
+export default function MafiaPage() {
+  const router = useRouter();
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState("");
+
+  async function createRoom() {
+    setIsCreating(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/create-room", { method: "POST" });
+      if (!response.ok) throw new Error("Не удалось создать комнату");
+      const data = (await response.json()) as { code: string; hostKey: string };
+      window.localStorage.setItem(`hostKey:${data.code}`, data.hostKey);
+      router.push(`/room/${data.code}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Не удалось создать комнату");
+    } finally {
+      setIsCreating(false);
+    }
+  }
+
+  return (
+    <AppShell>
+      <section className="grid flex-1 items-center gap-8 py-12 lg:grid-cols-[0.9fr_1.1fr]">
+        <div>
+          <p className="text-sm uppercase tracking-[0.32em] text-red-300/75">доступно сейчас</p>
+          <h1 className="mt-3 font-display text-6xl text-white">Мафия</h1>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-white/70">
+            Создайте приватную комнату, пригласите друзей по ссылке и проведите игру с
+            автоматической раздачей ролей, ночными действиями, голосованием и проверкой победы.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Button onClick={createRoom} disabled={isCreating}>
+              {isCreating ? "Создаем..." : "Создать комнату"}
+            </Button>
+            <a href="/rules/mafia">
+              <Button variant="secondary">Правила</Button>
+            </a>
+          </div>
+          {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[
+            ["5-15", "игроков"],
+            ["4", "роли"],
+            ["real-time", "лобби"],
+            ["manual", "режим ведущего"]
+          ].map(([value, label]) => (
+            <div key={label} className="rounded-lg border border-white/10 bg-white/[0.06] p-5">
+              <p className="font-display text-4xl text-white">{value}</p>
+              <p className="mt-2 text-sm uppercase tracking-[0.2em] text-white/45">{label}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </AppShell>
+  );
+}

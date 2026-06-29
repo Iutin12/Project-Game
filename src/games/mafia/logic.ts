@@ -1,0 +1,92 @@
+import { phaseOrder } from "./phases";
+import type { GamePhase, NightActions, Player, Role, Room, Votes } from "./types";
+
+export const defaultMafiaSettings = {
+  mafiaCount: "auto",
+  hasDetective: true,
+  hasDoctor: true,
+  dayTimerSec: 300,
+  votingTimerSec: 60,
+  mode: "manual_host"
+} as const;
+
+export function getMafiaCount(playerCount: number, setting: number | "auto") {
+  return setting === "auto" ? Math.max(1, Math.floor(playerCount / 4)) : setting;
+}
+
+export function assignRoles(players: Player[], room: Room): Player[] {
+  const mafiaCount = getMafiaCount(players.length, room.settings.mafiaCount);
+  const roles: Role[] = [
+    ...Array.from<Role>({ length: mafiaCount }).fill("MAFIA"),
+    ...(room.settings.hasDetective ? (["DETECTIVE"] as Role[]) : []),
+    ...(room.settings.hasDoctor ? (["DOCTOR"] as Role[]) : [])
+  ];
+
+  while (roles.length < players.length) {
+    roles.push("CIVILIAN");
+  }
+
+  const shuffledRoles = shuffle(roles).slice(0, players.length);
+
+  return shuffle(players).map((player, index) => ({
+    ...player,
+    alive: true,
+    role: shuffledRoles[index]
+  }));
+}
+
+export function getNextPhase(room: Room): GamePhase {
+  if (room.phase === "LOBBY") return "ROLE_REVEAL";
+  if (room.phase === "GAME_OVER") return "GAME_OVER";
+
+  const currentIndex = phaseOrder.indexOf(room.phase);
+  if (currentIndex === -1) return "NIGHT_MAFIA";
+  if (room.phase === "DAY_VOTING") return "NIGHT_MAFIA";
+
+  return phaseOrder[currentIndex + 1] ?? "NIGHT_MAFIA";
+}
+
+export function resolveNight(players: Player[], actions: NightActions) {
+  let killedId: string | undefined;
+  const mafiaTarget = actions.mafiaTargetId;
+
+  if (mafiaTarget && mafiaTarget !== actions.doctorTargetId) {
+    killedId = mafiaTarget;
+  }
+
+  return {
+    killedId,
+    players: players.map((player) => (player.id === killedId ? { ...player, alive: false } : player))
+  };
+}
+
+export function resolveVotes(players: Player[], votes: Votes) {
+  const tally = new Map<string, number>();
+
+  for (const targetId of Object.values(votes)) {
+    tally.set(targetId, (tally.get(targetId) ?? 0) + 1);
+  }
+
+  const sorted = [...tally.entries()].sort((a, b) => b[1] - a[1]);
+  const [leader, runnerUp] = sorted;
+  const eliminatedId = leader && (!runnerUp || leader[1] > runnerUp[1]) ? leader[0] : undefined;
+
+  return {
+    eliminatedId,
+    players: players.map((player) => (player.id === eliminatedId ? { ...player, alive: false } : player))
+  };
+}
+
+export function checkWinner(players: Player[]) {
+  const alive = players.filter((player) => player.alive);
+  const aliveMafiaCount = alive.filter((player) => player.role === "MAFIA").length;
+  const aliveNonMafiaCount = alive.length - aliveMafiaCount;
+
+  if (aliveMafiaCount === 0) return "CIVILIANS";
+  if (aliveMafiaCount >= aliveNonMafiaCount) return "MAFIA";
+  return undefined;
+}
+
+function shuffle<T>(items: T[]) {
+  return [...items].sort(() => Math.random() - 0.5);
+}
