@@ -247,6 +247,7 @@ function ManualPlayPanel({
   const mistressTarget = room.players.find((player) => player.id === room.nightActions?.mistressTargetId);
   const detectiveTarget = room.players.find((player) => player.id === room.nightActions?.detectiveTargetId);
   const doctorTarget = room.players.find((player) => player.id === room.nightActions?.doctorTargetId);
+  const mafiaKillers = alivePlayers.filter((player) => player.role === "MAFIA" || player.role === "DON");
 
   if (room.phase === "LOBBY") {
     return (
@@ -277,16 +278,35 @@ function ManualPlayPanel({
       <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
         <h2 className="font-display text-3xl font-semibold text-ink">Ход мафии</h2>
         <p className="mt-2 text-slate-600">
-          Выбрана жертва: {mafiaTarget ? mafiaTarget.name : "пока никто"}.
+          Итоговая жертва: {mafiaTarget ? mafiaTarget.name : "пока не решена"}.
           {room.players.some((player) => player.role === "MISTRESS") ? (
             <> Любовница отвлекает: {mistressTarget ? mistressTarget.name : "пока никто"}.</>
           ) : null}
         </p>
-        <TargetButtons
-          players={targets}
-          activeId={room.nightActions?.mafiaTargetId}
-          onPick={(targetId) => emitDev("dev_mafia_choose_target", { targetId })}
-        />
+        {room.nightActions?.mafiaVoteDeadlineAt ? (
+          <p className="mt-2 text-sm text-slate-500">
+            Без Дона авто-выбор сработает через{" "}
+            {Math.max(0, Math.ceil((room.nightActions.mafiaVoteDeadlineAt - Date.now()) / 1000))} сек.
+          </p>
+        ) : null}
+        <div className="mt-4 grid gap-4">
+          {mafiaKillers.map((mafiaPlayer) => (
+            <div key={mafiaPlayer.id} className="rounded-xl border border-line bg-cloud p-3">
+              <p className="font-semibold text-ink">
+                {mafiaPlayer.name} выбирает:{" "}
+                <span className="text-slate-500">
+                  {room.players.find((player) => player.id === room.nightActions?.mafiaVotes?.[mafiaPlayer.id])?.name ??
+                    "не выбрано"}
+                </span>
+              </p>
+              <TargetButtons
+                players={targets}
+                activeId={room.nightActions?.mafiaVotes?.[mafiaPlayer.id]}
+                onPick={(targetId) => emitDev("dev_mafia_choose_target", { voterId: mafiaPlayer.id, targetId })}
+              />
+            </div>
+          ))}
+        </div>
         {room.players.some((player) => player.role === "MISTRESS") ? (
           <>
             <h3 className="mt-5 font-semibold text-ink">Любовница отвлекает</h3>

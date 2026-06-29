@@ -23,6 +23,8 @@ export type MafiaSettings = {
 
 export type NightActions = {
   mafiaTargetId?: string;
+  mafiaVotes?: Votes;
+  mafiaVoteDeadlineAt?: number;
   mistressTargetId?: string;
   detectiveTargetId?: string;
   doctorTargetId?: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { io, type Socket } from "socket.io-client";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
@@ -187,7 +187,16 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
   }
 
   if (room.phase === "NIGHT_MAFIA" && (room.ownRole === "MAFIA" || room.ownRole === "DON")) {
-    return <TargetList title="Выберите жертву" players={nonMafiaTargets} onPick={(id) => emitAction("mafia_choose_target", { targetId: id })} />;
+    return (
+      <TargetList
+        title="Проголосуйте за жертву"
+        players={nonMafiaTargets}
+        activeId={room.nightActions?.mafiaVotes?.[room.ownPlayerId]}
+        onPick={(id) => emitAction("mafia_choose_target", { targetId: id })}
+      >
+        <MafiaVoteStatus room={room} />
+      </TargetList>
+    );
   }
 
   if (room.phase === "NIGHT_MAFIA" && room.ownRole === "MISTRESS") {
@@ -302,11 +311,12 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
       </div>
       {room.nightActions ? (
         <p className="mt-4 text-xs leading-5 text-blue-900/60">
-          Ночные действия: мафия {room.nightActions.mafiaTargetId ? "выбрала цель" : "ждет"}, комиссар{" "}
+          Ночные действия: мафия {room.nightActions.mafiaTargetId ? "определила цель" : "голосует"}, комиссар{" "}
           {room.nightActions.detectiveTargetId ? "проверил" : "ждет"}, доктор{" "}
           {room.nightActions.doctorTargetId ? "выбрал" : "ждет"}.
         </p>
       ) : null}
+      {room.nightActions ? <MafiaVoteStatus room={room} compact /> : null}
     </div>
   );
 }
@@ -330,16 +340,69 @@ function PlayersPanel({ title, players, empty = "Нет игроков" }: { tit
   );
 }
 
-function TargetList({ title, players, onPick }: { title: string; players: PublicPlayer[]; onPick: (id: string) => void }) {
+function TargetList({
+  title,
+  players,
+  activeId,
+  children,
+  onPick
+}: {
+  title: string;
+  players: PublicPlayer[];
+  activeId?: string;
+  children?: ReactNode;
+  onPick: (id: string) => void;
+}) {
   return (
     <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
       <h2 className="font-display text-3xl font-semibold text-ink">{title}</h2>
+      {children}
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {players.map((player) => (
-          <Button key={player.id} variant="secondary" onClick={() => onPick(player.id)}>
+          <Button key={player.id} variant={activeId === player.id ? "primary" : "secondary"} onClick={() => onPick(player.id)}>
             {player.name}
           </Button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function MafiaVoteStatus({ room, compact = false }: { room: PublicRoom; compact?: boolean }) {
+  const [now, setNow] = useState(Date.now());
+  const votes = room.nightActions?.mafiaVotes ?? {};
+  const mafiaKillers = room.mafiaAllies.filter((player) => player.alive && (player.role === "MAFIA" || player.role === "DON"));
+  const selectedTarget = room.players.find((player) => player.id === room.nightActions?.mafiaTargetId);
+  const deadlineAt = room.nightActions?.mafiaVoteDeadlineAt;
+
+  useEffect(() => {
+    if (!deadlineAt) return undefined;
+
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [deadlineAt]);
+
+  if (mafiaKillers.length === 0 || room.phase !== "NIGHT_MAFIA") return null;
+
+  return (
+    <div className={compact ? "mt-3 rounded-xl bg-white/60 p-3 text-xs text-slate-600" : "mt-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-600"}>
+      <p className="font-semibold text-ink">
+        Цель мафии: {selectedTarget ? selectedTarget.name : "пока не решена"}
+      </p>
+      {deadlineAt ? (
+        <p className="mt-1">
+          Без Дона итог будет выбран автоматически через {Math.max(0, Math.ceil((deadlineAt - now) / 1000))} сек.
+        </p>
+      ) : null}
+      <div className="mt-2 grid gap-1">
+        {mafiaKillers.map((player) => {
+          const target = room.players.find((item) => item.id === votes[player.id]);
+          return (
+            <span key={player.id}>
+              {player.name}: {target ? target.name : "не выбрал"}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
