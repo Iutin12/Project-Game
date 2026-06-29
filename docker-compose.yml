@@ -1,0 +1,12 @@
+services:
+  project-game:
+    build:
+      context: .
+    container_name: project-game
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    ports:
+      - "3000:3000"

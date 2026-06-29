@@ -1,0 +1,10 @@
+.git
+.next
+.pnpm-store
+node_modules
+npm-debug.log
+Dockerfile
+docker-compose.yml
+*.tsbuildinfo
+.DS_Store
+README.deploy.md
