@@ -14,6 +14,14 @@ const rooms = new Map<string, Room>();
 const socketPlayers = new Map<string, { roomCode: string; playerId: string }>();
 
 export function createRoom() {
+  return createMafiaRoom(false);
+}
+
+export function createDevRoom() {
+  return createMafiaRoom(true);
+}
+
+function createMafiaRoom(devMode: boolean) {
   let code = makeRoomCode();
   while (rooms.has(code)) code = makeRoomCode();
 
@@ -26,7 +34,8 @@ export function createRoom() {
     settings: { ...defaultMafiaSettings },
     nightActions: {},
     votes: {},
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    devMode
   };
 
   rooms.set(code, room);
@@ -61,6 +70,79 @@ export function registerRoomSockets(io: Server) {
       socket.join(room.code);
       ack?.({ ok: true, playerId: player.id });
       emitRoom(io, room.code);
+    });
+
+    socket.on("dev_add_bot", (_, ack) => {
+      const result = withDevHostRoom(socket, (room) => {
+        if (room.phase !== "LOBBY") return { ok: false, error: "Ботов можно добавлять только в лобби" };
+        if (room.players.length >= 15) return { ok: false, error: "Комната заполнена" };
+        room.players.push({
+          id: randomUUID(),
+          name: `Бот ${room.players.filter((player) => player.isBot).length + 1}`,
+          alive: true,
+          connected: true,
+          isHost: false,
+          isBot: true
+        });
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("dev_fill_bots", (_, ack) => {
+      const result = withDevHostRoom(socket, (room) => {
+        if (room.phase !== "LOBBY") return { ok: false, error: "Ботов можно добавлять только в лобби" };
+        while (room.players.length < 5) {
+          room.players.push({
+            id: randomUUID(),
+            name: `Бот ${room.players.filter((player) => player.isBot).length + 1}`,
+            alive: true,
+            connected: true,
+            isHost: false,
+            isBot: true
+          });
+        }
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("dev_simulate_phase", (_, ack) => {
+      const result = withDevHostRoom(socket, (room) => simulateCurrentPhase(room));
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("dev_simulate_round", (_, ack) => {
+      const result = withDevHostRoom(socket, (room) => {
+        const initialPhase = room.phase;
+        for (let step = 0; step < 8 && room.phase !== "GAME_OVER"; step += 1) {
+          const phaseBefore = room.phase;
+          simulateCurrentPhase(room);
+          if (
+            (phaseBefore === "DAY_VOTING" && room.phase === "NIGHT_MAFIA") ||
+            (initialPhase === "LOBBY" && phaseBefore === "DAY_VOTING")
+          ) {
+            break;
+          }
+        }
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("dev_play_to_win", (_, ack) => {
+      const result = withDevHostRoom(socket, (room) => {
+        for (let step = 0; step < 40 && room.phase !== "GAME_OVER"; step += 1) {
+          simulateCurrentPhase(room);
+        }
+        return room.phase === "GAME_OVER" ? { ok: true } : { ok: false, error: "Победа не наступила за 40 шагов" };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
     });
 
     socket.on("start_game", (_, ack) => {
@@ -223,6 +305,109 @@ function withHostRoom(socket: Socket, action: (room: Room) => { ok: boolean; err
     if (!player.isHost) return { ok: false, error: "Действие доступно только хосту" };
     return action(room);
   });
+}
+
+function withDevHostRoom(socket: Socket, action: (room: Room) => { ok: boolean; error?: string }) {
+  return withHostRoom(socket, (room) => {
+    if (!room.devMode) return { ok: false, error: "Dev-действие доступно только в тестовой комнате" };
+    return action(room);
+  });
+}
+
+function simulateCurrentPhase(room: Room) {
+  if (room.phase === "LOBBY") {
+    while (room.players.length < 5) {
+      room.players.push({
+        id: randomUUID(),
+        name: `Бот ${room.players.filter((player) => player.isBot).length + 1}`,
+        alive: true,
+        connected: true,
+        isHost: false,
+        isBot: true
+      });
+    }
+    room.players = assignRoles(room.players, room);
+    room.phase = "ROLE_REVEAL";
+    room.nightActions = {};
+    room.votes = {};
+    room.winner = undefined;
+    room.lastNightKilledId = undefined;
+    room.lastVoteEliminatedId = undefined;
+    room.detectiveResult = undefined;
+    return { ok: true };
+  }
+
+  if (room.phase === "NIGHT_MAFIA") {
+    const target = room.players.find((player) => player.alive && player.role !== "MAFIA");
+    if (target) room.nightActions.mafiaTargetId = target.id;
+  }
+
+  if (room.phase === "NIGHT_DETECTIVE") {
+    const detective = room.players.find((player) => player.alive && player.role === "DETECTIVE");
+    const target = room.players.find((player) => player.alive && player.id !== detective?.id);
+    if (detective && target) {
+      room.nightActions.detectiveTargetId = target.id;
+      room.detectiveResult = {
+        detectiveId: detective.id,
+        targetId: target.id,
+        isMafia: target.role === "MAFIA"
+      };
+    }
+  }
+
+  if (room.phase === "NIGHT_DOCTOR") {
+    const doctor = room.players.find((player) => player.alive && player.role === "DOCTOR");
+    if (doctor) room.nightActions.doctorTargetId = doctor.id;
+  }
+
+  if (room.phase === "DAY_VOTING") {
+    const alivePlayers = room.players.filter((player) => player.alive);
+    const preferredTarget =
+      alivePlayers.find((player) => player.role === "MAFIA") ??
+      alivePlayers.find((player) => player.role !== "MAFIA") ??
+      alivePlayers[0];
+
+    room.votes = {};
+    for (const voter of alivePlayers) {
+      const fallbackTarget = alivePlayers.find((player) => player.id !== voter.id);
+      const target = preferredTarget?.id === voter.id ? fallbackTarget : preferredTarget;
+      if (target) room.votes[voter.id] = target.id;
+    }
+  }
+
+  advanceRoomPhase(room);
+  return { ok: true };
+}
+
+function advanceRoomPhase(room: Room) {
+  if (room.phase === "NIGHT_DOCTOR") {
+    const resolved = resolveNight(room.players, room.nightActions);
+    room.players = resolved.players;
+    room.lastNightKilledId = resolved.killedId;
+    const winner = checkWinner(room.players);
+    if (winner) {
+      room.winner = winner;
+      room.phase = "GAME_OVER";
+      return;
+    }
+  }
+
+  if (room.phase === "DAY_VOTING") {
+    const resolved = resolveVotes(room.players, room.votes);
+    room.players = resolved.players;
+    room.lastVoteEliminatedId = resolved.eliminatedId;
+    const winner = checkWinner(room.players);
+    if (winner) {
+      room.winner = winner;
+      room.phase = "GAME_OVER";
+      return;
+    }
+    room.votes = {};
+    room.nightActions = {};
+    room.detectiveResult = undefined;
+  }
+
+  room.phase = getNextPhase(room);
 }
 
 function emitOwnRoom(io: Server, socket: Socket) {

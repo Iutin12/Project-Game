@@ -34,6 +34,7 @@ export type Player = {
   alive: boolean;
   connected: boolean;
   isHost: boolean;
+  isBot?: boolean;
 };
 
 export type Room = {
@@ -47,6 +48,7 @@ export type Room = {
   nightActions: NightActions;
   votes: Votes;
   createdAt: number;
+  devMode?: boolean;
   lastNightKilledId?: string;
   lastVoteEliminatedId?: string;
   detectiveResult?: {
