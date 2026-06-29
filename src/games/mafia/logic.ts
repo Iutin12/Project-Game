@@ -50,9 +50,9 @@ export function getNextPhase(room: Room): GamePhase {
 
   const currentIndex = phaseOrder.indexOf(room.phase);
   if (currentIndex === -1) return "NIGHT_MAFIA";
-  if (room.phase === "DAY_VOTING") return "NIGHT_MAFIA";
+  if (room.phase === "DAY_VOTING") return getNextEnabledPhase(room, "NIGHT_MAFIA");
 
-  return phaseOrder[currentIndex + 1] ?? "NIGHT_MAFIA";
+  return getNextEnabledPhase(room, phaseOrder[currentIndex + 1] ?? "NIGHT_MAFIA");
 }
 
 export function resolveNight(players: Player[], actions: NightActions) {
@@ -98,6 +98,19 @@ export function checkWinner(players: Player[]) {
 
 export function isMafiaRole(role?: Role) {
   return role === "MAFIA" || role === "DON" || role === "MISTRESS";
+}
+
+function getNextEnabledPhase(room: Room, phase: GamePhase): GamePhase {
+  const nextIndex = phaseOrder.indexOf(phase);
+  const orderedPhases = nextIndex === -1 ? phaseOrder : phaseOrder.slice(nextIndex);
+
+  for (const nextPhase of orderedPhases) {
+    if (nextPhase === "NIGHT_DETECTIVE" && !room.settings.hasDetective) continue;
+    if (nextPhase === "NIGHT_DOCTOR" && !room.settings.hasDoctor) continue;
+    return nextPhase;
+  }
+
+  return "NIGHT_MAFIA";
 }
 
 function shuffle<T>(items: T[]) {

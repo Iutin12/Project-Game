@@ -307,7 +307,7 @@ export function registerRoomSockets(io: Server) {
 
     socket.on("next_phase", (_, ack) => {
       const result = withHostRoom(socket, (room) => {
-        if (room.phase === "NIGHT_DOCTOR") {
+        if (shouldResolveNightAfterPhase(room)) {
           const resolved = resolveNight(room.players, room.nightActions);
           room.players = resolved.players;
           room.lastNightKilledId = resolved.killedId;
@@ -685,7 +685,7 @@ function simulateCurrentPhase(room: Room) {
 }
 
 function advanceRoomPhase(room: Room) {
-  if (room.phase === "NIGHT_DOCTOR") {
+  if (shouldResolveNightAfterPhase(room)) {
     const resolved = resolveNight(room.players, room.nightActions);
     room.players = resolved.players;
     room.lastNightKilledId = resolved.killedId;
@@ -713,6 +713,13 @@ function advanceRoomPhase(room: Room) {
   }
 
   room.phase = getNextPhase(room);
+}
+
+function shouldResolveNightAfterPhase(room: Room) {
+  if (room.phase === "NIGHT_DOCTOR") return true;
+  if (room.phase === "NIGHT_DETECTIVE") return !room.settings.hasDoctor;
+  if (room.phase === "NIGHT_MAFIA") return !room.settings.hasDetective && !room.settings.hasDoctor;
+  return false;
 }
 
 function emitOwnRoom(io: Server, socket: Socket) {
