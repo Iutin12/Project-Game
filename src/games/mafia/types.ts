@@ -1,4 +1,4 @@
-export type Role = "CIVILIAN" | "MAFIA" | "DETECTIVE" | "DOCTOR";
+export type Role = "CIVILIAN" | "MAFIA" | "DON" | "MISTRESS" | "DETECTIVE" | "DOCTOR";
 
 export type GamePhase =
   | "LOBBY"
@@ -14,6 +14,8 @@ export type MafiaSettings = {
   mafiaCount: number | "auto";
   hasDetective: boolean;
   hasDoctor: boolean;
+  hasDon: boolean;
+  hasMistress: boolean;
   dayTimerSec: number;
   votingTimerSec: number;
   mode: "manual_host";
@@ -21,6 +23,7 @@ export type MafiaSettings = {
 
 export type NightActions = {
   mafiaTargetId?: string;
+  mistressTargetId?: string;
   detectiveTargetId?: string;
   doctorTargetId?: string;
 };

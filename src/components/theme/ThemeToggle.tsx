@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 
 type Theme = "light" | "dark";
+type ViewTransitionDocument = Document & {
+  startViewTransition?: (callback: () => void) => { finished: Promise<void> };
+};
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("light");
@@ -17,9 +20,25 @@ export function ThemeToggle() {
 
   function toggleTheme() {
     const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    document.documentElement.dataset.theme = nextTheme;
-    window.localStorage.setItem("theme", nextTheme);
+    const directionClass = nextTheme === "dark" ? "theme-to-dark" : "theme-to-light";
+    const viewTransitionDocument = document as ViewTransitionDocument;
+
+    function applyTheme() {
+      document.documentElement.dataset.theme = nextTheme;
+      window.localStorage.setItem("theme", nextTheme);
+      setTheme(nextTheme);
+    }
+
+    if (!viewTransitionDocument.startViewTransition) {
+      applyTheme();
+      return;
+    }
+
+    document.documentElement.classList.add(directionClass);
+    const transition = viewTransitionDocument.startViewTransition(applyTheme);
+    transition.finished.finally(() => {
+      document.documentElement.classList.remove(directionClass);
+    });
   }
 
   return (

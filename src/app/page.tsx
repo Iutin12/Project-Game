@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { GameCard } from "@/components/game-card/GameCard";
+import { HomeStats } from "@/components/home/HomeStats";
 import { games } from "@/games/config";
 
 export default function HomePage() {
@@ -35,11 +36,7 @@ export default function HomePage() {
               <Button variant="secondary" className="min-w-44">🔗 Создать комнату</Button>
             </Link>
           </div>
-          <div className="mt-10 flex flex-wrap items-center gap-5 text-sm font-semibold text-slate-600">
-            <span className="flex items-center gap-2"><span className="text-ocean">♟</span> 2 847 комнат создано сегодня</span>
-            <span className="h-4 w-px bg-line" />
-            <span className="flex items-center gap-2"><span className="h-3 w-3 rounded-full bg-emerald-500" /> 1 563 игрока онлайн</span>
-          </div>
+          <HomeStats />
         </div>
 
         <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">

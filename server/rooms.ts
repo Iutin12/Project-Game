@@ -5,6 +5,7 @@ import {
   checkWinner,
   defaultMafiaSettings,
   getNextPhase,
+  isMafiaRole,
   resolveNight,
   resolveVotes
 } from "../src/games/mafia/logic";
@@ -12,6 +13,8 @@ import type { NightActions, Player, PublicRoom, Room, Votes } from "../src/games
 
 const rooms = new Map<string, Room>();
 const socketPlayers = new Map<string, { roomCode: string; playerId: string }>();
+let totalRoomsCreatedToday = 0;
+let statsDay = new Date().toDateString();
 
 export function createRoom() {
   return createMafiaRoom(false);
@@ -22,6 +25,7 @@ export function createDevRoom() {
 }
 
 function createMafiaRoom(devMode: boolean) {
+  refreshStatsDay();
   let code = makeRoomCode();
   while (rooms.has(code)) code = makeRoomCode();
 
@@ -39,11 +43,26 @@ function createMafiaRoom(devMode: boolean) {
   };
 
   rooms.set(code, room);
+  if (!devMode) totalRoomsCreatedToday += 1;
   return { code, hostKey: room.hostKey };
 }
 
 export function getRoom(code: string) {
   return rooms.get(code.toUpperCase());
+}
+
+export function getStats() {
+  refreshStatsDay();
+  const publicRooms = [...rooms.values()].filter((room) => !room.devMode);
+
+  return {
+    roomsCreatedToday: totalRoomsCreatedToday,
+    activeRooms: publicRooms.length,
+    onlinePlayers: publicRooms.reduce(
+      (total, room) => total + room.players.filter((player) => player.connected && !player.isBot).length,
+      0
+    )
+  };
 }
 
 export function registerRoomSockets(io: Server) {
@@ -166,7 +185,7 @@ export function registerRoomSockets(io: Server) {
         if (room.phase !== "NIGHT_MAFIA") return { ok: false, error: "Сейчас не ход мафии" };
         const target = findAlivePlayer(room, payload.targetId);
         if (!target) return { ok: false, error: "Цель не найдена или уже выбыла" };
-        if (target.role === "MAFIA") return { ok: false, error: "Мафия не выбирает своего союзника" };
+        if (isMafiaRole(target.role)) return { ok: false, error: "Мафия не выбирает своего союзника" };
         room.nightActions.mafiaTargetId = target.id;
         return { ok: true };
       });
@@ -186,7 +205,7 @@ export function registerRoomSockets(io: Server) {
         room.detectiveResult = {
           detectiveId: detective.id,
           targetId: target.id,
-          isMafia: target.role === "MAFIA"
+          isMafia: isMafiaRole(target.role)
         };
         return { ok: true };
       });
@@ -208,6 +227,21 @@ export function registerRoomSockets(io: Server) {
       emitOwnRoom(io, socket);
     });
 
+    socket.on("dev_mistress_distract_player", (payload: { targetId: string }, ack) => {
+      const result = withDevHostRoom(socket, (room) => {
+        if (room.phase !== "NIGHT_MAFIA") return { ok: false, error: "Любовница ходит ночью вместе с мафией" };
+        const mistress = room.players.find((player) => player.alive && player.role === "MISTRESS");
+        const target = findAlivePlayer(room, payload.targetId);
+        if (!mistress) return { ok: false, error: "В игре нет живой любовницы" };
+        if (!target) return { ok: false, error: "Цель не найдена или уже выбыла" };
+        if (isMafiaRole(target.role)) return { ok: false, error: "Любовница не отвлекает союзника мафии" };
+        room.nightActions.mistressTargetId = target.id;
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
     socket.on("dev_cast_vote", (payload: { voterId: string; targetId: string }, ack) => {
       const result = withDevHostRoom(socket, (room) => {
         if (room.phase !== "DAY_VOTING") return { ok: false, error: "Сейчас не голосование" };
@@ -216,6 +250,9 @@ export function registerRoomSockets(io: Server) {
         if (!voter) return { ok: false, error: "Голосующий не найден или выбыл" };
         if (!target) return { ok: false, error: "Цель голосования не найдена или выбыла" };
         if (voter.id === target.id) return { ok: false, error: "Нельзя голосовать против себя" };
+        if (voter.id === room.nightActions.mistressTargetId) {
+          return { ok: false, error: "Этот игрок отвлечен любовницей и пропускает голосование" };
+        }
         room.votes[voter.id] = target.id;
         return { ok: true };
       });
@@ -229,7 +266,9 @@ export function registerRoomSockets(io: Server) {
         const target = findAlivePlayer(room, payload.targetId);
         if (!target) return { ok: false, error: "Цель голосования не найдена или выбыла" };
         room.votes = {};
-        for (const voter of room.players.filter((player) => player.alive && player.id !== target.id)) {
+        for (const voter of room.players.filter(
+          (player) => player.alive && player.id !== target.id && player.id !== room.nightActions.mistressTargetId
+        )) {
           room.votes[voter.id] = target.id;
         }
         return { ok: true };
@@ -300,10 +339,29 @@ export function registerRoomSockets(io: Server) {
     socket.on("mafia_choose_target", (payload: { targetId: string }, ack) => {
       ack?.(
         withPlayerRoom(socket, (room, player) => {
-          if (room.phase !== "NIGHT_MAFIA" || player.role !== "MAFIA" || !player.alive) {
+          if (room.phase !== "NIGHT_MAFIA" || !isMafiaRole(player.role) || !player.alive) {
             return { ok: false, error: "Сейчас нельзя выбрать жертву" };
           }
-          room.nightActions.mafiaTargetId = payload.targetId;
+          const target = findAlivePlayer(room, payload.targetId);
+          if (!target) return { ok: false, error: "Игрок не найден" };
+          if (isMafiaRole(target.role)) return { ok: false, error: "Нельзя выбрать союзника мафии" };
+          room.nightActions.mafiaTargetId = target.id;
+          return { ok: true };
+        })
+      );
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("mistress_distract_player", (payload: { targetId: string }, ack) => {
+      ack?.(
+        withPlayerRoom(socket, (room, player) => {
+          if (room.phase !== "NIGHT_MAFIA" || player.role !== "MISTRESS" || !player.alive) {
+            return { ok: false, error: "Сейчас нельзя отвлечь игрока" };
+          }
+          const target = findAlivePlayer(room, payload.targetId);
+          if (!target) return { ok: false, error: "Игрок не найден" };
+          if (isMafiaRole(target.role)) return { ok: false, error: "Нельзя отвлечь союзника мафии" };
+          room.nightActions.mistressTargetId = target.id;
           return { ok: true };
         })
       );
@@ -322,7 +380,7 @@ export function registerRoomSockets(io: Server) {
           room.detectiveResult = {
             detectiveId: player.id,
             targetId: target.id,
-            isMafia: target.role === "MAFIA"
+            isMafia: isMafiaRole(target.role)
           };
           return { ok: true };
         })
@@ -348,6 +406,9 @@ export function registerRoomSockets(io: Server) {
         withPlayerRoom(socket, (room, player) => {
           if (room.phase !== "DAY_VOTING" || !player.alive) {
             return { ok: false, error: "Сейчас нельзя голосовать" };
+          }
+          if (player.id === room.nightActions.mistressTargetId) {
+            return { ok: false, error: "Вы отвлечены любовницей и пропускаете голосование" };
           }
           room.votes[player.id] = payload.targetId;
           return { ok: true };
@@ -420,16 +481,20 @@ function sanitizeSettings(settings: Partial<Room["settings"]>) {
   }
   if (typeof settings.hasDetective === "boolean") sanitized.hasDetective = settings.hasDetective;
   if (typeof settings.hasDoctor === "boolean") sanitized.hasDoctor = settings.hasDoctor;
+  if (typeof settings.hasDon === "boolean") sanitized.hasDon = settings.hasDon;
+  if (typeof settings.hasMistress === "boolean") sanitized.hasMistress = settings.hasMistress;
   return sanitized;
 }
 
 function getSettingsError(playerCount: number, settings: Room["settings"]) {
   const mafiaCount =
     settings.mafiaCount === "auto" ? Math.max(1, Math.floor(playerCount / 4)) : settings.mafiaCount;
+  const mafiaSpecialRolesCount = Number(settings.hasDon) + Number(settings.hasMistress);
   const specialRolesCount = Number(settings.hasDetective) + Number(settings.hasDoctor);
 
   if (mafiaCount < 1) return "Нужна хотя бы одна мафия";
   if (mafiaCount > Math.max(1, playerCount - 1)) return "Мафии не может быть столько же, сколько всех игроков";
+  if (mafiaSpecialRolesCount > mafiaCount) return "Особых ролей мафии больше, чем всего мафии";
   if (mafiaCount + specialRolesCount > playerCount) return "Ролей больше, чем игроков";
   return undefined;
 }
@@ -465,8 +530,12 @@ function simulateCurrentPhase(room: Room) {
   }
 
   if (room.phase === "NIGHT_MAFIA") {
-    const target = room.players.find((player) => player.alive && player.role !== "MAFIA");
+    const target = room.players.find((player) => player.alive && !isMafiaRole(player.role));
     if (target) room.nightActions.mafiaTargetId = target.id;
+    const mistressTarget = room.players.find(
+      (player) => player.alive && !isMafiaRole(player.role) && player.id !== target?.id
+    );
+    if (mistressTarget) room.nightActions.mistressTargetId = mistressTarget.id;
   }
 
   if (room.phase === "NIGHT_DETECTIVE") {
@@ -477,7 +546,7 @@ function simulateCurrentPhase(room: Room) {
       room.detectiveResult = {
         detectiveId: detective.id,
         targetId: target.id,
-        isMafia: target.role === "MAFIA"
+        isMafia: isMafiaRole(target.role)
       };
     }
   }
@@ -490,12 +559,13 @@ function simulateCurrentPhase(room: Room) {
   if (room.phase === "DAY_VOTING") {
     const alivePlayers = room.players.filter((player) => player.alive);
     const preferredTarget =
-      alivePlayers.find((player) => player.role === "MAFIA") ??
-      alivePlayers.find((player) => player.role !== "MAFIA") ??
+      alivePlayers.find((player) => isMafiaRole(player.role)) ??
+      alivePlayers.find((player) => !isMafiaRole(player.role)) ??
       alivePlayers[0];
 
     room.votes = {};
     for (const voter of alivePlayers) {
+      if (voter.id === room.nightActions.mistressTargetId) continue;
       const fallbackTarget = alivePlayers.find((player) => player.id !== voter.id);
       const target = preferredTarget?.id === voter.id ? fallbackTarget : preferredTarget;
       if (target) room.votes[voter.id] = target.id;
@@ -578,9 +648,9 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
     ownPlayerId,
     ownRole,
     mafiaAllies:
-      ownRole === "MAFIA" || isHost
+      isMafiaRole(ownRole) || isHost
         ? room.players
-            .filter((player) => player.role === "MAFIA")
+            .filter((player) => isMafiaRole(player.role))
             .map((player) => ({
               id: player.id,
               name: player.name,
@@ -605,4 +675,12 @@ function sanitizeVotes(votes: Votes, isHost: boolean) {
 
 function makeRoomCode() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+function refreshStatsDay() {
+  const today = new Date().toDateString();
+  if (today === statsDay) return;
+
+  statsDay = today;
+  totalRoomsCreatedToday = 0;
 }

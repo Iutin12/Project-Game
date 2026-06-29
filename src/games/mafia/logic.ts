@@ -5,6 +5,8 @@ export const defaultMafiaSettings = {
   mafiaCount: "auto",
   hasDetective: true,
   hasDoctor: true,
+  hasDon: false,
+  hasMistress: false,
   dayTimerSec: 300,
   votingTimerSec: 60,
   mode: "manual_host"
@@ -16,8 +18,17 @@ export function getMafiaCount(playerCount: number, setting: number | "auto") {
 
 export function assignRoles(players: Player[], room: Room): Player[] {
   const mafiaCount = getMafiaCount(players.length, room.settings.mafiaCount);
+  const mafiaRoles: Role[] = [
+    ...(room.settings.hasDon ? (["DON"] as Role[]) : []),
+    ...(room.settings.hasMistress ? (["MISTRESS"] as Role[]) : [])
+  ].slice(0, mafiaCount);
+
+  while (mafiaRoles.length < mafiaCount) {
+    mafiaRoles.push("MAFIA");
+  }
+
   const roles: Role[] = [
-    ...Array.from<Role>({ length: mafiaCount }).fill("MAFIA"),
+    ...mafiaRoles,
     ...(room.settings.hasDetective ? (["DETECTIVE"] as Role[]) : []),
     ...(room.settings.hasDoctor ? (["DOCTOR"] as Role[]) : [])
   ];
@@ -79,12 +90,16 @@ export function resolveVotes(players: Player[], votes: Votes) {
 
 export function checkWinner(players: Player[]) {
   const alive = players.filter((player) => player.alive);
-  const aliveMafiaCount = alive.filter((player) => player.role === "MAFIA").length;
+  const aliveMafiaCount = alive.filter((player) => isMafiaRole(player.role)).length;
   const aliveNonMafiaCount = alive.length - aliveMafiaCount;
 
   if (aliveMafiaCount === 0) return "CIVILIANS";
   if (aliveMafiaCount >= aliveNonMafiaCount) return "MAFIA";
   return undefined;
+}
+
+export function isMafiaRole(role?: Role) {
+  return role === "MAFIA" || role === "DON" || role === "MISTRESS";
 }
 
 function shuffle<T>(items: T[]) {

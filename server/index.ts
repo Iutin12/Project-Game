@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
-import { createDevRoom, createRoom, registerRoomSockets } from "./rooms";
+import { createDevRoom, createRoom, getStats, registerRoomSockets } from "./rooms";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "0.0.0.0";
@@ -22,6 +22,12 @@ app.prepare().then(() => {
       const room = createDevRoom();
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(room));
+      return;
+    }
+
+    if (req.method === "GET" && req.url === "/api/stats") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify(getStats()));
       return;
     }
 

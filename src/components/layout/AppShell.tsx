@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { JoinByCode } from "@/components/layout/JoinByCode";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -25,9 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <Link className="hidden rounded-lg border border-line bg-white px-4 py-3 text-sm font-semibold text-ink shadow-sm hover:bg-slate-50 sm:inline-flex" href="/room/DEMO">
-            Войти по коду
-          </Link>
+          <JoinByCode />
           <Link href="/games/mafia">
             <button className="rounded-lg bg-ocean px-3 py-3 text-sm font-semibold text-white shadow-soft transition hover:brightness-95 sm:px-4">
               + Создать<span className="hidden sm:inline"> комнату</span>

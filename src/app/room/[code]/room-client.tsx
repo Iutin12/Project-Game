@@ -178,14 +178,20 @@ function RolePanel({ room }: { room: PublicRoom }) {
 function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string, payload?: unknown) => void }) {
   const ownPlayer = room.players.find((player) => player.id === room.ownPlayerId);
   const targets = room.players.filter((player) => player.alive && player.id !== room.ownPlayerId);
+  const mafiaAllyIds = new Set(room.mafiaAllies.map((player) => player.id));
+  const nonMafiaTargets = targets.filter((player) => !mafiaAllyIds.has(player.id));
   const healTargets = room.players.filter((player) => player.alive);
 
   if (!ownPlayer?.alive && room.phase !== "LOBBY") {
     return <div className="rounded-2xl border border-line bg-white p-5 text-slate-600 shadow-soft">Вы выбыли, но можете наблюдать за игрой.</div>;
   }
 
-  if (room.phase === "NIGHT_MAFIA" && room.ownRole === "MAFIA") {
-    return <TargetList title="Выберите жертву" players={targets} onPick={(id) => emitAction("mafia_choose_target", { targetId: id })} />;
+  if (room.phase === "NIGHT_MAFIA" && (room.ownRole === "MAFIA" || room.ownRole === "DON")) {
+    return <TargetList title="Выберите жертву" players={nonMafiaTargets} onPick={(id) => emitAction("mafia_choose_target", { targetId: id })} />;
+  }
+
+  if (room.phase === "NIGHT_MAFIA" && room.ownRole === "MISTRESS") {
+    return <TargetList title="Кого отвлечь этой ночью" players={nonMafiaTargets} onPick={(id) => emitAction("mistress_distract_player", { targetId: id })} />;
   }
 
   if (room.phase === "NIGHT_DETECTIVE" && room.ownRole === "DETECTIVE") {
@@ -241,6 +247,22 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
               </select>
             </label>
             <label className="flex items-center justify-between gap-3 rounded-md border border-line bg-cloud px-3 py-2 text-sm text-slate-700">
+              Дон мафии
+              <input
+                type="checkbox"
+                checked={room.settings.hasDon}
+                onChange={(event) => updateSettings({ hasDon: event.target.checked })}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-md border border-line bg-cloud px-3 py-2 text-sm text-slate-700">
+              Любовница
+              <input
+                type="checkbox"
+                checked={room.settings.hasMistress}
+                onChange={(event) => updateSettings({ hasMistress: event.target.checked })}
+              />
+            </label>
+            <label className="flex items-center justify-between gap-3 rounded-md border border-line bg-cloud px-3 py-2 text-sm text-slate-700">
               Комиссар / шериф
               <input
                 type="checkbox"
@@ -259,8 +281,9 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
           </div>
         ) : (
           <p className="mt-2 text-sm text-slate-600">
-            Комиссар / шериф: {room.settings.hasDetective ? "есть" : "нет"}. Доктор:{" "}
-            {room.settings.hasDoctor ? "есть" : "нет"}.
+            Дон: {room.settings.hasDon ? "есть" : "нет"}. Любовница:{" "}
+            {room.settings.hasMistress ? "есть" : "нет"}. Комиссар / шериф:{" "}
+            {room.settings.hasDetective ? "есть" : "нет"}. Доктор: {room.settings.hasDoctor ? "есть" : "нет"}.
           </p>
         )}
       </div>

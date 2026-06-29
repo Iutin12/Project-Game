@@ -6,7 +6,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { phaseLabels } from "@/games/mafia/phases";
 import { roleLabels } from "@/games/mafia/roles";
-import type { PublicRoom } from "@/games/mafia/types";
+import type { PublicRoom, Role } from "@/games/mafia/types";
 
 type Ack = { ok: boolean; error?: string; playerId?: string };
 
@@ -199,6 +199,22 @@ function DevSettings({
         </select>
       </label>
       <label className="mt-3 flex items-center justify-between gap-3 text-sm text-slate-700">
+        Дон мафии
+        <input
+          type="checkbox"
+          checked={room.settings.hasDon}
+          onChange={(event) => emitDev("update_settings", { hasDon: event.target.checked })}
+        />
+      </label>
+      <label className="mt-2 flex items-center justify-between gap-3 text-sm text-slate-700">
+        Любовница
+        <input
+          type="checkbox"
+          checked={room.settings.hasMistress}
+          onChange={(event) => emitDev("update_settings", { hasMistress: event.target.checked })}
+        />
+      </label>
+      <label className="mt-2 flex items-center justify-between gap-3 text-sm text-slate-700">
         Комиссар / шериф
         <input
           type="checkbox"
@@ -228,6 +244,7 @@ function ManualPlayPanel({
   emitDev: (event: string, payload?: unknown) => void;
 }) {
   const mafiaTarget = room.players.find((player) => player.id === room.nightActions?.mafiaTargetId);
+  const mistressTarget = room.players.find((player) => player.id === room.nightActions?.mistressTargetId);
   const detectiveTarget = room.players.find((player) => player.id === room.nightActions?.detectiveTargetId);
   const doctorTarget = room.players.find((player) => player.id === room.nightActions?.doctorTargetId);
 
@@ -255,18 +272,31 @@ function ManualPlayPanel({
   }
 
   if (room.phase === "NIGHT_MAFIA") {
-    const targets = alivePlayers.filter((player) => player.role !== "MAFIA");
+    const targets = alivePlayers.filter((player) => !isMafiaRole(player.role));
     return (
       <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
         <h2 className="font-display text-3xl font-semibold text-ink">Ход мафии</h2>
         <p className="mt-2 text-slate-600">
           Выбрана жертва: {mafiaTarget ? mafiaTarget.name : "пока никто"}.
+          {room.players.some((player) => player.role === "MISTRESS") ? (
+            <> Любовница отвлекает: {mistressTarget ? mistressTarget.name : "пока никто"}.</>
+          ) : null}
         </p>
         <TargetButtons
           players={targets}
           activeId={room.nightActions?.mafiaTargetId}
           onPick={(targetId) => emitDev("dev_mafia_choose_target", { targetId })}
         />
+        {room.players.some((player) => player.role === "MISTRESS") ? (
+          <>
+            <h3 className="mt-5 font-semibold text-ink">Любовница отвлекает</h3>
+            <TargetButtons
+              players={targets}
+              activeId={room.nightActions?.mistressTargetId}
+              onPick={(targetId) => emitDev("dev_mistress_distract_player", { targetId })}
+            />
+          </>
+        ) : null}
       </section>
     );
   }
@@ -403,4 +433,8 @@ function TargetButtons({
       ))}
     </div>
   );
+}
+
+function isMafiaRole(role?: Role) {
+  return role === "MAFIA" || role === "DON" || role === "MISTRESS";
 }
