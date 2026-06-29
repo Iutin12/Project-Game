@@ -213,6 +213,8 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
   const connectedPlayersCount = room.players.filter((player) => player.connected).length;
   const resolvedMafiaCount =
     room.settings.mafiaCount === "auto" ? Math.max(1, Math.floor(connectedPlayersCount / 4)) : room.settings.mafiaCount;
+  const mafiaKillersLabel =
+    resolvedMafiaCount === 1 ? "1 убийца" : `${resolvedMafiaCount} убийцы`;
 
   function updateSettings(payload: Partial<PublicRoom["settings"]>) {
     emitAction("update_settings", payload);
@@ -224,12 +226,12 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
       <div className="mt-3 rounded-xl border border-line bg-white p-3">
         <div className="flex items-center justify-between gap-3">
           <p className="font-semibold text-ink">Настройки матча</p>
-          <span className="text-xs font-medium text-slate-500">{resolvedMafiaCount} мафия</span>
+          <span className="text-xs font-medium text-slate-500">{mafiaKillersLabel}</span>
         </div>
         {room.phase === "LOBBY" ? (
           <div className="mt-3 grid gap-3">
             <label className="grid gap-1 text-sm text-slate-600">
-              Количество мафии
+              Убийц мафии
               <select
                 className="rounded-md border border-line bg-white px-3 py-2 text-ink outline-none focus:border-ocean"
                 value={room.settings.mafiaCount}
@@ -240,10 +242,10 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
                 }
               >
                 <option value="auto">Авто</option>
-                <option value="1">1 мафия</option>
-                <option value="2">2 мафии</option>
-                <option value="3">3 мафии</option>
-                <option value="4">4 мафии</option>
+                <option value="1">1 убийца</option>
+                <option value="2">2 убийцы</option>
+                <option value="3">3 убийцы</option>
+                <option value="4">4 убийцы</option>
               </select>
             </label>
             <label className="flex items-center justify-between gap-3 rounded-md border border-line bg-cloud px-3 py-2 text-sm text-slate-700">

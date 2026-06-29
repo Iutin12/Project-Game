@@ -181,7 +181,7 @@ function DevSettings({
     <div className="rounded-xl border border-line bg-cloud p-3">
       <p className="font-semibold text-ink">Настройки ролей</p>
       <label className="mt-3 grid gap-1 text-sm text-slate-600">
-        Количество мафии
+        Убийц мафии
         <select
           className="rounded-md border border-line bg-white px-3 py-2 text-ink outline-none focus:border-ocean"
           value={room.settings.mafiaCount}
@@ -192,10 +192,10 @@ function DevSettings({
           }
         >
           <option value="auto">Авто</option>
-          <option value="1">1 мафия</option>
-          <option value="2">2 мафии</option>
-          <option value="3">3 мафии</option>
-          <option value="4">4 мафии</option>
+          <option value="1">1 убийца</option>
+          <option value="2">2 убийцы</option>
+          <option value="3">3 убийцы</option>
+          <option value="4">4 убийцы</option>
         </select>
       </label>
       <label className="mt-3 flex items-center justify-between gap-3 text-sm text-slate-700">

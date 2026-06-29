@@ -489,19 +489,18 @@ function sanitizeSettings(settings: Partial<Room["settings"]>) {
 function getSettingsError(playerCount: number, settings: Room["settings"]) {
   const mafiaCount =
     settings.mafiaCount === "auto" ? Math.max(1, Math.floor(playerCount / 4)) : settings.mafiaCount;
-  const mafiaSpecialRolesCount = Number(settings.hasDon) + Number(settings.hasMistress);
-  const specialRolesCount = Number(settings.hasDetective) + Number(settings.hasDoctor);
+  const extraRolesCount =
+    Number(settings.hasMistress) + Number(settings.hasDetective) + Number(settings.hasDoctor);
 
   if (mafiaCount < 1) return "Нужна хотя бы одна мафия";
   if (mafiaCount > Math.max(1, playerCount - 1)) return "Мафии не может быть столько же, сколько всех игроков";
-  if (mafiaSpecialRolesCount > mafiaCount) return "Особых ролей мафии больше, чем всего мафии";
-  if (mafiaCount + specialRolesCount > playerCount) return "Ролей больше, чем игроков";
+  if (mafiaCount + extraRolesCount > playerCount) return "Ролей больше, чем игроков";
   return undefined;
 }
 
 function getSettingsConfigError(settings: Room["settings"]) {
   if (typeof settings.mafiaCount === "number" && (settings.mafiaCount < 1 || settings.mafiaCount > 10)) {
-    return "Количество мафии должно быть от 1 до 10";
+    return "Количество убийц мафии должно быть от 1 до 10";
   }
   return undefined;
 }

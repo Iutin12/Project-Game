@@ -18,17 +18,15 @@ export function getMafiaCount(playerCount: number, setting: number | "auto") {
 
 export function assignRoles(players: Player[], room: Room): Player[] {
   const mafiaCount = getMafiaCount(players.length, room.settings.mafiaCount);
-  const mafiaRoles: Role[] = [
-    ...(room.settings.hasDon ? (["DON"] as Role[]) : []),
-    ...(room.settings.hasMistress ? (["MISTRESS"] as Role[]) : [])
-  ].slice(0, mafiaCount);
+  const mafiaKillerRoles: Role[] = room.settings.hasDon ? ["DON"] : [];
 
-  while (mafiaRoles.length < mafiaCount) {
-    mafiaRoles.push("MAFIA");
+  while (mafiaKillerRoles.length < mafiaCount) {
+    mafiaKillerRoles.push("MAFIA");
   }
 
   const roles: Role[] = [
-    ...mafiaRoles,
+    ...mafiaKillerRoles,
+    ...(room.settings.hasMistress ? (["MISTRESS"] as Role[]) : []),
     ...(room.settings.hasDetective ? (["DETECTIVE"] as Role[]) : []),
     ...(room.settings.hasDoctor ? (["DOCTOR"] as Role[]) : [])
   ];
