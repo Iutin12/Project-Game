@@ -9,13 +9,15 @@ const config: Config = {
         body: ["var(--font-body)", "Arial", "sans-serif"]
       },
       colors: {
-        night: "#090b10",
-        ember: "#dc2626",
-        blood: "#7f1d1d",
-        ash: "#d7d7d7"
+        ink: "#172033",
+        cloud: "#f7f8fb",
+        line: "#dfe6ef",
+        mint: "#2f9e7e",
+        ocean: "#2563eb",
+        coral: "#f9735b"
       },
       boxShadow: {
-        glow: "0 0 35px rgba(220, 38, 38, 0.25)"
+        soft: "0 18px 45px rgba(29, 55, 91, 0.1)"
       }
     }
   },

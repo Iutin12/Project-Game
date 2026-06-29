@@ -71,10 +71,10 @@ export function RoomClient({ code }: { code: string }) {
     return (
       <AppShell>
         <section className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center py-12">
-          <p className="text-sm uppercase tracking-[0.28em] text-red-200/60">Комната {code}</p>
-          <h1 className="mt-3 font-display text-5xl text-white">Вход в игру</h1>
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-ocean">Комната {code}</p>
+          <h1 className="mt-3 font-display text-5xl font-semibold text-ink">Вход в игру</h1>
           <input
-            className="mt-8 rounded-md border border-white/10 bg-black/35 px-4 py-3 text-white outline-none focus:border-red-300"
+            className="mt-8 rounded-md border border-line bg-white px-4 py-3 text-ink shadow-soft outline-none focus:border-ocean"
             placeholder="Ваш никнейм"
             value={name}
             maxLength={24}
@@ -86,7 +86,7 @@ export function RoomClient({ code }: { code: string }) {
           <Button className="mt-3" onClick={joinRoom} disabled={!socket || !name.trim()}>
             Войти
           </Button>
-          {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
+          {error ? <p className="mt-4 text-sm text-coral">{error}</p> : null}
         </section>
       </AppShell>
     );
@@ -96,12 +96,12 @@ export function RoomClient({ code }: { code: string }) {
     <AppShell>
       <section className="grid gap-5 py-8 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-5">
-          <div className="rounded-lg border border-white/10 bg-black/35 p-5">
+          <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-sm uppercase tracking-[0.28em] text-red-200/60">Комната {code}</p>
-                <h1 className="mt-2 font-display text-5xl text-white">{phaseLabels[room?.phase ?? "LOBBY"]}</h1>
-                <p className="mt-3 text-white/65">{phaseHint}</p>
+                <p className="text-sm font-semibold uppercase tracking-[0.22em] text-ocean">Комната {code}</p>
+                <h1 className="mt-2 font-display text-5xl font-semibold text-ink">{phaseLabels[room?.phase ?? "LOBBY"]}</h1>
+                <p className="mt-3 text-slate-600">{phaseHint}</p>
               </div>
               <Button variant="secondary" onClick={copyInvite}>
                 {copied ? "Скопировано" : "Ссылка"}
@@ -113,7 +113,7 @@ export function RoomClient({ code }: { code: string }) {
             <>
               <RolePanel room={room} />
               <ActionPanel room={room} emitAction={emitAction} />
-              {error ? <p className="rounded-md border border-red-400/30 bg-red-950/40 p-4 text-sm text-red-200">{error}</p> : null}
+              {error ? <p className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-coral">{error}</p> : null}
             </>
           ) : null}
         </div>
@@ -136,19 +136,19 @@ function RolePanel({ room }: { room: PublicRoom }) {
   const eliminated = room.players.find((player) => player.id === room.lastVoteEliminatedId);
 
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.06] p-5">
+    <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
       {ownRole ? (
         <>
-          <p className="text-sm uppercase tracking-[0.22em] text-white/45">Твоя роль</p>
-          <h2 className="mt-2 font-display text-4xl text-white">{roleLabels[ownRole]}</h2>
-          <p className="mt-2 text-white/65">{roleDescriptions[ownRole]}</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">Твоя роль</p>
+          <h2 className="mt-2 font-display text-4xl font-semibold text-ink">{roleLabels[ownRole]}</h2>
+          <p className="mt-2 text-slate-600">{roleDescriptions[ownRole]}</p>
           {room.mafiaAllies.length > 0 ? (
-            <p className="mt-4 text-sm text-red-200">
+            <p className="mt-4 rounded-md bg-slate-50 p-3 text-sm text-slate-700">
               Союзники: {room.mafiaAllies.map((player) => player.name).join(", ")}
             </p>
           ) : null}
           {room.detectiveResult ? (
-            <p className="mt-4 rounded-md bg-black/35 p-3 text-sm text-white/75">
+            <p className="mt-4 rounded-md bg-blue-50 p-3 text-sm text-blue-800">
               Результат проверки:{" "}
               {room.players.find((player) => player.id === room.detectiveResult?.targetId)?.name} -
               {room.detectiveResult.isMafia ? " мафия" : " не мафия"}
@@ -156,18 +156,18 @@ function RolePanel({ room }: { room: PublicRoom }) {
           ) : null}
         </>
       ) : (
-        <p className="text-white/65">Ожидаем запуска игры.</p>
+        <p className="text-slate-600">Ожидаем запуска игры.</p>
       )}
       {room.phase === "DAY_DISCUSSION" ? (
-        <p className="mt-4 text-white/75">
+        <p className="mt-4 text-slate-700">
           {killed ? `Этой ночью погиб: ${killed.name}` : "Этой ночью никто не погиб."}
         </p>
       ) : null}
       {eliminated && room.phase !== "DAY_VOTING" ? (
-        <p className="mt-2 text-white/75">По итогам голосования выбыл: {eliminated.name}</p>
+        <p className="mt-2 text-slate-700">По итогам голосования выбыл: {eliminated.name}</p>
       ) : null}
       {room.phase === "GAME_OVER" ? (
-        <p className="mt-4 text-xl text-red-100">
+        <p className="mt-4 text-xl font-semibold text-mint">
           Победили: {room.winner === "MAFIA" ? "Мафия" : "Мирные жители"}
         </p>
       ) : null}
@@ -181,7 +181,7 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
   const healTargets = room.players.filter((player) => player.alive);
 
   if (!ownPlayer?.alive && room.phase !== "LOBBY") {
-    return <div className="rounded-lg border border-white/10 bg-white/[0.04] p-5 text-white/60">Вы выбыли, но можете наблюдать за игрой.</div>;
+    return <div className="rounded-2xl border border-line bg-white p-5 text-slate-600 shadow-soft">Вы выбыли, но можете наблюдать за игрой.</div>;
   }
 
   if (room.phase === "NIGHT_MAFIA" && room.ownRole === "MAFIA") {
@@ -205,8 +205,8 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
 
 function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string, payload?: unknown) => void }) {
   return (
-    <div className="rounded-lg border border-red-300/20 bg-red-950/20 p-4">
-      <p className="text-sm uppercase tracking-[0.22em] text-red-100/60">Ведущий</p>
+    <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-soft">
+      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-500">Ведущий</p>
       <div className="mt-4 grid gap-2">
         {room.phase === "LOBBY" ? (
           <Button onClick={() => emitAction("start_game")} disabled={room.players.filter((player) => player.connected).length < 5}>
@@ -219,7 +219,7 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
         {room.phase === "GAME_OVER" ? <Button onClick={() => emitAction("restart_game")}>Вернуться в лобби</Button> : null}
       </div>
       {room.nightActions ? (
-        <p className="mt-4 text-xs leading-5 text-white/50">
+        <p className="mt-4 text-xs leading-5 text-blue-900/60">
           Ночные действия: мафия {room.nightActions.mafiaTargetId ? "выбрала цель" : "ждет"}, комиссар{" "}
           {room.nightActions.detectiveTargetId ? "проверил" : "ждет"}, доктор{" "}
           {room.nightActions.doctorTargetId ? "выбрал" : "ждет"}.
@@ -231,16 +231,16 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
 
 function PlayersPanel({ title, players, empty = "Нет игроков" }: { title: string; players: PublicPlayer[]; empty?: string }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-black/30 p-4">
-      <h2 className="font-display text-2xl text-white">{title}</h2>
+    <div className="rounded-2xl border border-line bg-white p-4 shadow-soft">
+      <h2 className="font-display text-2xl font-semibold text-ink">{title}</h2>
       <div className="mt-4 space-y-2">
-        {players.length === 0 ? <p className="text-sm text-white/45">{empty}</p> : null}
+        {players.length === 0 ? <p className="text-sm text-slate-400">{empty}</p> : null}
         {players.map((player) => (
-          <div key={player.id} className="flex items-center justify-between gap-2 rounded-md bg-white/[0.06] px-3 py-2">
-            <span className="text-white/85">
+          <div key={player.id} className="flex items-center justify-between gap-2 rounded-md border border-line bg-cloud px-3 py-2">
+            <span className="text-slate-700">
               {player.name} {player.isHost ? "· хост" : ""}
             </span>
-            <span className="text-xs text-white/45">{player.role ? roleLabels[player.role] : player.connected ? "online" : "offline"}</span>
+            <span className="text-xs font-medium text-slate-400">{player.role ? roleLabels[player.role] : player.connected ? "online" : "offline"}</span>
           </div>
         ))}
       </div>
@@ -250,8 +250,8 @@ function PlayersPanel({ title, players, empty = "Нет игроков" }: { tit
 
 function TargetList({ title, players, onPick }: { title: string; players: PublicPlayer[]; onPick: (id: string) => void }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-white/[0.06] p-5">
-      <h2 className="font-display text-3xl text-white">{title}</h2>
+    <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+      <h2 className="font-display text-3xl font-semibold text-ink">{title}</h2>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {players.map((player) => (
           <Button key={player.id} variant="secondary" onClick={() => onPick(player.id)}>

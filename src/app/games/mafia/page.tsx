@@ -31,9 +31,9 @@ export default function MafiaPage() {
     <AppShell>
       <section className="grid flex-1 items-center gap-8 py-12 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
-          <p className="text-sm uppercase tracking-[0.32em] text-red-300/75">доступно сейчас</p>
-          <h1 className="mt-3 font-display text-6xl text-white">Мафия</h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-white/70">
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-mint">доступно сейчас</p>
+          <h1 className="mt-3 font-display text-6xl font-semibold text-ink">Мафия</h1>
+          <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">
             Создайте приватную комнату, пригласите друзей по ссылке и проведите игру с
             автоматической раздачей ролей, ночными действиями, голосованием и проверкой победы.
           </p>
@@ -45,7 +45,7 @@ export default function MafiaPage() {
               <Button variant="secondary">Правила</Button>
             </a>
           </div>
-          {error ? <p className="mt-4 text-sm text-red-300">{error}</p> : null}
+          {error ? <p className="mt-4 text-sm text-coral">{error}</p> : null}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -55,9 +55,9 @@ export default function MafiaPage() {
             ["real-time", "лобби"],
             ["manual", "режим ведущего"]
           ].map(([value, label]) => (
-            <div key={label} className="rounded-lg border border-white/10 bg-white/[0.06] p-5">
-              <p className="font-display text-4xl text-white">{value}</p>
-              <p className="mt-2 text-sm uppercase tracking-[0.2em] text-white/45">{label}</p>
+            <div key={label} className="rounded-xl border border-line bg-white p-5 shadow-soft">
+              <p className="font-display text-4xl font-semibold text-ink">{value}</p>
+              <p className="mt-2 text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">{label}</p>
             </div>
           ))}
         </div>
