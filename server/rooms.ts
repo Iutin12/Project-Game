@@ -145,6 +145,83 @@ export function registerRoomSockets(io: Server) {
       emitOwnRoom(io, socket);
     });
 
+    socket.on("dev_mafia_choose_target", (payload: { targetId: string }, ack) => {
+      const result = withDevHostRoom(socket, (room) => {
+        if (room.phase !== "NIGHT_MAFIA") return { ok: false, error: "Сейчас не ход мафии" };
+        const target = findAlivePlayer(room, payload.targetId);
+        if (!target) return { ok: false, error: "Цель не найдена или уже выбыла" };
+        if (target.role === "MAFIA") return { ok: false, error: "Мафия не выбирает своего союзника" };
+        room.nightActions.mafiaTargetId = target.id;
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("dev_detective_check_player", (payload: { targetId: string }, ack) => {
+      const result = withDevHostRoom(socket, (room) => {
+        if (room.phase !== "NIGHT_DETECTIVE") return { ok: false, error: "Сейчас не ход комиссара" };
+        const detective = room.players.find((player) => player.alive && player.role === "DETECTIVE");
+        const target = findAlivePlayer(room, payload.targetId);
+        if (!detective) return { ok: false, error: "В игре нет живого комиссара" };
+        if (!target) return { ok: false, error: "Цель не найдена или уже выбыла" };
+        if (target.id === detective.id) return { ok: false, error: "Комиссар не проверяет сам себя" };
+        room.nightActions.detectiveTargetId = target.id;
+        room.detectiveResult = {
+          detectiveId: detective.id,
+          targetId: target.id,
+          isMafia: target.role === "MAFIA"
+        };
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("dev_doctor_save_player", (payload: { targetId: string }, ack) => {
+      const result = withDevHostRoom(socket, (room) => {
+        if (room.phase !== "NIGHT_DOCTOR") return { ok: false, error: "Сейчас не ход доктора" };
+        const doctor = room.players.find((player) => player.alive && player.role === "DOCTOR");
+        const target = findAlivePlayer(room, payload.targetId);
+        if (!doctor) return { ok: false, error: "В игре нет живого доктора" };
+        if (!target) return { ok: false, error: "Цель не найдена или уже выбыла" };
+        room.nightActions.doctorTargetId = target.id;
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("dev_cast_vote", (payload: { voterId: string; targetId: string }, ack) => {
+      const result = withDevHostRoom(socket, (room) => {
+        if (room.phase !== "DAY_VOTING") return { ok: false, error: "Сейчас не голосование" };
+        const voter = findAlivePlayer(room, payload.voterId);
+        const target = findAlivePlayer(room, payload.targetId);
+        if (!voter) return { ok: false, error: "Голосующий не найден или выбыл" };
+        if (!target) return { ok: false, error: "Цель голосования не найдена или выбыла" };
+        if (voter.id === target.id) return { ok: false, error: "Нельзя голосовать против себя" };
+        room.votes[voter.id] = target.id;
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("dev_cast_all_votes", (payload: { targetId: string }, ack) => {
+      const result = withDevHostRoom(socket, (room) => {
+        if (room.phase !== "DAY_VOTING") return { ok: false, error: "Сейчас не голосование" };
+        const target = findAlivePlayer(room, payload.targetId);
+        if (!target) return { ok: false, error: "Цель голосования не найдена или выбыла" };
+        room.votes = {};
+        for (const voter of room.players.filter((player) => player.alive && player.id !== target.id)) {
+          room.votes[voter.id] = target.id;
+        }
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
     socket.on("start_game", (_, ack) => {
       const result = withHostRoom(socket, (room) => {
         const connectedPlayers = room.players.filter((player) => player.connected);
@@ -312,6 +389,10 @@ function withDevHostRoom(socket: Socket, action: (room: Room) => { ok: boolean; 
     if (!room.devMode) return { ok: false, error: "Dev-действие доступно только в тестовой комнате" };
     return action(room);
   });
+}
+
+function findAlivePlayer(room: Room, playerId?: string) {
+  return room.players.find((player) => player.id === playerId && player.alive);
 }
 
 function simulateCurrentPhase(room: Room) {

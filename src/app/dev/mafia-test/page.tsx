@@ -47,14 +47,15 @@ export default function MafiaTestPage() {
     }
   }
 
-  function emitDev(event: string) {
+  function emitDev(event: string, payload: unknown = {}) {
     setError("");
-    socket?.emit(event, {}, (ack: Ack) => {
+    socket?.emit(event, payload, (ack: Ack) => {
       if (!ack.ok) setError(ack.error ?? "Dev-действие не выполнено");
     });
   }
 
   const aliveCount = useMemo(() => room?.players.filter((player) => player.alive).length ?? 0, [room]);
+  const alivePlayers = useMemo(() => room?.players.filter((player) => player.alive) ?? [], [room]);
 
   return (
     <AppShell>
@@ -96,6 +97,8 @@ export default function MafiaTestPage() {
                 </a>
               </div>
             </div>
+
+            <ManualPlayPanel room={room} alivePlayers={alivePlayers} emitDev={emitDev} />
 
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {room.players.map((player) => (
@@ -148,7 +151,10 @@ export default function MafiaTestPage() {
 
             <div className="rounded-2xl border border-line bg-white p-4 text-sm text-slate-600 shadow-soft">
               <p className="font-semibold text-ink">Что проверять</p>
-              <p className="mt-2">Dev-режим видит все роли, заполняет действия ботов и быстро гоняет цикл игры.</p>
+              <p className="mt-2">
+                Ручная панель ниже главного статуса позволяет полноценно выбирать действия ролей.
+                Кнопки симуляции остаются как быстрый автопрогон.
+              </p>
             </div>
           </aside>
         </section>
@@ -158,5 +164,192 @@ export default function MafiaTestPage() {
         </section>
       )}
     </AppShell>
+  );
+}
+
+function ManualPlayPanel({
+  room,
+  alivePlayers,
+  emitDev
+}: {
+  room: PublicRoom;
+  alivePlayers: PublicRoom["players"];
+  emitDev: (event: string, payload?: unknown) => void;
+}) {
+  const mafiaTarget = room.players.find((player) => player.id === room.nightActions?.mafiaTargetId);
+  const detectiveTarget = room.players.find((player) => player.id === room.nightActions?.detectiveTargetId);
+  const doctorTarget = room.players.find((player) => player.id === room.nightActions?.doctorTargetId);
+
+  if (room.phase === "LOBBY") {
+    return (
+      <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+        <h2 className="font-display text-3xl font-semibold text-ink">Подготовка партии</h2>
+        <p className="mt-2 text-slate-600">
+          Добавьте ботов до пяти игроков и нажмите “Запустить игру”. После этого появятся ручные действия
+          для каждой фазы.
+        </p>
+      </section>
+    );
+  }
+
+  if (room.phase === "ROLE_REVEAL") {
+    return (
+      <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+        <h2 className="font-display text-3xl font-semibold text-ink">Роли выданы</h2>
+        <p className="mt-2 text-slate-600">
+          Посмотрите роли на карточках игроков и переходите к ночи кнопкой “Следующая фаза”.
+        </p>
+      </section>
+    );
+  }
+
+  if (room.phase === "NIGHT_MAFIA") {
+    const targets = alivePlayers.filter((player) => player.role !== "MAFIA");
+    return (
+      <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+        <h2 className="font-display text-3xl font-semibold text-ink">Ход мафии</h2>
+        <p className="mt-2 text-slate-600">
+          Выбрана жертва: {mafiaTarget ? mafiaTarget.name : "пока никто"}.
+        </p>
+        <TargetButtons
+          players={targets}
+          activeId={room.nightActions?.mafiaTargetId}
+          onPick={(targetId) => emitDev("dev_mafia_choose_target", { targetId })}
+        />
+      </section>
+    );
+  }
+
+  if (room.phase === "NIGHT_DETECTIVE") {
+    const detective = alivePlayers.find((player) => player.role === "DETECTIVE");
+    const targets = alivePlayers.filter((player) => player.id !== detective?.id);
+    return (
+      <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+        <h2 className="font-display text-3xl font-semibold text-ink">Ход комиссара</h2>
+        <p className="mt-2 text-slate-600">
+          Проверен: {detectiveTarget ? detectiveTarget.name : "пока никто"}.
+          {room.detectiveResult ? ` Результат: ${room.detectiveResult.isMafia ? "мафия" : "не мафия"}.` : ""}
+        </p>
+        <TargetButtons
+          players={targets}
+          activeId={room.nightActions?.detectiveTargetId}
+          onPick={(targetId) => emitDev("dev_detective_check_player", { targetId })}
+        />
+      </section>
+    );
+  }
+
+  if (room.phase === "NIGHT_DOCTOR") {
+    return (
+      <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+        <h2 className="font-display text-3xl font-semibold text-ink">Ход доктора</h2>
+        <p className="mt-2 text-slate-600">
+          Лечение: {doctorTarget ? doctorTarget.name : "пока никто"}. Если доктор выберет жертву мафии,
+          игрок переживет ночь.
+        </p>
+        <TargetButtons
+          players={alivePlayers}
+          activeId={room.nightActions?.doctorTargetId}
+          onPick={(targetId) => emitDev("dev_doctor_save_player", { targetId })}
+        />
+      </section>
+    );
+  }
+
+  if (room.phase === "DAY_DISCUSSION") {
+    const killed = room.players.find((player) => player.id === room.lastNightKilledId);
+    return (
+      <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+        <h2 className="font-display text-3xl font-semibold text-ink">День</h2>
+        <p className="mt-2 text-slate-600">
+          Итог ночи: {killed ? `погиб ${killed.name}` : "никто не погиб"}. После обсуждения переходите к
+          голосованию.
+        </p>
+      </section>
+    );
+  }
+
+  if (room.phase === "DAY_VOTING") {
+    return (
+      <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="font-display text-3xl font-semibold text-ink">Голосование</h2>
+            <p className="mt-2 text-slate-600">Выберите, кто из живых игроков голосует против кого.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {alivePlayers.map((target) => (
+              <Button
+                key={target.id}
+                variant="secondary"
+                onClick={() => emitDev("dev_cast_all_votes", { targetId: target.id })}
+              >
+                Все против {target.name}
+              </Button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-5 space-y-3">
+          {alivePlayers.map((voter) => (
+            <div key={voter.id} className="rounded-xl border border-line bg-cloud p-3">
+              <p className="font-semibold text-ink">
+                {voter.name} голосует против:{" "}
+                <span className="text-slate-500">
+                  {room.votes[voter.id]
+                    ? room.players.find((player) => player.id === room.votes[voter.id])?.name
+                    : "не выбрано"}
+                </span>
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {alivePlayers
+                  .filter((target) => target.id !== voter.id)
+                  .map((target) => (
+                    <Button
+                      key={target.id}
+                      variant={room.votes[voter.id] === target.id ? "primary" : "secondary"}
+                      onClick={() => emitDev("dev_cast_vote", { voterId: voter.id, targetId: target.id })}
+                    >
+                      {target.name}
+                    </Button>
+                  ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+      <h2 className="font-display text-3xl font-semibold text-ink">Игра окончена</h2>
+      <p className="mt-2 text-slate-600">
+        Победили: {room.winner === "MAFIA" ? "Мафия" : "Мирные жители"}.
+      </p>
+    </section>
+  );
+}
+
+function TargetButtons({
+  players,
+  activeId,
+  onPick
+}: {
+  players: PublicRoom["players"];
+  activeId?: string;
+  onPick: (targetId: string) => void;
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap gap-2">
+      {players.map((player) => (
+        <Button
+          key={player.id}
+          variant={activeId === player.id ? "primary" : "secondary"}
+          onClick={() => onPick(player.id)}
+        >
+          {player.name}
+        </Button>
+      ))}
+    </div>
   );
 }
