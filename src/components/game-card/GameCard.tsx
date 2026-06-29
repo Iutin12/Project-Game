@@ -7,23 +7,32 @@ type GameCardProps = {
 
 export function GameCard({ game }: GameCardProps) {
   const content = (
-    <article className="group relative h-full overflow-hidden rounded-xl border border-line bg-white p-5 shadow-soft transition hover:-translate-y-1 hover:border-ocean/30 hover:shadow-lg">
-      <img
-        src={game.illustration}
-        alt=""
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-8 -top-7 h-32 w-32 opacity-20 transition group-hover:scale-105 group-hover:opacity-30"
-      />
-      <div className="relative flex items-start justify-between gap-3">
-        <h3 className="font-display text-3xl font-semibold text-ink">{game.title}</h3>
-        <span className="rounded-full border border-line bg-slate-50 px-3 py-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+    <article className="group relative h-full overflow-hidden rounded-xl border border-line bg-white p-4 shadow-soft transition hover:-translate-y-1 hover:border-ocean/30 hover:shadow-lg">
+      <div className="relative flex items-start gap-4">
+        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-slate-50">
+          <img
+            src={game.illustration}
+            alt=""
+            aria-hidden="true"
+            className="h-12 w-12 opacity-90 transition group-hover:scale-105"
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <span className="rounded-full bg-red-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-ocean">
+            {game.status === "available" ? "Доступно" : "Скоро"}
+          </span>
+          <h3 className="mt-3 text-lg font-bold text-ink">{game.title}</h3>
+          <p className="mt-1 text-xs leading-5 text-slate-600">{game.description}</p>
+        </div>
+        <span className="hidden rounded-full border border-line bg-slate-50 px-3 py-1 text-xs uppercase tracking-[0.16em] text-slate-500">
           {game.status === "available" ? "Доступно" : "Скоро"}
         </span>
       </div>
-      <p className="relative mt-4 min-h-16 text-sm leading-6 text-slate-600">{game.description}</p>
-      <p className="relative mt-5 text-sm font-medium text-slate-500">
-        {game.minPlayers}-{game.maxPlayers} игроков
-      </p>
+      <div className="relative mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold text-slate-500">
+        <span className="whitespace-nowrap">♟ {game.minPlayers}-{game.maxPlayers} игроков</span>
+        <span className="whitespace-nowrap">◷ {game.duration}</span>
+        {game.status === "available" ? <span className="ml-auto whitespace-nowrap text-ocean">Играть ›</span> : null}
+      </div>
     </article>
   );
 

@@ -7,6 +7,7 @@ export type GameConfig = {
   maxPlayers: number;
   route: string;
   illustration: string;
+  duration: string;
 };
 
 export const games: GameConfig[] = [
@@ -18,7 +19,8 @@ export const games: GameConfig[] = [
     minPlayers: 5,
     maxPlayers: 15,
     route: "/games/mafia",
-    illustration: "/game-cards/mafia.svg"
+    illustration: "/game-cards/mafia.svg",
+    duration: "10-30 мин"
   },
   {
     id: "bunker",
@@ -28,7 +30,8 @@ export const games: GameConfig[] = [
     minPlayers: 4,
     maxPlayers: 16,
     route: "/games/bunker",
-    illustration: "/game-cards/bunker.svg"
+    illustration: "/game-cards/bunker.svg",
+    duration: "15-30 мин"
   },
   {
     id: "spy",
@@ -38,7 +41,8 @@ export const games: GameConfig[] = [
     minPlayers: 3,
     maxPlayers: 12,
     route: "/games/spy",
-    illustration: "/game-cards/spy.svg"
+    illustration: "/game-cards/spy.svg",
+    duration: "10-20 мин"
   },
   {
     id: "whoami",
@@ -48,6 +52,18 @@ export const games: GameConfig[] = [
     minPlayers: 3,
     maxPlayers: 12,
     route: "/games/whoami",
-    illustration: "/game-cards/whoami.svg"
+    illustration: "/game-cards/whoami.svg",
+    duration: "10-15 мин"
+  },
+  {
+    id: "crocodile",
+    title: "Крокодил",
+    description: "Объясняйте слова жестами, чтобы команда их угадала.",
+    status: "coming_soon",
+    minPlayers: 4,
+    maxPlayers: 12,
+    route: "/games/crocodile",
+    illustration: "/game-cards/crocodile.svg",
+    duration: "10-20 мин"
   }
 ];

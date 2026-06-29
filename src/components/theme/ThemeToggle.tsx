@@ -23,8 +23,8 @@ export function ThemeToggle() {
   }
 
   return (
-    <Button type="button" variant="ghost" className="px-3 py-2" onClick={toggleTheme}>
-      {theme === "dark" ? "Светлая" : "Темная"}
+    <Button type="button" variant="secondary" className="h-11 w-12 px-0 text-lg" onClick={toggleTheme} aria-label="Переключить тему">
+      {theme === "dark" ? "☀" : "◐"}
     </Button>
   );
 }
