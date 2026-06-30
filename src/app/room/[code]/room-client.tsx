@@ -650,18 +650,16 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
 
   return (
     <div className="rounded-2xl border border-line bg-white p-4 shadow-soft">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="font-display text-2xl font-semibold text-ink">Чат</h2>
-        {hasUnreadMessages ? (
-          <button
-            type="button"
-            className="rounded-full bg-ocean/10 px-3 py-1 text-xs font-semibold text-ocean transition hover:bg-ocean/15"
-            onClick={scrollChatToBottom}
-          >
-            Новые
-          </button>
-        ) : null}
-      </div>
+      <h2 className="font-display text-2xl font-semibold text-ink">Чат</h2>
+      {hasUnreadMessages ? (
+        <button
+          type="button"
+          className="fixed bottom-5 right-5 z-40 rounded-full border border-ocean/15 bg-white/95 px-4 py-2 text-sm font-semibold text-ocean shadow-soft backdrop-blur transition hover:-translate-y-0.5 hover:bg-ocean/10 sm:bottom-7 sm:right-7"
+          onClick={scrollChatToBottom}
+        >
+          Новые сообщения
+        </button>
+      ) : null}
       <div
         ref={messagesRef}
         className="mt-4 flex max-h-64 flex-col gap-2 overflow-y-auto rounded-xl bg-cloud p-3"
