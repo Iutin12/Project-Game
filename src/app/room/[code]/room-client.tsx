@@ -612,12 +612,34 @@ function PlayersPanel({ title, players, empty = "Нет игроков" }: { tit
 
 function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string, payload?: unknown) => void }) {
   const [message, setMessage] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
+  const previousMessageCountRef = useRef(room.chatMessages.length);
   const emojis = ["🙂", "😂", "😈", "🤔", "👏", "🔥"];
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [room.chatMessages.length]);
+    const messagesNode = messagesRef.current;
+    if (!messagesNode) return;
+
+    const lastMessage = room.chatMessages.at(-1);
+    const hasNewMessage = room.chatMessages.length > previousMessageCountRef.current;
+    const shouldStayPinned =
+      isChatNearBottom(messagesNode) || lastMessage?.playerId === room.ownPlayerId || previousMessageCountRef.current === 0;
+
+    if (shouldStayPinned) {
+      messagesNode.scrollTo({ top: messagesNode.scrollHeight, behavior: hasNewMessage ? "smooth" : "auto" });
+      setHasUnreadMessages(false);
+    } else if (hasNewMessage) {
+      setHasUnreadMessages(true);
+    }
+
+    previousMessageCountRef.current = room.chatMessages.length;
+  }, [room.chatMessages, room.ownPlayerId]);
+
+  function scrollChatToBottom() {
+    messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: "smooth" });
+    setHasUnreadMessages(false);
+  }
 
   function sendMessage() {
     const text = message.trim();
@@ -628,8 +650,25 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
 
   return (
     <div className="rounded-2xl border border-line bg-white p-4 shadow-soft">
-      <h2 className="font-display text-2xl font-semibold text-ink">Чат</h2>
-      <div className="mt-4 flex max-h-64 flex-col gap-2 overflow-y-auto rounded-xl bg-cloud p-3">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-2xl font-semibold text-ink">Чат</h2>
+        {hasUnreadMessages ? (
+          <button
+            type="button"
+            className="rounded-full bg-ocean/10 px-3 py-1 text-xs font-semibold text-ocean transition hover:bg-ocean/15"
+            onClick={scrollChatToBottom}
+          >
+            Новые
+          </button>
+        ) : null}
+      </div>
+      <div
+        ref={messagesRef}
+        className="mt-4 flex max-h-64 flex-col gap-2 overflow-y-auto rounded-xl bg-cloud p-3"
+        onScroll={(event) => {
+          if (isChatNearBottom(event.currentTarget)) setHasUnreadMessages(false);
+        }}
+      >
         {room.chatMessages.length === 0 ? (
           <p className="text-sm text-slate-400">Пока нет сообщений</p>
         ) : null}
@@ -639,7 +678,6 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
             <p className="mt-1 break-words text-slate-600">{item.text}</p>
           </div>
         ))}
-        <div ref={messagesEndRef} />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         {emojis.map((emoji) => (
@@ -670,6 +708,10 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
       </div>
     </div>
   );
+}
+
+function isChatNearBottom(node: HTMLDivElement) {
+  return node.scrollHeight - node.scrollTop - node.clientHeight < 32;
 }
 
 function TargetList({
