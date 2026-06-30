@@ -16,9 +16,13 @@ export type MafiaSettings = {
   hasDoctor: boolean;
   hasDon: boolean;
   hasMistress: boolean;
+  mafiaTimerSec: number;
+  donTimerSec: number;
+  detectiveTimerSec: number;
+  doctorTimerSec: number;
   dayTimerSec: number;
   votingTimerSec: number;
-  mode: "manual_host";
+  mode: "manual" | "timed";
 };
 
 export type NightActions = {
@@ -63,6 +67,7 @@ export type Room = {
   votes: Votes;
   chatMessages: ChatMessage[];
   createdAt: number;
+  phaseDeadlineAt?: number;
   devMode?: boolean;
   lastNightKilledId?: string;
   lastVoteEliminatedId?: string;

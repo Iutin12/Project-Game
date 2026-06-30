@@ -7,9 +7,13 @@ export const defaultMafiaSettings = {
   hasDoctor: true,
   hasDon: false,
   hasMistress: false,
+  mafiaTimerSec: 30,
+  donTimerSec: 30,
+  detectiveTimerSec: 25,
+  doctorTimerSec: 25,
   dayTimerSec: 300,
   votingTimerSec: 60,
-  mode: "manual_host"
+  mode: "manual"
 } as const;
 
 export function getMafiaCount(playerCount: number, setting: number | "auto") {
@@ -17,7 +21,7 @@ export function getMafiaCount(playerCount: number, setting: number | "auto") {
 }
 
 export function assignRoles(players: Player[], room: Room): Player[] {
-  const activePlayers = players.filter((player) => !player.isSpectator);
+  const activePlayers = players.filter((player) => player.connected && !player.isSpectator);
   const mafiaCount = getMafiaCount(activePlayers.length, room.settings.mafiaCount);
   const mafiaKillerRoles: Role[] = room.settings.hasDon ? ["DON"] : [];
 
@@ -43,8 +47,8 @@ export function assignRoles(players: Player[], room: Room): Player[] {
 
   return players.map((player) => ({
     ...player,
-    alive: true,
-    role: player.isSpectator ? undefined : roleByPlayerId.get(player.id)
+    alive: player.isSpectator || !player.connected ? false : true,
+    role: player.connected && !player.isSpectator ? roleByPlayerId.get(player.id) : undefined
   }));
 }
 
