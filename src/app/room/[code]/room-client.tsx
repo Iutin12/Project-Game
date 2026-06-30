@@ -128,42 +128,68 @@ export function RoomClient({ code }: { code: string }) {
 
   return (
     <AppShell>
-      <section className="grid gap-5 py-8 lg:grid-cols-[1fr_22rem]">
-        <div className="space-y-5">
-          <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
-            <div className="flex flex-wrap items-start justify-between gap-4">
+      <section className="py-6">
+        <div className="rounded-[2rem] border border-line bg-white/85 p-4 shadow-soft backdrop-blur md:p-6">
+          <div className="relative overflow-hidden rounded-[1.5rem] border border-line bg-[radial-gradient(circle_at_0%_0%,rgba(239,61,61,0.18),transparent_22rem),linear-gradient(135deg,var(--color-surface),var(--color-surface-muted))] p-5 md:p-7">
+            <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.22em] text-ocean">Комната {code}</p>
-                <h1 className="mt-2 font-display text-5xl font-semibold text-ink">{phaseLabels[room?.phase ?? "LOBBY"]}</h1>
-                <p className="mt-3 text-slate-600">{phaseHint}</p>
+                <p className="text-xs font-bold uppercase tracking-[0.34em] text-ocean">Комната {code}</p>
+                <h1 className="mt-3 font-display text-4xl font-semibold text-ink md:text-6xl">{phaseLabels[room?.phase ?? "LOBBY"]}</h1>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 md:text-base">{phaseHint}</p>
                 {room?.phaseDeadlineAt ? <PhaseCountdown deadlineAt={room.phaseDeadlineAt} /> : null}
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <RoomChip>{alivePlayers.length} / 15 игроков</RoomChip>
+                  <RoomChip>{deadPlayers.length} выбыло</RoomChip>
+                  <RoomChip>ID: {code}</RoomChip>
+                </div>
               </div>
-              <Button variant="secondary" onClick={copyInvite}>
-                {copied ? "Скопировано" : "Ссылка"}
-              </Button>
+              <div className="flex flex-wrap gap-3">
+                <Button variant="secondary" onClick={copyInvite}>
+                  {copied ? "Ссылка скопирована" : "Пригласить"}
+                </Button>
+                {room?.phase === "LOBBY" && ownPlayer?.isHost ? (
+                  <Button onClick={() => emitAction("start_game")} disabled={alivePlayers.length < 5}>
+                    Начать игру
+                  </Button>
+                ) : null}
+              </div>
             </div>
           </div>
 
           {room ? (
-            <>
-              <RolePanel room={room} />
-              <ActionPanel room={room} emitAction={emitAction} />
-              {error ? <p className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-coral">{error}</p> : null}
-            </>
+            <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
+              <div className="space-y-5">
+                <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+                  <div className="space-y-5">
+                    <RolePanel room={room} />
+                    <ActionPanel room={room} emitAction={emitAction} />
+                  </div>
+                  <ChatPanel room={room} emitAction={emitAction} />
+                </div>
+                {error ? <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-coral">{error}</p> : null}
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <PlayersPanel title="Живые игроки" players={alivePlayers} />
+                  <PlayersPanel title="Выбывшие" players={deadPlayers} empty="Пока никто не выбыл" />
+                </div>
+              </div>
+
+              <aside className="space-y-5">
+                {ownPlayer?.isHost ? <HostPanel room={room} emitAction={emitAction} /> : null}
+                {spectators.length > 0 ? <PlayersPanel title="Ведущие" players={spectators} empty="Нет ведущих" /> : null}
+              </aside>
+            </div>
           ) : null}
         </div>
-
-        <aside className="space-y-4">
-          {room && ownPlayer?.isHost ? (
-            <HostPanel room={room} emitAction={emitAction} />
-          ) : null}
-          <PlayersPanel title="Живые игроки" players={alivePlayers} />
-          <PlayersPanel title="Выбывшие" players={deadPlayers} empty="Пока никто не выбыл" />
-          {spectators.length > 0 ? <PlayersPanel title="Ведущие" players={spectators} empty="Нет ведущих" /> : null}
-          {room ? <ChatPanel room={room} emitAction={emitAction} /> : null}
-        </aside>
       </section>
     </AppShell>
+  );
+}
+
+function RoomChip({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-xl border border-line bg-white/70 px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">
+      {children}
+    </span>
   );
 }
 
@@ -174,17 +200,17 @@ function RolePanel({ room }: { room: PublicRoom }) {
   const eliminatedPlayers = room.players.filter((player) => room.lastVoteEliminatedIds?.includes(player.id));
 
   return (
-    <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+    <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">
       {room.players.find((player) => player.id === room.ownPlayerId)?.isSpectator ? (
         <>
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">Ваш режим</p>
-          <h2 className="mt-2 font-display text-4xl font-semibold text-ink">Ведущий</h2>
+          <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Ведущий</h2>
           <p className="mt-2 text-slate-600">Вы управляете партией, но не получаете роль и не участвуете в голосованиях.</p>
         </>
       ) : ownRole ? (
         <>
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">Твоя роль</p>
-          <h2 className="mt-2 font-display text-4xl font-semibold text-ink">{roleLabels[ownRole]}</h2>
+          <h2 className="mt-2 font-display text-3xl font-semibold text-ink">{roleLabels[ownRole]}</h2>
           <p className="mt-2 text-slate-600">{roleDescriptions[ownRole]}</p>
           {room.mafiaAllies.length > 0 ? (
             <p className="mt-4 rounded-md bg-slate-50 p-3 text-sm text-slate-700">
@@ -223,11 +249,11 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
   const healTargets = room.players.filter((player) => player.alive && !player.isSpectator);
 
   if (ownPlayer?.isSpectator) {
-    return <div className="rounded-2xl border border-line bg-white p-5 text-slate-600 shadow-soft">Вы ведущий этой партии и наблюдаете за игрой без роли.</div>;
+    return <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 text-slate-600 shadow-soft">Вы ведущий этой партии и наблюдаете за игрой без роли.</div>;
   }
 
   if (!ownPlayer?.alive && room.phase !== "LOBBY") {
-    return <div className="rounded-2xl border border-line bg-white p-5 text-slate-600 shadow-soft">Вы выбыли, но можете наблюдать за игрой.</div>;
+    return <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 text-slate-600 shadow-soft">Вы выбыли, но можете наблюдать за игрой.</div>;
   }
 
   if (room.phase === "NIGHT_MAFIA" && (room.ownRole === "MAFIA" || room.ownRole === "DON")) {
@@ -302,8 +328,8 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
     const ownReady = Boolean(room.discussionReady[room.ownPlayerId]);
 
     return (
-      <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
-        <h2 className="font-display text-3xl font-semibold text-ink">Обсуждение</h2>
+      <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">
+        <h2 className="font-display text-2xl font-semibold text-ink">Обсуждение</h2>
         <p className="mt-2 text-sm text-slate-600">
           Готовы к голосованию: {readyPlayers.length} / {alivePlayers.length}
         </p>
@@ -408,6 +434,7 @@ function PhaseCountdown({ deadlineAt }: { deadlineAt: number }) {
 }
 
 function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string, payload?: unknown) => void }) {
+  const [settingsTab, setSettingsTab] = useState<"roles" | "vote" | "phase">("roles");
   const ownPlayer = room.players.find((player) => player.id === room.ownPlayerId);
   const connectedPlayersCount = room.players.filter((player) => player.connected && !player.isSpectator).length;
   const resolvedMafiaCount =
@@ -420,11 +447,18 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
   }
 
   return (
-    <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-soft">
-      <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-500">Ведущий</p>
+    <div className="rounded-[1.75rem] border border-line bg-white/90 p-4 shadow-soft backdrop-blur">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-ocean">Управление</p>
+          <h2 className="mt-1 font-display text-2xl font-semibold text-ink">Комната</h2>
+        </div>
+        <span className="rounded-xl bg-cloud px-3 py-2 text-xs font-semibold text-slate-500">{mafiaKillersLabel}</span>
+      </div>
+
       {room.phase === "LOBBY" ? (
-        <div className="mt-3 rounded-xl border border-line bg-white p-3">
-          <p className="font-semibold text-ink">Ваше участие</p>
+        <div className="mt-4 rounded-2xl border border-line bg-cloud/70 p-3">
+          <p className="text-sm font-semibold text-ink">Ваше участие</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <Button
               variant={!ownPlayer?.isSpectator ? "primary" : "secondary"}
@@ -436,142 +470,101 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
               variant={ownPlayer?.isSpectator ? "primary" : "secondary"}
               onClick={() => emitAction("set_host_participation", { participates: false })}
             >
-              Я ведущий
+              Ведущий
             </Button>
           </div>
-          <p className="mt-2 text-xs leading-5 text-slate-500">
-            В режиме ведущего вы управляете фазами, но не получаете роль и не считаетесь игроком.
-          </p>
         </div>
       ) : null}
-      <div className="mt-3 rounded-xl border border-line bg-white p-3">
-        <div className="flex items-center justify-between gap-3">
-          <p className="font-semibold text-ink">Настройки матча</p>
-          <span className="text-xs font-medium text-slate-500">{mafiaKillersLabel}</span>
+
+      <div className="mt-4 rounded-2xl border border-line bg-white/70 p-2">
+        <div className="grid grid-cols-3 gap-1 text-xs font-semibold">
+          <SettingsTabButton active={settingsTab === "roles"} onClick={() => setSettingsTab("roles")}>Роли</SettingsTabButton>
+          <SettingsTabButton active={settingsTab === "vote"} onClick={() => setSettingsTab("vote")}>Голосование</SettingsTabButton>
+          <SettingsTabButton active={settingsTab === "phase"} onClick={() => setSettingsTab("phase")}>Фазы</SettingsTabButton>
         </div>
+
         {room.phase === "LOBBY" ? (
-          <div className="mt-3 grid gap-3">
-            <label className="grid gap-1 text-sm text-slate-600">
-              Убийц мафии
-              <select
-                className="rounded-md border border-line bg-white px-3 py-2 text-ink outline-none focus:border-ocean"
-                value={room.settings.mafiaCount}
-                onChange={(event) =>
-                  updateSettings({
-                    mafiaCount: event.target.value === "auto" ? "auto" : Number(event.target.value)
-                  })
-                }
-              >
-                <option value="auto">Авто</option>
-                <option value="1">1 убийца</option>
-                <option value="2">2 убийцы</option>
-                <option value="3">3 убийцы</option>
-                <option value="4">4 убийцы</option>
-              </select>
-            </label>
-            <label className="flex items-center justify-between gap-3 rounded-md border border-line bg-cloud px-3 py-2 text-sm text-slate-700">
-              Дон мафии
-              <input
-                type="checkbox"
-                checked={room.settings.hasDon}
-                onChange={(event) => updateSettings({ hasDon: event.target.checked })}
-              />
-            </label>
-            <label className="flex items-center justify-between gap-3 rounded-md border border-line bg-cloud px-3 py-2 text-sm text-slate-700">
-              Любовница
-              <input
-                type="checkbox"
-                checked={room.settings.hasMistress}
-                onChange={(event) => updateSettings({ hasMistress: event.target.checked })}
-              />
-            </label>
-            <label className="flex items-center justify-between gap-3 rounded-md border border-line bg-cloud px-3 py-2 text-sm text-slate-700">
-              Комиссар / шериф
-              <input
-                type="checkbox"
-                checked={room.settings.hasDetective}
-                onChange={(event) => updateSettings({ hasDetective: event.target.checked })}
-              />
-            </label>
-            <label className="flex items-center justify-between gap-3 rounded-md border border-line bg-cloud px-3 py-2 text-sm text-slate-700">
-              Доктор
-              <input
-                type="checkbox"
-                checked={room.settings.hasDoctor}
-                onChange={(event) => updateSettings({ hasDoctor: event.target.checked })}
-              />
-            </label>
-            <div className="rounded-xl border border-line bg-cloud p-3">
-              <p className="text-sm font-semibold text-ink">Если голоса равны</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <Button
-                  variant={room.settings.voteTieMode === "revote" ? "primary" : "secondary"}
-                  onClick={() => updateSettings({ voteTieMode: "revote" })}
-                >
-                  Переголосование
-                </Button>
-                <Button
-                  variant={room.settings.voteTieMode === "skip" ? "primary" : "secondary"}
-                  onClick={() => updateSettings({ voteTieMode: "skip" })}
-                >
-                  Никто
-                </Button>
+          <div className="mt-3 p-1">
+            {settingsTab === "roles" ? (
+              <div className="grid gap-2">
+                <label className="grid gap-1 text-sm text-slate-600">
+                  Убийц мафии
+                  <select
+                    className="rounded-xl border border-line bg-white px-3 py-2 text-ink outline-none focus:border-ocean"
+                    value={room.settings.mafiaCount}
+                    onChange={(event) =>
+                      updateSettings({
+                        mafiaCount: event.target.value === "auto" ? "auto" : Number(event.target.value)
+                      })
+                    }
+                  >
+                    <option value="auto">Авто</option>
+                    <option value="1">1 убийца</option>
+                    <option value="2">2 убийцы</option>
+                    <option value="3">3 убийцы</option>
+                    <option value="4">4 убийцы</option>
+                  </select>
+                </label>
+                <SettingSwitch label="Дон мафии" checked={room.settings.hasDon} onChange={(checked) => updateSettings({ hasDon: checked })} />
+                <SettingSwitch label="Любовница" checked={room.settings.hasMistress} onChange={(checked) => updateSettings({ hasMistress: checked })} />
+                <SettingSwitch label="Комиссар / шериф" checked={room.settings.hasDetective} onChange={(checked) => updateSettings({ hasDetective: checked })} />
+                <SettingSwitch label="Доктор" checked={room.settings.hasDoctor} onChange={(checked) => updateSettings({ hasDoctor: checked })} />
               </div>
-            </div>
-            <div className="rounded-xl border border-line bg-cloud p-3">
-              <p className="text-sm font-semibold text-ink">Переход фаз</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <Button
-                  variant={room.settings.mode === "manual" ? "primary" : "secondary"}
-                  onClick={() => updateSettings({ mode: "manual" })}
-                >
-                  Кнопка
-                </Button>
-                <Button
-                  variant={room.settings.mode === "timed" ? "primary" : "secondary"}
-                  onClick={() => updateSettings({ mode: "timed" })}
-                >
-                  Таймеры
-                </Button>
-              </div>
-              {room.settings.mode === "timed" ? (
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <TimerInput label="Мафия" value={room.settings.mafiaTimerSec} onChange={(value) => updateSettings({ mafiaTimerSec: value })} />
-                  <TimerInput label="Дон" value={room.settings.donTimerSec} onChange={(value) => updateSettings({ donTimerSec: value })} />
-                  <TimerInput
-                    label="Комиссар"
-                    value={room.settings.detectiveTimerSec}
-                    onChange={(value) => updateSettings({ detectiveTimerSec: value })}
-                  />
-                  <TimerInput label="Доктор" value={room.settings.doctorTimerSec} onChange={(value) => updateSettings({ doctorTimerSec: value })} />
-                  <TimerInput
-                    label="Обсуждение"
-                    value={room.settings.dayTimerSec}
-                    onChange={(value) => updateSettings({ dayTimerSec: value })}
-                  />
-                  <TimerInput
-                    label="Голосование"
-                    value={room.settings.votingTimerSec}
-                    onChange={(value) => updateSettings({ votingTimerSec: value })}
-                  />
+            ) : null}
+
+            {settingsTab === "vote" ? (
+              <div className="grid gap-2">
+                <p className="text-sm font-semibold text-ink">Если голоса равны</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant={room.settings.voteTieMode === "revote" ? "primary" : "secondary"}
+                    onClick={() => updateSettings({ voteTieMode: "revote" })}
+                  >
+                    Переголосование
+                  </Button>
+                  <Button
+                    variant={room.settings.voteTieMode === "skip" ? "primary" : "secondary"}
+                    onClick={() => updateSettings({ voteTieMode: "skip" })}
+                  >
+                    Никто
+                  </Button>
                 </div>
-              ) : (
-                <p className="mt-2 text-xs leading-5 text-slate-500">
-                  Активные игроки смогут завершать фазу после своего выбора.
-                </p>
-              )}
-            </div>
+              </div>
+            ) : null}
+
+            {settingsTab === "phase" ? (
+              <div className="grid gap-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant={room.settings.mode === "manual" ? "primary" : "secondary"} onClick={() => updateSettings({ mode: "manual" })}>
+                    Кнопка
+                  </Button>
+                  <Button variant={room.settings.mode === "timed" ? "primary" : "secondary"} onClick={() => updateSettings({ mode: "timed" })}>
+                    Таймеры
+                  </Button>
+                </div>
+                {room.settings.mode === "timed" ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <TimerInput label="Мафия" value={room.settings.mafiaTimerSec} onChange={(value) => updateSettings({ mafiaTimerSec: value })} />
+                    <TimerInput label="Дон" value={room.settings.donTimerSec} onChange={(value) => updateSettings({ donTimerSec: value })} />
+                    <TimerInput label="Комиссар" value={room.settings.detectiveTimerSec} onChange={(value) => updateSettings({ detectiveTimerSec: value })} />
+                    <TimerInput label="Доктор" value={room.settings.doctorTimerSec} onChange={(value) => updateSettings({ doctorTimerSec: value })} />
+                    <TimerInput label="Обсуждение" value={room.settings.dayTimerSec} onChange={(value) => updateSettings({ dayTimerSec: value })} />
+                    <TimerInput label="Голосование" value={room.settings.votingTimerSec} onChange={(value) => updateSettings({ votingTimerSec: value })} />
+                  </div>
+                ) : (
+                  <p className="text-xs leading-5 text-slate-500">Активные игроки завершают фазу после выбора.</p>
+                )}
+              </div>
+            ) : null}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-slate-600">
-            Дон: {room.settings.hasDon ? "есть" : "нет"}. Любовница:{" "}
-            {room.settings.hasMistress ? "есть" : "нет"}. Комиссар / шериф:{" "}
-            {room.settings.hasDetective ? "есть" : "нет"}. Доктор: {room.settings.hasDoctor ? "есть" : "нет"}.
-            Ничья: {room.settings.voteTieMode === "revote" ? "переголосование" : "никто не выбывает"}.
-            Режим фаз: {room.settings.mode === "timed" ? "таймеры" : "кнопка"}.
+          <p className="mt-3 p-2 text-sm leading-6 text-slate-600">
+            {room.settings.mode === "timed" ? "Фазы по таймеру" : "Фазы по кнопке"} · ничья:{" "}
+            {room.settings.voteTieMode === "revote" ? "переголосование" : "никто не выбывает"}
           </p>
         )}
       </div>
+
       <div className="mt-4 grid gap-2">
         {room.phase === "LOBBY" ? (
           <Button onClick={() => emitAction("start_game")} disabled={connectedPlayersCount < 5}>
@@ -586,15 +579,29 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
         ) : null}
         {room.phase === "GAME_OVER" ? <Button onClick={() => emitAction("restart_game")}>Вернуться в лобби</Button> : null}
       </div>
-      {room.nightActions ? (
-        <p className="mt-4 text-xs leading-5 text-blue-900/60">
-          Ночные действия: мафия {room.nightActions.mafiaTargetId ? "определила цель" : "голосует"}, комиссар{" "}
-          {room.nightActions.detectiveTargetId ? "проверил" : "ждет"}, доктор{" "}
-          {room.nightActions.doctorTargetId ? "выбрал" : "ждет"}.
-        </p>
-      ) : null}
       {room.nightActions ? <MafiaVoteStatus room={room} compact /> : null}
     </div>
+  );
+}
+
+function SettingsTabButton({ active, children, onClick }: { active: boolean; children: ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={active ? "rounded-xl bg-ocean px-2 py-2 text-white" : "rounded-xl px-2 py-2 text-slate-500 hover:bg-cloud hover:text-ink"}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function SettingSwitch({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-cloud/70 px-3 py-2 text-sm text-slate-700">
+      {label}
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+    </label>
   );
 }
 
@@ -616,16 +623,25 @@ function TimerInput({ label, value, onChange }: { label: string; value: number; 
 
 function PlayersPanel({ title, players, empty = "Нет игроков" }: { title: string; players: PublicPlayer[]; empty?: string }) {
   return (
-    <div className="rounded-2xl border border-line bg-white p-4 shadow-soft">
-      <h2 className="font-display text-2xl font-semibold text-ink">{title}</h2>
+    <div className="rounded-[1.5rem] border border-line bg-white/90 p-4 shadow-soft">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-xl font-semibold text-ink">{title}</h2>
+        <span className="rounded-lg bg-cloud px-2 py-1 text-xs font-semibold text-slate-500">{players.length}</span>
+      </div>
       <div className="mt-4 space-y-2">
         {players.length === 0 ? <p className="text-sm text-slate-400">{empty}</p> : null}
         {players.map((player) => (
-          <div key={player.id} className="flex items-center justify-between gap-2 rounded-md border border-line bg-cloud px-3 py-2">
-            <span className="text-slate-700">
-              {player.name} {player.isHost ? "· хост" : ""}
+          <div key={player.id} className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-cloud/70 px-3 py-2">
+            <span className="flex min-w-0 items-center gap-3 text-slate-700">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-sm font-bold text-ocean">
+                {player.name.slice(0, 1).toUpperCase()}
+              </span>
+              <span className="min-w-0 truncate">
+                {player.name} {player.isHost ? "· хост" : ""}
+                <span className="block text-xs text-mint">{player.connected ? "online" : "offline"}</span>
+              </span>
             </span>
-            <span className="text-xs font-medium text-slate-400">
+            <span className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-medium text-slate-400">
               {player.isSpectator ? "ведущий" : player.role ? roleLabels[player.role] : player.connected ? "online" : "offline"}
             </span>
           </div>
@@ -651,14 +667,14 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
     const hasNewMessage = room.chatMessages.length > previousMessageCountRef.current;
     const isOwnMessage = lastMessage?.playerId === room.ownPlayerId;
     const isChatVisible = isElementMostlyInViewport(messagesNode);
-    const shouldStayPinned =
-      (isChatNearBottom(messagesNode) && isChatVisible) || isOwnMessage || previousMessageCountRef.current === 0;
-
-    if (shouldStayPinned) {
+    if (hasNewMessage || previousMessageCountRef.current === 0) {
       messagesNode.scrollTo({ top: messagesNode.scrollHeight, behavior: hasNewMessage ? "smooth" : "auto" });
-      setHasUnreadMessages(false);
-    } else if (hasNewMessage && !isOwnMessage) {
+    }
+
+    if (hasNewMessage && !isOwnMessage && !isChatVisible) {
       setHasUnreadMessages(true);
+    } else if (isChatVisible || isOwnMessage) {
+      setHasUnreadMessages(false);
     }
 
     previousMessageCountRef.current = room.chatMessages.length;
@@ -680,8 +696,11 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
   }
 
   return (
-    <div ref={panelRef} className="rounded-2xl border border-line bg-white p-4 shadow-soft">
-      <h2 className="font-display text-2xl font-semibold text-ink">Чат</h2>
+    <div ref={panelRef} className="flex min-h-[28rem] flex-col rounded-[1.5rem] border border-line bg-white/90 p-4 shadow-soft">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-xl font-semibold text-ink">Чат комнаты</h2>
+        <span className="rounded-lg bg-cloud px-2 py-1 text-xs font-semibold text-slate-500">{room.chatMessages.length}</span>
+      </div>
       {hasUnreadMessages ? (
         <button
           type="button"
@@ -694,7 +713,7 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
       ) : null}
       <div
         ref={messagesRef}
-        className="mt-4 flex max-h-64 flex-col gap-2 overflow-y-auto rounded-xl bg-cloud p-3"
+        className="mt-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl bg-cloud/70 p-3"
         onScroll={(event) => {
           if (isChatNearBottom(event.currentTarget)) setHasUnreadMessages(false);
         }}
@@ -703,8 +722,8 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
           <p className="text-sm text-slate-400">Пока нет сообщений</p>
         ) : null}
         {room.chatMessages.map((item) => (
-          <div key={item.id} className="rounded-lg bg-white px-3 py-2 text-sm shadow-sm">
-            <p className="font-semibold text-ink">{item.playerName}</p>
+          <div key={item.id} className="rounded-2xl bg-white px-3 py-2 text-sm shadow-sm">
+            <p className="font-semibold text-ocean">{item.playerName}</p>
             <p className="mt-1 break-words text-slate-600">{item.text}</p>
           </div>
         ))}
@@ -723,7 +742,7 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
       </div>
       <div className="mt-3 flex gap-2">
         <input
-          className="min-w-0 flex-1 rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ocean"
+          className="min-w-0 flex-1 rounded-2xl border border-line bg-white px-3 py-3 text-sm text-ink outline-none focus:border-ocean"
           placeholder="Написать сообщение..."
           value={message}
           maxLength={280}
@@ -732,7 +751,7 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
             if (event.key === "Enter") sendMessage();
           }}
         />
-        <Button type="button" className="px-3" onClick={sendMessage}>
+        <Button type="button" className="rounded-2xl px-4" onClick={sendMessage}>
           Отпр.
         </Button>
       </div>
@@ -765,8 +784,8 @@ function MafiaTargetPicker({
   const deadlineAt = room.nightActions?.mafiaVoteDeadlineAt;
 
   return (
-    <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
-      <h2 className="font-display text-3xl font-semibold text-ink">Проголосуйте за жертву</h2>
+    <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">
+      <h2 className="font-display text-2xl font-semibold text-ink">Проголосуйте за жертву</h2>
       <p className="mt-2 text-sm text-slate-600">
         {selectedTarget ? `Текущая цель: ${selectedTarget.name}` : "Выберите общую цель. Выбор можно менять до завершения фазы."}
       </p>
@@ -844,8 +863,8 @@ function VotingTargetPicker({
   onPick: (id: string) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
-      <h2 className="font-display text-3xl font-semibold text-ink">{title}</h2>
+    <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">
+      <h2 className="font-display text-2xl font-semibold text-ink">{title}</h2>
       <p className="mt-2 text-sm text-slate-600">
         {room.phase === "DAY_REVOTE"
           ? "Можно голосовать только за игроков, набравших равное число голосов."
@@ -912,8 +931,8 @@ function TargetList({
   onPick: (id: string) => void;
 }) {
   return (
-    <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
-      <h2 className="font-display text-3xl font-semibold text-ink">{title}</h2>
+    <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">
+      <h2 className="font-display text-2xl font-semibold text-ink">{title}</h2>
       {children}
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {players.map((player) => (
