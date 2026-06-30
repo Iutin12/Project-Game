@@ -40,6 +40,7 @@ function createMafiaRoom(devMode: boolean) {
     settings: { ...defaultMafiaSettings },
     nightActions: {},
     votes: {},
+    discussionReady: {},
     chatMessages: [],
     createdAt: Date.now(),
     devMode
@@ -349,6 +350,7 @@ export function registerRoomSockets(io: Server) {
         room.phase = "ROLE_REVEAL";
         room.nightActions = {};
         room.votes = {};
+        room.discussionReady = {};
         room.phaseDeadlineAt = undefined;
         room.winner = undefined;
         room.lastNightKilledId = undefined;
@@ -368,6 +370,21 @@ export function registerRoomSockets(io: Server) {
           return { ok: false, error: "Фазу пока нельзя завершить" };
         }
         advanceRoomPhase(io, room);
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("ready_for_voting", (_, ack) => {
+      const result = withPlayerRoom(socket, (room, player) => {
+        if (room.phase !== "DAY_DISCUSSION" || !player.alive || player.isSpectator) {
+          return { ok: false, error: "Сейчас нельзя перейти к голосованию" };
+        }
+        room.discussionReady[player.id] = true;
+        if (areDiscussionPlayersReady(room)) {
+          advanceRoomPhase(io, room);
+        }
         return { ok: true };
       });
       ack?.(result);
@@ -480,6 +497,7 @@ export function registerRoomSockets(io: Server) {
         room.players = room.players.map((player) => ({ ...player, alive: true, role: undefined }));
         room.nightActions = {};
         room.votes = {};
+        room.discussionReady = {};
         room.winner = undefined;
         room.lastNightKilledId = undefined;
         room.lastVoteEliminatedId = undefined;
@@ -740,6 +758,7 @@ function simulateCurrentPhase(room: Room) {
     room.phase = "ROLE_REVEAL";
     room.nightActions = {};
     room.votes = {};
+    room.discussionReady = {};
     room.winner = undefined;
     room.lastNightKilledId = undefined;
     room.lastVoteEliminatedId = undefined;
@@ -832,6 +851,7 @@ function advanceRoomPhase(io: Server | undefined, room: Room, timedOut = false) 
       return;
     }
     room.votes = {};
+    room.discussionReady = {};
     room.nightActions = {};
     room.detectiveResult = undefined;
   }
@@ -840,6 +860,9 @@ function advanceRoomPhase(io: Server | undefined, room: Room, timedOut = false) 
     room.detectiveResult = undefined;
   }
   room.phase = getNextPhase(room);
+  if (room.phase === "DAY_DISCUSSION") {
+    room.discussionReady = {};
+  }
   scheduleMafiaVoteTimerIfNeeded(io, room);
   schedulePhaseTimerIfNeeded(io, room);
 }
@@ -852,7 +875,8 @@ function shouldResolveNightAfterPhase(room: Room) {
 }
 
 function canPlayerAdvancePhase(room: Room, player: Player) {
-  if (player.isHost && (player.isSpectator || room.devMode)) return true;
+  if (player.isHost && room.devMode) return true;
+  if (player.isHost && player.isSpectator && room.phase !== "DAY_DISCUSSION") return true;
   if (player.isHost && room.phase === "ROLE_REVEAL") return true;
   if (room.settings.mode !== "manual") return false;
   if (!player.alive || player.isSpectator) return false;
@@ -871,6 +895,11 @@ function canPlayerAdvancePhase(room: Room, player: Player) {
   }
 
   return false;
+}
+
+function areDiscussionPlayersReady(room: Room) {
+  const alivePlayers = room.players.filter((player) => player.alive && !player.isSpectator);
+  return alivePlayers.length > 0 && alivePlayers.every((player) => room.discussionReady[player.id]);
 }
 
 function isNightMafiaReadyToAdvance(room: Room) {
@@ -972,6 +1001,7 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
     })),
     settings: room.settings,
     votes: sanitizeVotes(room.votes, canSeeAllRoles, room.phase),
+    discussionReady: room.discussionReady,
     chatMessages: room.chatMessages,
     createdAt: room.createdAt,
     ownPlayerId,

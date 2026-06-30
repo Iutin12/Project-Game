@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { io, type Socket } from "socket.io-client";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
@@ -294,6 +294,28 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
     );
   }
 
+  if (room.phase === "DAY_DISCUSSION") {
+    const readyPlayers = room.players.filter((player) => player.alive && !player.isSpectator && room.discussionReady[player.id]);
+    const alivePlayers = room.players.filter((player) => player.alive && !player.isSpectator);
+    const ownReady = Boolean(room.discussionReady[room.ownPlayerId]);
+
+    return (
+      <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+        <h2 className="font-display text-3xl font-semibold text-ink">Обсуждение</h2>
+        <p className="mt-2 text-sm text-slate-600">
+          Готовы к голосованию: {readyPlayers.length} / {alivePlayers.length}
+        </p>
+        <Button
+          className={ownReady ? "mt-4 w-full" : "mt-4 w-full animate-pulse ring-2 ring-ocean/25"}
+          disabled={ownReady}
+          onClick={() => emitAction("ready_for_voting")}
+        >
+          {ownReady ? "Ждем остальных игроков" : "Перейти к голосованию"}
+        </Button>
+      </div>
+    );
+  }
+
   if (room.phase === "DAY_VOTING") {
     return (
       <div className="space-y-3">
@@ -533,7 +555,7 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
         ) : null}
         {room.phase !== "LOBBY" &&
         room.phase !== "GAME_OVER" &&
-        (ownPlayer?.isSpectator || room.devMode || room.phase === "ROLE_REVEAL") &&
+        ((ownPlayer?.isSpectator && room.phase !== "DAY_DISCUSSION") || room.devMode || room.phase === "ROLE_REVEAL") &&
         (room.settings.mode === "manual" || room.phase === "ROLE_REVEAL") ? (
           <Button onClick={() => emitAction("next_phase")}>Следующая фаза</Button>
         ) : null}
@@ -590,7 +612,12 @@ function PlayersPanel({ title, players, empty = "Нет игроков" }: { tit
 
 function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string, payload?: unknown) => void }) {
   const [message, setMessage] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const emojis = ["🙂", "😂", "😈", "🤔", "👏", "🔥"];
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [room.chatMessages.length]);
 
   function sendMessage() {
     const text = message.trim();
@@ -612,6 +639,7 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
             <p className="mt-1 break-words text-slate-600">{item.text}</p>
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
         {emojis.map((emoji) => (

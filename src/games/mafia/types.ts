@@ -65,6 +65,7 @@ export type Room = {
   settings: MafiaSettings;
   nightActions: NightActions;
   votes: Votes;
+  discussionReady: Record<string, boolean>;
   chatMessages: ChatMessage[];
   createdAt: number;
   phaseDeadlineAt?: number;
