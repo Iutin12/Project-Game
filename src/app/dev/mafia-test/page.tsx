@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { io, type Socket } from "socket.io-client";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
@@ -15,6 +15,7 @@ export default function MafiaTestPage() {
   const [room, setRoom] = useState<PublicRoom | null>(null);
   const [error, setError] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [devTab, setDevTab] = useState<"actions" | "players" | "settings">("actions");
 
   useEffect(() => {
     const nextSocket = io({ path: "/socket.io" });
@@ -59,53 +60,69 @@ export default function MafiaTestPage() {
 
   return (
     <AppShell>
-      <section className="py-10">
-        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-ocean">dev / mafia test</p>
-        <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="font-display text-5xl font-semibold text-ink">Самостоятельная проверка Мафии</h1>
-            <p className="mt-4 max-w-2xl text-slate-600">
-              Тестовая комната показывает все роли и позволяет симулировать фазы без второго браузера.
-              Обычные комнаты не получают эти кнопки и сохраняют лимит минимум 5 игроков.
-            </p>
+      <section className="py-6">
+        <div className="rounded-[2rem] border border-line bg-white/85 p-4 shadow-soft backdrop-blur">
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-ocean">dev / mafia test</p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h1 className="font-display text-3xl font-semibold text-ink md:text-4xl">Самостоятельная проверка Мафии</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                Тестовая комната показывает все роли и позволяет симулировать фазы без второго браузера.
+                Обычные комнаты не получают эти кнопки и сохраняют лимит минимум 5 игроков.
+              </p>
+            </div>
+            <Button onClick={createTestRoom} disabled={!socket || isCreating}>
+              {isCreating ? "Создаем..." : "Создать тестовую комнату"}
+            </Button>
           </div>
-          <Button onClick={createTestRoom} disabled={!socket || isCreating}>
-            {isCreating ? "Создаем..." : "Создать тестовую комнату"}
-          </Button>
         </div>
       </section>
 
       {error ? <p className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-coral">{error}</p> : null}
 
       {room ? (
-        <section className="grid gap-5 pb-10 lg:grid-cols-[1fr_24rem]">
-          <div className="space-y-5">
-            <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">
-                    Комната {room.code}
-                  </p>
-                  <h2 className="mt-2 font-display text-4xl font-semibold text-ink">{phaseLabels[room.phase]}</h2>
-                  <p className="mt-2 text-slate-600">
-                    Живых игроков: {aliveCount}. Победитель:{" "}
-                    {room.winner ? (room.winner === "MAFIA" ? "Мафия" : "Мирные") : "пока нет"}.
-                  </p>
-                </div>
-                <a href={`/room/${room.code}`} className="text-sm font-semibold text-ocean hover:text-ink">
-                  Открыть обычную комнату
-                </a>
+        <section className="space-y-4 pb-10">
+          <div className="rounded-[1.75rem] border border-line bg-white/90 p-4 shadow-soft">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-ocean">Комната {room.code}</p>
+                <h2 className="mt-2 font-display text-3xl font-semibold text-ink">{phaseLabels[room.phase]}</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Живых игроков: {aliveCount}. Победитель:{" "}
+                  {room.winner ? (room.winner === "MAFIA" ? "Мафия" : "Мирные") : "пока нет"}.
+                </p>
               </div>
+              <a
+                href={`/room/${room.code}`}
+                className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-ocean hover:bg-cloud hover:text-ink"
+              >
+                Открыть обычную комнату
+              </a>
             </div>
+          </div>
 
-            <ManualPlayPanel room={room} alivePlayers={alivePlayers} emitDev={emitDev} />
+          <div className="flex flex-wrap gap-2 rounded-[1.5rem] border border-line bg-cloud/70 p-2">
+            <DevTabButton active={devTab === "actions"} onClick={() => setDevTab("actions")}>
+              Проверка фаз
+            </DevTabButton>
+            <DevTabButton active={devTab === "players"} onClick={() => setDevTab("players")}>
+              Игроки
+              <span className="ml-2 rounded-full bg-white/70 px-2 py-0.5 text-xs">{room.players.length}</span>
+            </DevTabButton>
+            <DevTabButton active={devTab === "settings"} onClick={() => setDevTab("settings")}>
+              Dev-контроль
+            </DevTabButton>
+          </div>
 
+          {devTab === "actions" ? <ManualPlayPanel room={room} alivePlayers={alivePlayers} emitDev={emitDev} /> : null}
+
+          {devTab === "players" ? (
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {room.players.map((player) => (
-                <article key={player.id} className="rounded-xl border border-line bg-white p-4 shadow-soft">
+                <article key={player.id} className="rounded-2xl border border-line bg-white/90 p-4 shadow-soft">
                   <div className="flex items-center justify-between gap-3">
                     <h3 className="font-semibold text-ink">{player.name}</h3>
-                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-500">
+                    <span className="rounded-full bg-cloud px-2 py-1 text-xs font-semibold text-slate-500">
                       {player.isBot ? "бот" : player.isHost ? "хост" : "игрок"}
                     </span>
                   </div>
@@ -116,50 +133,20 @@ export default function MafiaTestPage() {
                 </article>
               ))}
             </div>
-          </div>
+          ) : null}
 
-          <aside className="space-y-4">
-            <div className="rounded-2xl border border-line bg-white p-4 shadow-soft">
-              <h2 className="font-display text-2xl font-semibold text-ink">Dev-контроль</h2>
-              <div className="mt-4 grid gap-2">
-                <Button variant="secondary" onClick={() => emitDev("dev_add_bot")}>
-                  Добавить бота
-                </Button>
-                <Button variant="secondary" onClick={() => emitDev("dev_fill_bots")}>
-                  Добрать до 5 игроков
-                </Button>
-                {room.phase === "LOBBY" ? (
-                  <DevSettings room={room} emitDev={emitDev} />
-                ) : null}
-                <Button onClick={() => emitDev("start_game")} disabled={room.phase !== "LOBBY"}>
-                  Запустить игру
-                </Button>
-                <Button variant="secondary" onClick={() => emitDev("next_phase")} disabled={room.phase === "LOBBY"}>
-                  Следующая фаза
-                </Button>
-                <Button variant="secondary" onClick={() => emitDev("dev_simulate_phase")}>
-                  Симулировать фазу
-                </Button>
-                <Button variant="secondary" onClick={() => emitDev("dev_simulate_round")}>
-                  Симулировать раунд
-                </Button>
-                <Button variant="secondary" onClick={() => emitDev("dev_play_to_win")}>
-                  Играть до победы
-                </Button>
-                <Button variant="ghost" onClick={() => emitDev("restart_game")}>
-                  Вернуть в лобби
-                </Button>
+          {devTab === "settings" ? (
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+              <div className="rounded-2xl border border-line bg-white/90 p-4 text-sm leading-6 text-slate-600 shadow-soft">
+                <p className="font-semibold text-ink">Что проверять</p>
+                <p className="mt-2">
+                  Ручная панель во вкладке фаз позволяет полноценно выбирать действия ролей.
+                  Кнопки симуляции остаются как быстрый автопрогон.
+                </p>
               </div>
+              <DevControls room={room} emitDev={emitDev} />
             </div>
-
-            <div className="rounded-2xl border border-line bg-white p-4 text-sm text-slate-600 shadow-soft">
-              <p className="font-semibold text-ink">Что проверять</p>
-              <p className="mt-2">
-                Ручная панель ниже главного статуса позволяет полноценно выбирать действия ролей.
-                Кнопки симуляции остаются как быстрый автопрогон.
-              </p>
-            </div>
-          </aside>
+          ) : null}
         </section>
       ) : (
         <section className="rounded-2xl border border-line bg-white p-8 text-slate-600 shadow-soft">
@@ -167,6 +154,62 @@ export default function MafiaTestPage() {
         </section>
       )}
     </AppShell>
+  );
+}
+
+function DevTabButton({ active, children, onClick }: { active: boolean; children: ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={[
+        "rounded-2xl px-4 py-2 text-sm font-semibold transition hover:-translate-y-0.5",
+        active ? "bg-ocean text-white shadow-soft" : "text-slate-500 hover:bg-white/80 hover:text-ink"
+      ].join(" ")}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
+function DevControls({
+  room,
+  emitDev
+}: {
+  room: PublicRoom;
+  emitDev: (event: string, payload?: unknown) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-line bg-white/90 p-4 shadow-soft">
+      <h2 className="font-display text-2xl font-semibold text-ink">Dev-контроль</h2>
+      <div className="mt-4 grid gap-2">
+        <Button variant="secondary" onClick={() => emitDev("dev_add_bot")}>
+          Добавить бота
+        </Button>
+        <Button variant="secondary" onClick={() => emitDev("dev_fill_bots")}>
+          Добрать до 5 игроков
+        </Button>
+        {room.phase === "LOBBY" ? <DevSettings room={room} emitDev={emitDev} /> : null}
+        <Button onClick={() => emitDev("start_game")} disabled={room.phase !== "LOBBY"}>
+          Запустить игру
+        </Button>
+        <Button variant="secondary" onClick={() => emitDev("next_phase")} disabled={room.phase === "LOBBY"}>
+          Следующая фаза
+        </Button>
+        <Button variant="secondary" onClick={() => emitDev("dev_simulate_phase")}>
+          Симулировать фазу
+        </Button>
+        <Button variant="secondary" onClick={() => emitDev("dev_simulate_round")}>
+          Симулировать раунд
+        </Button>
+        <Button variant="secondary" onClick={() => emitDev("dev_play_to_win")}>
+          Играть до победы
+        </Button>
+        <Button variant="ghost" onClick={() => emitDev("restart_game")}>
+          Вернуть в лобби
+        </Button>
+      </div>
+    </div>
   );
 }
 

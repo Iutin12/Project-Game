@@ -18,6 +18,7 @@ export function RoomClient({ code }: { code: string }) {
   const [isRestoring, setIsRestoring] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [roomTab, setRoomTab] = useState<"players" | "chat" | "settings">("players");
 
   const inviteUrl = typeof window === "undefined" ? "" : `${window.location.origin}/room/${code}`;
   const ownPlayer = room?.players.find((player) => player.id === room.ownPlayerId);
@@ -129,15 +130,19 @@ export function RoomClient({ code }: { code: string }) {
   return (
     <AppShell>
       <section className="py-6">
-        <div className="rounded-[2rem] border border-line bg-white/85 p-4 shadow-soft backdrop-blur md:p-6">
-          <div className="relative overflow-hidden rounded-[1.5rem] border border-line bg-[radial-gradient(circle_at_0%_0%,rgba(239,61,61,0.18),transparent_22rem),linear-gradient(135deg,var(--color-surface),var(--color-surface-muted))] p-5 md:p-7">
-            <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-              <div>
+        <div className="rounded-[2rem] border border-line bg-white/85 p-3 shadow-soft backdrop-blur md:p-4">
+          <div className="relative overflow-hidden rounded-[1.5rem] border border-line bg-[radial-gradient(circle_at_0%_0%,rgba(239,61,61,0.16),transparent_18rem),linear-gradient(135deg,var(--color-surface),var(--color-surface-muted))] p-4 md:p-5">
+            <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
                 <p className="text-xs font-bold uppercase tracking-[0.34em] text-ocean">Комната {code}</p>
-                <h1 className="mt-3 font-display text-4xl font-semibold text-ink md:text-6xl">{phaseLabels[room?.phase ?? "LOBBY"]}</h1>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 md:text-base">{phaseHint}</p>
-                {room?.phaseDeadlineAt ? <PhaseCountdown deadlineAt={room.phaseDeadlineAt} /> : null}
-                <div className="mt-5 flex flex-wrap gap-2">
+                <div className="mt-2 flex flex-wrap items-end gap-3">
+                  <h1 className="font-display text-3xl font-semibold leading-none text-ink md:text-4xl">
+                    {phaseLabels[room?.phase ?? "LOBBY"]}
+                  </h1>
+                  {room?.phaseDeadlineAt ? <PhaseCountdown deadlineAt={room.phaseDeadlineAt} /> : null}
+                </div>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{phaseHint}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
                   <RoomChip>{alivePlayers.length} / 15 игроков</RoomChip>
                   <RoomChip>{deadPlayers.length} выбыло</RoomChip>
                   <RoomChip>ID: {code}</RoomChip>
@@ -157,26 +162,46 @@ export function RoomClient({ code }: { code: string }) {
           </div>
 
           {room ? (
-            <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
-              <div className="space-y-5">
-                <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
-                  <div className="space-y-5">
-                    <RolePanel room={room} />
-                    <ActionPanel room={room} emitAction={emitAction} />
-                  </div>
-                  <ChatPanel room={room} emitAction={emitAction} />
-                </div>
-                {error ? <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-coral">{error}</p> : null}
-                <div className="grid gap-5 lg:grid-cols-2">
-                  <PlayersPanel title="Живые игроки" players={alivePlayers} />
-                  <PlayersPanel title="Выбывшие" players={deadPlayers} empty="Пока никто не выбыл" />
-                </div>
+            <div className="mt-4 space-y-4">
+              <div className="grid gap-4 lg:grid-cols-[minmax(16rem,0.85fr)_minmax(0,1.15fr)]">
+                <RolePanel room={room} />
+                <ActionPanel room={room} emitAction={emitAction} />
               </div>
 
-              <aside className="space-y-5">
-                {ownPlayer?.isHost ? <HostPanel room={room} emitAction={emitAction} /> : null}
-                {spectators.length > 0 ? <PlayersPanel title="Ведущие" players={spectators} empty="Нет ведущих" /> : null}
-              </aside>
+              {error ? <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-coral">{error}</p> : null}
+
+              <div className="flex flex-wrap gap-2 rounded-[1.5rem] border border-line bg-cloud/70 p-2">
+                <RoomTabButton active={roomTab === "players"} onClick={() => setRoomTab("players")}>
+                  Игроки
+                </RoomTabButton>
+                <RoomTabButton active={roomTab === "chat"} onClick={() => setRoomTab("chat")}>
+                  Чат
+                  {room.chatMessages.length > 0 ? <span className="ml-2 rounded-full bg-white/70 px-2 py-0.5 text-xs">{room.chatMessages.length}</span> : null}
+                </RoomTabButton>
+                <RoomTabButton active={roomTab === "settings"} onClick={() => setRoomTab("settings")}>
+                  Настройки
+                </RoomTabButton>
+              </div>
+
+              {roomTab === "players" ? (
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <PlayersPanel title="Живые игроки" players={alivePlayers} />
+                  <PlayersPanel title="Выбывшие" players={deadPlayers} empty="Пока никто не выбыл" />
+                  {spectators.length > 0 ? <PlayersPanel title="Ведущие" players={spectators} empty="Нет ведущих" /> : null}
+                </div>
+              ) : null}
+
+              {roomTab === "chat" ? <ChatPanel room={room} emitAction={emitAction} /> : null}
+
+              {roomTab === "settings" ? (
+                ownPlayer?.isHost ? (
+                  <HostPanel room={room} emitAction={emitAction} />
+                ) : (
+                  <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 text-sm leading-6 text-slate-600 shadow-soft">
+                    Настройки комнаты доступны только хосту. Игровые действия остаются на основном экране.
+                  </div>
+                )
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -193,6 +218,21 @@ function RoomChip({ children }: { children: ReactNode }) {
   );
 }
 
+function RoomTabButton({ active, children, onClick }: { active: boolean; children: ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className={[
+        "rounded-2xl px-4 py-2 text-sm font-semibold transition hover:-translate-y-0.5",
+        active ? "bg-ocean text-white shadow-soft" : "text-slate-500 hover:bg-white/80 hover:text-ink"
+      ].join(" ")}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+}
+
 function RolePanel({ room }: { room: PublicRoom }) {
   const ownRole = room.ownRole;
   const killed = room.players.find((player) => player.id === room.lastNightKilledId);
@@ -200,7 +240,7 @@ function RolePanel({ room }: { room: PublicRoom }) {
   const eliminatedPlayers = room.players.filter((player) => room.lastVoteEliminatedIds?.includes(player.id));
 
   return (
-    <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">
+    <div className="rounded-[1.5rem] border border-line bg-white/90 p-4 shadow-soft">
       {room.players.find((player) => player.id === room.ownPlayerId)?.isSpectator ? (
         <>
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">Ваш режим</p>
@@ -219,7 +259,10 @@ function RolePanel({ room }: { room: PublicRoom }) {
           ) : null}
         </>
       ) : (
-        <p className="text-slate-600">Ожидаем запуска игры.</p>
+        <>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-ocean">Лобби</p>
+          <p className="mt-2 text-sm text-slate-600">Ожидаем запуска игры.</p>
+        </>
       )}
       {room.phase === "DAY_DISCUSSION" ? (
         <p className="mt-4 text-slate-700">
@@ -447,7 +490,7 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
   }
 
   return (
-    <div className="rounded-[1.75rem] border border-line bg-white/90 p-4 shadow-soft backdrop-blur">
+    <div className="rounded-[1.75rem] border border-line bg-white/90 p-4 shadow-soft backdrop-blur lg:max-w-4xl">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-ocean">Управление</p>
@@ -696,7 +739,7 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
   }
 
   return (
-    <div ref={panelRef} className="flex min-h-[28rem] flex-col rounded-[1.5rem] border border-line bg-white/90 p-4 shadow-soft">
+    <div ref={panelRef} className="flex min-h-[24rem] flex-col rounded-[1.5rem] border border-line bg-white/90 p-4 shadow-soft">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-semibold text-ink">Чат комнаты</h2>
         <span className="rounded-lg bg-cloud px-2 py-1 text-xs font-semibold text-slate-500">{room.chatMessages.length}</span>
