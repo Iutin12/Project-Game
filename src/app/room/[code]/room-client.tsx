@@ -15,22 +15,43 @@ export function RoomClient({ code }: { code: string }) {
   const [room, setRoom] = useState<PublicRoom | null>(null);
   const [name, setName] = useState("");
   const [joined, setJoined] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
 
   const inviteUrl = typeof window === "undefined" ? "" : `${window.location.origin}/room/${code}`;
   const ownPlayer = room?.players.find((player) => player.id === room.ownPlayerId);
-  const alivePlayers = room?.players.filter((player) => player.alive) ?? [];
-  const deadPlayers = room?.players.filter((player) => !player.alive) ?? [];
+  const alivePlayers = room?.players.filter((player) => player.alive && !player.isSpectator) ?? [];
+  const deadPlayers = room?.players.filter((player) => !player.alive && !player.isSpectator) ?? [];
+  const spectators = room?.players.filter((player) => player.isSpectator) ?? [];
 
   useEffect(() => {
     const nextSocket = io({ path: "/socket.io" });
     setSocket(nextSocket);
     nextSocket.on("room_updated", (nextRoom: PublicRoom) => setRoom(nextRoom));
+    nextSocket.on("connect", () => {
+      const savedPlayerId = window.localStorage.getItem(`playerId:${code}`);
+      const hostKey = window.localStorage.getItem(`hostKey:${code}`) ?? undefined;
+
+      if (!savedPlayerId) {
+        setIsRestoring(false);
+        return;
+      }
+
+      nextSocket.emit("join_room", { code, name: "", hostKey, playerId: savedPlayerId }, (ack: Ack) => {
+        if (ack.ok) {
+          setJoined(true);
+          setError("");
+        } else {
+          window.localStorage.removeItem(`playerId:${code}`);
+        }
+        setIsRestoring(false);
+      });
+    });
     return () => {
       nextSocket.disconnect();
     };
-  }, []);
+  }, [code]);
 
   function emitAction(event: string, payload?: unknown) {
     setError("");
@@ -46,6 +67,8 @@ export function RoomClient({ code }: { code: string }) {
         setError(ack.error ?? "Не удалось войти");
         return;
       }
+      if (ack.playerId) window.localStorage.setItem(`playerId:${code}`, ack.playerId);
+      window.localStorage.setItem(`playerName:${code}`, name.trim());
       setJoined(true);
       setError("");
     });
@@ -66,6 +89,16 @@ export function RoomClient({ code }: { code: string }) {
     if (room.phase === "DAY_VOTING") return "Выберите игрока, против которого голосуете.";
     return "Ожидаем запуска игры.";
   }, [room]);
+
+  if (isRestoring) {
+    return (
+      <AppShell>
+        <section className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center py-12 text-slate-600">
+          Возвращаем вас в комнату...
+        </section>
+      </AppShell>
+    );
+  }
 
   if (!joined) {
     return (
@@ -124,6 +157,8 @@ export function RoomClient({ code }: { code: string }) {
           ) : null}
           <PlayersPanel title="Живые игроки" players={alivePlayers} />
           <PlayersPanel title="Выбывшие" players={deadPlayers} empty="Пока никто не выбыл" />
+          {spectators.length > 0 ? <PlayersPanel title="Ведущие" players={spectators} empty="Нет ведущих" /> : null}
+          {room ? <ChatPanel room={room} emitAction={emitAction} /> : null}
         </aside>
       </section>
     </AppShell>
@@ -137,7 +172,13 @@ function RolePanel({ room }: { room: PublicRoom }) {
 
   return (
     <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
-      {ownRole ? (
+      {room.players.find((player) => player.id === room.ownPlayerId)?.isSpectator ? (
+        <>
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">Ваш режим</p>
+          <h2 className="mt-2 font-display text-4xl font-semibold text-ink">Ведущий</h2>
+          <p className="mt-2 text-slate-600">Вы управляете партией, но не получаете роль и не участвуете в голосованиях.</p>
+        </>
+      ) : ownRole ? (
         <>
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400">Твоя роль</p>
           <h2 className="mt-2 font-display text-4xl font-semibold text-ink">{roleLabels[ownRole]}</h2>
@@ -177,10 +218,14 @@ function RolePanel({ room }: { room: PublicRoom }) {
 
 function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string, payload?: unknown) => void }) {
   const ownPlayer = room.players.find((player) => player.id === room.ownPlayerId);
-  const targets = room.players.filter((player) => player.alive && player.id !== room.ownPlayerId);
+  const targets = room.players.filter((player) => player.alive && !player.isSpectator && player.id !== room.ownPlayerId);
   const mafiaAllyIds = new Set(room.mafiaAllies.map((player) => player.id));
   const nonMafiaTargets = targets.filter((player) => !mafiaAllyIds.has(player.id));
-  const healTargets = room.players.filter((player) => player.alive);
+  const healTargets = room.players.filter((player) => player.alive && !player.isSpectator);
+
+  if (ownPlayer?.isSpectator) {
+    return <div className="rounded-2xl border border-line bg-white p-5 text-slate-600 shadow-soft">Вы ведущий этой партии и наблюдаете за игрой без роли.</div>;
+  }
 
   if (!ownPlayer?.alive && room.phase !== "LOBBY") {
     return <div className="rounded-2xl border border-line bg-white p-5 text-slate-600 shadow-soft">Вы выбыли, но можете наблюдать за игрой.</div>;
@@ -219,7 +264,8 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
 }
 
 function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string, payload?: unknown) => void }) {
-  const connectedPlayersCount = room.players.filter((player) => player.connected).length;
+  const ownPlayer = room.players.find((player) => player.id === room.ownPlayerId);
+  const connectedPlayersCount = room.players.filter((player) => player.connected && !player.isSpectator).length;
   const resolvedMafiaCount =
     room.settings.mafiaCount === "auto" ? Math.max(1, Math.floor(connectedPlayersCount / 4)) : room.settings.mafiaCount;
   const mafiaKillersLabel =
@@ -232,6 +278,28 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
   return (
     <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 shadow-soft">
       <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-500">Ведущий</p>
+      {room.phase === "LOBBY" ? (
+        <div className="mt-3 rounded-xl border border-line bg-white p-3">
+          <p className="font-semibold text-ink">Ваше участие</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Button
+              variant={!ownPlayer?.isSpectator ? "primary" : "secondary"}
+              onClick={() => emitAction("set_host_participation", { participates: true })}
+            >
+              Играю
+            </Button>
+            <Button
+              variant={ownPlayer?.isSpectator ? "primary" : "secondary"}
+              onClick={() => emitAction("set_host_participation", { participates: false })}
+            >
+              Я ведущий
+            </Button>
+          </div>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            В режиме ведущего вы управляете фазами, но не получаете роль и не считаетесь игроком.
+          </p>
+        </div>
+      ) : null}
       <div className="mt-3 rounded-xl border border-line bg-white p-3">
         <div className="flex items-center justify-between gap-3">
           <p className="font-semibold text-ink">Настройки матча</p>
@@ -332,9 +400,67 @@ function PlayersPanel({ title, players, empty = "Нет игроков" }: { tit
             <span className="text-slate-700">
               {player.name} {player.isHost ? "· хост" : ""}
             </span>
-            <span className="text-xs font-medium text-slate-400">{player.role ? roleLabels[player.role] : player.connected ? "online" : "offline"}</span>
+            <span className="text-xs font-medium text-slate-400">
+              {player.isSpectator ? "ведущий" : player.role ? roleLabels[player.role] : player.connected ? "online" : "offline"}
+            </span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string, payload?: unknown) => void }) {
+  const [message, setMessage] = useState("");
+  const emojis = ["🙂", "😂", "😈", "🤔", "👏", "🔥"];
+
+  function sendMessage() {
+    const text = message.trim();
+    if (!text) return;
+    emitAction("send_chat_message", { text });
+    setMessage("");
+  }
+
+  return (
+    <div className="rounded-2xl border border-line bg-white p-4 shadow-soft">
+      <h2 className="font-display text-2xl font-semibold text-ink">Чат</h2>
+      <div className="mt-4 flex max-h-64 flex-col gap-2 overflow-y-auto rounded-xl bg-cloud p-3">
+        {room.chatMessages.length === 0 ? (
+          <p className="text-sm text-slate-400">Пока нет сообщений</p>
+        ) : null}
+        {room.chatMessages.map((item) => (
+          <div key={item.id} className="rounded-lg bg-white px-3 py-2 text-sm shadow-sm">
+            <p className="font-semibold text-ink">{item.playerName}</p>
+            <p className="mt-1 break-words text-slate-600">{item.text}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {emojis.map((emoji) => (
+          <button
+            key={emoji}
+            type="button"
+            className="rounded-lg border border-line bg-cloud px-2 py-1 text-lg hover:bg-slate-100"
+            onClick={() => setMessage((current) => `${current}${emoji}`)}
+          >
+            {emoji}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 flex gap-2">
+        <input
+          className="min-w-0 flex-1 rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ocean"
+          placeholder="Написать сообщение..."
+          value={message}
+          maxLength={280}
+          onChange={(event) => setMessage(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") sendMessage();
+          }}
+        />
+        <Button type="button" className="px-3" onClick={sendMessage}>
+          Отпр.
+        </Button>
       </div>
     </div>
   );

@@ -32,6 +32,14 @@ export type NightActions = {
 
 export type Votes = Record<string, string>;
 
+export type ChatMessage = {
+  id: string;
+  playerId: string;
+  playerName: string;
+  text: string;
+  createdAt: number;
+};
+
 export type Player = {
   id: string;
   name: string;
@@ -40,6 +48,7 @@ export type Player = {
   connected: boolean;
   isHost: boolean;
   isBot?: boolean;
+  isSpectator?: boolean;
 };
 
 export type Room = {
@@ -52,6 +61,7 @@ export type Room = {
   settings: MafiaSettings;
   nightActions: NightActions;
   votes: Votes;
+  chatMessages: ChatMessage[];
   createdAt: number;
   devMode?: boolean;
   lastNightKilledId?: string;

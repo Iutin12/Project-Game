@@ -9,7 +9,7 @@ import {
   resolveNight,
   resolveVotes
 } from "../src/games/mafia/logic";
-import type { NightActions, Player, PublicRoom, Room, Votes } from "../src/games/mafia/types";
+import type { ChatMessage, NightActions, Player, PublicRoom, Room, Votes } from "../src/games/mafia/types";
 
 const rooms = new Map<string, Room>();
 const socketPlayers = new Map<string, { roomCode: string; playerId: string }>();
@@ -39,6 +39,7 @@ function createMafiaRoom(devMode: boolean) {
     settings: { ...defaultMafiaSettings },
     nightActions: {},
     votes: {},
+    chatMessages: [],
     createdAt: Date.now(),
     devMode
   };
@@ -60,7 +61,7 @@ export function getStats() {
     roomsCreatedToday: totalRoomsCreatedToday,
     activeRooms: publicRooms.length,
     onlinePlayers: publicRooms.reduce(
-      (total, room) => total + room.players.filter((player) => player.connected && !player.isBot).length,
+      (total, room) => total + room.players.filter((player) => player.connected && !player.isBot && !player.isSpectator).length,
       0
     )
   };
@@ -68,11 +69,29 @@ export function getStats() {
 
 export function registerRoomSockets(io: Server) {
   io.on("connection", (socket) => {
-    socket.on("join_room", (payload: { code: string; name: string; hostKey?: string }, ack) => {
+    socket.on("join_room", (payload: { code: string; name: string; hostKey?: string; playerId?: string }, ack) => {
       const room = getRoom(payload.code);
       const name = payload.name?.trim().slice(0, 24);
 
       if (!room) return ack?.({ ok: false, error: "Комната не найдена" });
+
+      const existingPlayer = payload.playerId
+        ? room.players.find((player) => player.id === payload.playerId && !player.isBot)
+        : undefined;
+
+      if (existingPlayer) {
+        existingPlayer.connected = true;
+        if (payload.hostKey === room.hostKey) {
+          existingPlayer.isHost = true;
+          room.hostId = existingPlayer.id;
+        }
+        socketPlayers.set(socket.id, { roomCode: room.code, playerId: existingPlayer.id });
+        socket.join(room.code);
+        ack?.({ ok: true, playerId: existingPlayer.id });
+        emitRoom(io, room.code);
+        return;
+      }
+
       if (!name) return ack?.({ ok: false, error: "Введите никнейм" });
       if (room.players.length >= 15) return ack?.({ ok: false, error: "Комната заполнена" });
 
@@ -81,7 +100,8 @@ export function registerRoomSockets(io: Server) {
         name,
         alive: true,
         connected: true,
-        isHost: payload.hostKey === room.hostKey || (!room.hostId && room.players.length === 0)
+        isHost: payload.hostKey === room.hostKey || (!room.hostId && room.players.length === 0),
+        isSpectator: false
       };
 
       if (player.isHost) room.hostId = player.id;
@@ -90,6 +110,40 @@ export function registerRoomSockets(io: Server) {
       socket.join(room.code);
       ack?.({ ok: true, playerId: player.id });
       emitRoom(io, room.code);
+    });
+
+    socket.on("send_chat_message", (payload: { text: string }, ack) => {
+      const result = withPlayerRoom(socket, (room, player) => {
+        const text = payload.text?.trim().slice(0, 280);
+        if (!text) return { ok: false, error: "Введите сообщение" };
+
+        const message: ChatMessage = {
+          id: randomUUID(),
+          playerId: player.id,
+          playerName: player.name,
+          text,
+          createdAt: Date.now()
+        };
+        room.chatMessages = [...room.chatMessages.slice(-79), message];
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("set_host_participation", (payload: { participates: boolean }, ack) => {
+      const result = withHostRoom(socket, (room) => {
+        if (room.phase !== "LOBBY") return { ok: false, error: "Режим ведущего можно менять только в лобби" };
+        const ref = socketPlayers.get(socket.id);
+        const player = ref ? room.players.find((item) => item.id === ref.playerId) : undefined;
+        if (!player) return { ok: false, error: "Игрок не найден" };
+        player.isSpectator = !payload.participates;
+        player.role = undefined;
+        player.alive = true;
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
     });
 
     socket.on("dev_add_bot", (_, ack) => {
@@ -283,7 +337,7 @@ export function registerRoomSockets(io: Server) {
 
     socket.on("start_game", (_, ack) => {
       const result = withHostRoom(socket, (room) => {
-        const connectedPlayers = room.players.filter((player) => player.connected);
+        const connectedPlayers = room.players.filter((player) => player.connected && !player.isSpectator);
         if (connectedPlayers.length < 5) {
           return { ok: false, error: "Для старта нужно минимум 5 игроков" };
         }
@@ -382,9 +436,9 @@ export function registerRoomSockets(io: Server) {
           if (room.phase !== "NIGHT_DETECTIVE" || player.role !== "DETECTIVE" || !player.alive) {
             return { ok: false, error: "Сейчас нельзя проверить игрока" };
           }
-          const target = room.players.find((item) => item.id === payload.targetId);
+          const target = findAlivePlayer(room, payload.targetId);
           if (!target) return { ok: false, error: "Игрок не найден" };
-          room.nightActions.detectiveTargetId = payload.targetId;
+          room.nightActions.detectiveTargetId = target.id;
           room.detectiveResult = {
             detectiveId: player.id,
             targetId: target.id,
@@ -402,7 +456,9 @@ export function registerRoomSockets(io: Server) {
           if (room.phase !== "NIGHT_DOCTOR" || player.role !== "DOCTOR" || !player.alive) {
             return { ok: false, error: "Сейчас нельзя лечить игрока" };
           }
-          room.nightActions.doctorTargetId = payload.targetId;
+          const target = findAlivePlayer(room, payload.targetId);
+          if (!target) return { ok: false, error: "Игрок не найден" };
+          room.nightActions.doctorTargetId = target.id;
           return { ok: true };
         })
       );
@@ -412,13 +468,15 @@ export function registerRoomSockets(io: Server) {
     socket.on("cast_vote", (payload: { targetId: string }, ack) => {
       ack?.(
         withPlayerRoom(socket, (room, player) => {
-          if (room.phase !== "DAY_VOTING" || !player.alive) {
+          if (room.phase !== "DAY_VOTING" || !player.alive || player.isSpectator) {
             return { ok: false, error: "Сейчас нельзя голосовать" };
           }
           if (player.id === room.nightActions.mistressTargetId) {
             return { ok: false, error: "Вы отвлечены любовницей и пропускаете голосование" };
           }
-          room.votes[player.id] = payload.targetId;
+          const target = findAlivePlayer(room, payload.targetId);
+          if (!target || target.id === player.id) return { ok: false, error: "Игрок не найден" };
+          room.votes[player.id] = target.id;
           return { ok: true };
         })
       );
@@ -447,8 +505,10 @@ export function registerRoomSockets(io: Server) {
       if (!ref) return;
       const room = rooms.get(ref.roomCode);
       const player = room?.players.find((item) => item.id === ref.playerId);
-      if (player) player.connected = false;
       socketPlayers.delete(socket.id);
+      if (player) {
+        player.connected = hasActiveSocketForPlayer(ref.roomCode, ref.playerId);
+      }
       if (room) emitRoom(io, room.code);
     });
   });
@@ -472,6 +532,10 @@ function withHostRoom(socket: Socket, action: (room: Room) => { ok: boolean; err
   });
 }
 
+function hasActiveSocketForPlayer(roomCode: string, playerId: string) {
+  return [...socketPlayers.values()].some((ref) => ref.roomCode === roomCode && ref.playerId === playerId);
+}
+
 function withDevHostRoom(socket: Socket, action: (room: Room) => { ok: boolean; error?: string }) {
   return withHostRoom(socket, (room) => {
     if (!room.devMode) return { ok: false, error: "Dev-действие доступно только в тестовой комнате" };
@@ -480,15 +544,15 @@ function withDevHostRoom(socket: Socket, action: (room: Room) => { ok: boolean; 
 }
 
 function findAlivePlayer(room: Room, playerId?: string) {
-  return room.players.find((player) => player.id === playerId && player.alive);
+  return room.players.find((player) => player.id === playerId && player.alive && !player.isSpectator);
 }
 
 function getAliveMafiaKillers(room: Room) {
-  return room.players.filter((player) => player.alive && (player.role === "MAFIA" || player.role === "DON"));
+  return room.players.filter((player) => player.alive && !player.isSpectator && (player.role === "MAFIA" || player.role === "DON"));
 }
 
 function getAliveDon(room: Room) {
-  return room.players.find((player) => player.alive && player.role === "DON");
+  return room.players.find((player) => player.alive && !player.isSpectator && player.role === "DON");
 }
 
 function registerMafiaVote(io: Server, room: Room, voter: Player, targetId: string) {
@@ -511,7 +575,7 @@ function registerMafiaVote(io: Server, room: Room, voter: Player, targetId: stri
 function resolveMafiaVote(room: Room, forcePickTiedTarget: boolean) {
   const votes = room.nightActions.mafiaVotes ?? {};
   const validTargets = new Set(
-    room.players.filter((player) => player.alive && !isMafiaRole(player.role)).map((player) => player.id)
+    room.players.filter((player) => player.alive && !player.isSpectator && !isMafiaRole(player.role)).map((player) => player.id)
   );
   const tally = new Map<string, number>();
 
@@ -634,21 +698,21 @@ function simulateCurrentPhase(room: Room) {
   }
 
   if (room.phase === "NIGHT_MAFIA") {
-    const target = room.players.find((player) => player.alive && !isMafiaRole(player.role));
+    const target = room.players.find((player) => player.alive && !player.isSpectator && !isMafiaRole(player.role));
     const mafiaKillers = getAliveMafiaKillers(room);
     if (target) {
       room.nightActions.mafiaVotes = Object.fromEntries(mafiaKillers.map((player) => [player.id, target.id]));
       resolveMafiaVote(room, true);
     }
     const mistressTarget = room.players.find(
-      (player) => player.alive && !isMafiaRole(player.role) && player.id !== target?.id
+      (player) => player.alive && !player.isSpectator && !isMafiaRole(player.role) && player.id !== target?.id
     );
     if (mistressTarget) room.nightActions.mistressTargetId = mistressTarget.id;
   }
 
   if (room.phase === "NIGHT_DETECTIVE") {
     const detective = room.players.find((player) => player.alive && player.role === "DETECTIVE");
-    const target = room.players.find((player) => player.alive && player.id !== detective?.id);
+    const target = room.players.find((player) => player.alive && !player.isSpectator && player.id !== detective?.id);
     if (detective && target) {
       room.nightActions.detectiveTargetId = target.id;
       room.detectiveResult = {
@@ -665,7 +729,7 @@ function simulateCurrentPhase(room: Room) {
   }
 
   if (room.phase === "DAY_VOTING") {
-    const alivePlayers = room.players.filter((player) => player.alive);
+    const alivePlayers = room.players.filter((player) => player.alive && !player.isSpectator);
     const preferredTarget =
       alivePlayers.find((player) => isMafiaRole(player.role)) ??
       alivePlayers.find((player) => !isMafiaRole(player.role)) ??
@@ -755,23 +819,26 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
       alive: player.alive,
       connected: player.connected,
       isHost: player.isHost,
+      isSpectator: player.isSpectator,
       role: isHost || player.id === ownPlayerId ? player.role : undefined
     })),
     settings: room.settings,
     votes: sanitizeVotes(room.votes, isHost),
+    chatMessages: room.chatMessages,
     createdAt: room.createdAt,
     ownPlayerId,
     ownRole,
     mafiaAllies:
       isMafiaRole(ownRole) || isHost
         ? room.players
-            .filter((player) => isMafiaRole(player.role))
+            .filter((player) => !player.isSpectator && isMafiaRole(player.role))
             .map((player) => ({
               id: player.id,
               name: player.name,
               alive: player.alive,
               connected: player.connected,
               isHost: player.isHost,
+              isSpectator: player.isSpectator,
               role: player.role
             }))
         : [],

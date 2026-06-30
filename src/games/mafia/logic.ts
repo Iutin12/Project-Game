@@ -17,7 +17,8 @@ export function getMafiaCount(playerCount: number, setting: number | "auto") {
 }
 
 export function assignRoles(players: Player[], room: Room): Player[] {
-  const mafiaCount = getMafiaCount(players.length, room.settings.mafiaCount);
+  const activePlayers = players.filter((player) => !player.isSpectator);
+  const mafiaCount = getMafiaCount(activePlayers.length, room.settings.mafiaCount);
   const mafiaKillerRoles: Role[] = room.settings.hasDon ? ["DON"] : [];
 
   while (mafiaKillerRoles.length < mafiaCount) {
@@ -31,16 +32,19 @@ export function assignRoles(players: Player[], room: Room): Player[] {
     ...(room.settings.hasDoctor ? (["DOCTOR"] as Role[]) : [])
   ];
 
-  while (roles.length < players.length) {
+  while (roles.length < activePlayers.length) {
     roles.push("CIVILIAN");
   }
 
-  const shuffledRoles = shuffle(roles).slice(0, players.length);
+  const shuffledRoles = shuffle(roles).slice(0, activePlayers.length);
+  const roleByPlayerId = new Map(
+    shuffle(activePlayers).map((player, index) => [player.id, shuffledRoles[index]])
+  );
 
-  return shuffle(players).map((player, index) => ({
+  return players.map((player) => ({
     ...player,
     alive: true,
-    role: shuffledRoles[index]
+    role: player.isSpectator ? undefined : roleByPlayerId.get(player.id)
   }));
 }
 
@@ -71,8 +75,10 @@ export function resolveNight(players: Player[], actions: NightActions) {
 
 export function resolveVotes(players: Player[], votes: Votes) {
   const tally = new Map<string, number>();
+  const activePlayerIds = new Set(players.filter((player) => player.alive && !player.isSpectator).map((player) => player.id));
 
-  for (const targetId of Object.values(votes)) {
+  for (const [voterId, targetId] of Object.entries(votes)) {
+    if (!activePlayerIds.has(voterId) || !activePlayerIds.has(targetId)) continue;
     tally.set(targetId, (tally.get(targetId) ?? 0) + 1);
   }
 
@@ -87,7 +93,7 @@ export function resolveVotes(players: Player[], votes: Votes) {
 }
 
 export function checkWinner(players: Player[]) {
-  const alive = players.filter((player) => player.alive);
+  const alive = players.filter((player) => player.alive && !player.isSpectator);
   const aliveMafiaCount = alive.filter((player) => isMafiaRole(player.role)).length;
   const aliveNonMafiaCount = alive.length - aliveMafiaCount;
 
