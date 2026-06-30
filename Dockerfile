@@ -1,7 +1,8 @@
 FROM node:20-alpine AS deps
 
 WORKDIR /app
-RUN corepack enable
+ENV PNPM_VERSION=9.15.9
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
@@ -9,7 +10,8 @@ RUN pnpm install --frozen-lockfile
 FROM node:20-alpine AS builder
 
 WORKDIR /app
-RUN corepack enable
+ENV PNPM_VERSION=9.15.9
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -18,7 +20,8 @@ RUN pnpm build
 FROM node:20-alpine AS runner
 
 WORKDIR /app
-RUN corepack enable
+ENV PNPM_VERSION=9.15.9
+RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
