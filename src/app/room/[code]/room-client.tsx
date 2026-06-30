@@ -189,13 +189,6 @@ function RolePanel({ room }: { room: PublicRoom }) {
               Союзники: {room.mafiaAllies.map((player) => player.name).join(", ")}
             </p>
           ) : null}
-          {room.detectiveResult ? (
-            <p className="mt-4 rounded-md bg-blue-50 p-3 text-sm text-blue-800">
-              Результат проверки:{" "}
-              {room.players.find((player) => player.id === room.detectiveResult?.targetId)?.name} -
-              {room.detectiveResult.isMafia ? " мафия" : " не мафия"}
-            </p>
-          ) : null}
         </>
       ) : (
         <p className="text-slate-600">Ожидаем запуска игры.</p>
@@ -239,6 +232,7 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
           title="Проголосуйте за жертву"
           players={nonMafiaTargets}
           activeId={room.nightActions?.mafiaVotes?.[room.ownPlayerId]}
+          lockAfterPick
           onPick={(id) => emitAction("mafia_choose_target", { targetId: id })}
         >
           <MafiaVoteStatus room={room} />
@@ -251,7 +245,13 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
   if (room.phase === "NIGHT_MAFIA" && room.ownRole === "MISTRESS") {
     return (
       <div className="space-y-3">
-        <TargetList title="Кого отвлечь этой ночью" players={nonMafiaTargets} onPick={(id) => emitAction("mistress_distract_player", { targetId: id })} />
+        <TargetList
+          title="Кого отвлечь этой ночью"
+          players={nonMafiaTargets}
+          activeId={room.nightActions?.mistressTargetId}
+          lockAfterPick
+          onPick={(id) => emitAction("mistress_distract_player", { targetId: id })}
+        />
         <PhaseAdvanceButton room={room} emitAction={emitAction} />
       </div>
     );
@@ -260,7 +260,20 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
   if (room.phase === "NIGHT_DETECTIVE" && room.ownRole === "DETECTIVE") {
     return (
       <div className="space-y-3">
-        <TargetList title="Выберите игрока для проверки" players={targets} onPick={(id) => emitAction("detective_check_player", { targetId: id })} />
+        <TargetList
+          title="Выберите игрока для проверки"
+          players={targets}
+          activeId={room.nightActions?.detectiveTargetId}
+          lockAfterPick
+          onPick={(id) => emitAction("detective_check_player", { targetId: id })}
+        >
+          {room.detectiveResult ? (
+            <p className="mt-4 rounded-md bg-blue-50 p-3 text-sm text-blue-800">
+              {room.players.find((player) => player.id === room.detectiveResult?.targetId)?.name} -
+              {room.detectiveResult.isMafia ? " мафия" : " не мафия"}
+            </p>
+          ) : null}
+        </TargetList>
         <PhaseAdvanceButton room={room} emitAction={emitAction} />
       </div>
     );
@@ -269,7 +282,13 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
   if (room.phase === "NIGHT_DOCTOR" && room.ownRole === "DOCTOR") {
     return (
       <div className="space-y-3">
-        <TargetList title="Кого спасти этой ночью" players={healTargets} onPick={(id) => emitAction("doctor_save_player", { targetId: id })} />
+        <TargetList
+          title="Кого спасти этой ночью"
+          players={healTargets}
+          activeId={room.nightActions?.doctorTargetId}
+          lockAfterPick
+          onPick={(id) => emitAction("doctor_save_player", { targetId: id })}
+        />
         <PhaseAdvanceButton room={room} emitAction={emitAction} />
       </div>
     );
@@ -278,7 +297,13 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
   if (room.phase === "DAY_VOTING") {
     return (
       <div className="space-y-3">
-        <TargetList title="Голосование" players={targets} onPick={(id) => emitAction("cast_vote", { targetId: id })} />
+        <TargetList
+          title="Голосование"
+          players={targets}
+          activeId={room.votes[room.ownPlayerId]}
+          lockAfterPick
+          onPick={(id) => emitAction("cast_vote", { targetId: id })}
+        />
         <PhaseAdvanceButton room={room} emitAction={emitAction} />
       </div>
     );
@@ -506,7 +531,10 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
             Начать игру
           </Button>
         ) : null}
-        {room.phase !== "LOBBY" && room.phase !== "GAME_OVER" && (room.settings.mode === "manual" || room.phase === "ROLE_REVEAL") ? (
+        {room.phase !== "LOBBY" &&
+        room.phase !== "GAME_OVER" &&
+        (ownPlayer?.isSpectator || room.devMode || room.phase === "ROLE_REVEAL") &&
+        (room.settings.mode === "manual" || room.phase === "ROLE_REVEAL") ? (
           <Button onClick={() => emitAction("next_phase")}>Следующая фаза</Button>
         ) : null}
         {room.phase === "GAME_OVER" ? <Button onClick={() => emitAction("restart_game")}>Вернуться в лобби</Button> : null}
@@ -620,12 +648,14 @@ function TargetList({
   title,
   players,
   activeId,
+  lockAfterPick = false,
   children,
   onPick
 }: {
   title: string;
   players: PublicPlayer[];
   activeId?: string;
+  lockAfterPick?: boolean;
   children?: ReactNode;
   onPick: (id: string) => void;
 }) {
@@ -635,7 +665,12 @@ function TargetList({
       {children}
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {players.map((player) => (
-          <Button key={player.id} variant={activeId === player.id ? "primary" : "secondary"} onClick={() => onPick(player.id)}>
+          <Button
+            key={player.id}
+            variant={activeId === player.id ? "primary" : "secondary"}
+            disabled={lockAfterPick && Boolean(activeId)}
+            onClick={() => onPick(player.id)}
+          >
             {player.name}
           </Button>
         ))}
