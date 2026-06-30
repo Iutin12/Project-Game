@@ -8,6 +8,7 @@ export const phaseLabels: Record<GamePhase, string> = {
   NIGHT_DOCTOR: "Ночь: ход доктора",
   DAY_DISCUSSION: "День: обсуждение",
   DAY_VOTING: "День: голосование",
+  DAY_REVOTE: "День: переголосование",
   GAME_OVER: "Игра окончена"
 };
 
@@ -17,5 +18,6 @@ export const phaseOrder: GamePhase[] = [
   "NIGHT_DETECTIVE",
   "NIGHT_DOCTOR",
   "DAY_DISCUSSION",
-  "DAY_VOTING"
+  "DAY_VOTING",
+  "DAY_REVOTE"
 ];

@@ -13,6 +13,7 @@ export const defaultMafiaSettings = {
   doctorTimerSec: 25,
   dayTimerSec: 300,
   votingTimerSec: 60,
+  voteTieMode: "revote",
   mode: "manual"
 } as const;
 
@@ -58,7 +59,7 @@ export function getNextPhase(room: Room): GamePhase {
 
   const currentIndex = phaseOrder.indexOf(room.phase);
   if (currentIndex === -1) return "NIGHT_MAFIA";
-  if (room.phase === "DAY_VOTING") return getNextEnabledPhase(room, "NIGHT_MAFIA");
+  if (room.phase === "DAY_VOTING" || room.phase === "DAY_REVOTE") return getNextEnabledPhase(room, "NIGHT_MAFIA");
 
   return getNextEnabledPhase(room, phaseOrder[currentIndex + 1] ?? "NIGHT_MAFIA");
 }
@@ -78,21 +79,33 @@ export function resolveNight(players: Player[], actions: NightActions) {
 }
 
 export function resolveVotes(players: Player[], votes: Votes) {
+  return resolveVoteOutcome(players, votes, undefined, false);
+}
+
+export function resolveRunoffVotes(players: Player[], votes: Votes, candidateIds: string[]) {
+  return resolveVoteOutcome(players, votes, candidateIds, true);
+}
+
+function resolveVoteOutcome(players: Player[], votes: Votes, candidateIds: string[] | undefined, eliminateTiedLeaders: boolean) {
   const tally = new Map<string, number>();
   const activePlayerIds = new Set(players.filter((player) => player.alive && !player.isSpectator).map((player) => player.id));
+  const candidateIdSet = candidateIds ? new Set(candidateIds.filter((id) => activePlayerIds.has(id))) : activePlayerIds;
 
   for (const [voterId, targetId] of Object.entries(votes)) {
-    if (!activePlayerIds.has(voterId) || !activePlayerIds.has(targetId)) continue;
+    if (!activePlayerIds.has(voterId) || !candidateIdSet.has(targetId)) continue;
     tally.set(targetId, (tally.get(targetId) ?? 0) + 1);
   }
 
   const sorted = [...tally.entries()].sort((a, b) => b[1] - a[1]);
-  const [leader, runnerUp] = sorted;
-  const eliminatedId = leader && (!runnerUp || leader[1] > runnerUp[1]) ? leader[0] : undefined;
+  const maxVotes = sorted[0]?.[1] ?? 0;
+  const tiedIds = maxVotes > 0 ? sorted.filter(([, count]) => count === maxVotes).map(([playerId]) => playerId) : [];
+  const eliminatedIds = tiedIds.length === 1 || eliminateTiedLeaders ? tiedIds : [];
 
   return {
-    eliminatedId,
-    players: players.map((player) => (player.id === eliminatedId ? { ...player, alive: false } : player))
+    eliminatedId: eliminatedIds[0],
+    eliminatedIds,
+    tiedIds,
+    players: players.map((player) => (eliminatedIds.includes(player.id) ? { ...player, alive: false } : player))
   };
 }
 
@@ -117,6 +130,7 @@ function getNextEnabledPhase(room: Room, phase: GamePhase): GamePhase {
   for (const nextPhase of orderedPhases) {
     if (nextPhase === "NIGHT_DETECTIVE" && !room.settings.hasDetective) continue;
     if (nextPhase === "NIGHT_DOCTOR" && !room.settings.hasDoctor) continue;
+    if (nextPhase === "DAY_REVOTE") continue;
     return nextPhase;
   }
 

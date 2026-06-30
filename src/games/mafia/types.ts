@@ -8,6 +8,7 @@ export type GamePhase =
   | "NIGHT_DOCTOR"
   | "DAY_DISCUSSION"
   | "DAY_VOTING"
+  | "DAY_REVOTE"
   | "GAME_OVER";
 
 export type MafiaSettings = {
@@ -22,6 +23,7 @@ export type MafiaSettings = {
   doctorTimerSec: number;
   dayTimerSec: number;
   votingTimerSec: number;
+  voteTieMode: "revote" | "skip";
   mode: "manual" | "timed";
 };
 
@@ -66,12 +68,14 @@ export type Room = {
   nightActions: NightActions;
   votes: Votes;
   discussionReady: Record<string, boolean>;
+  runoffCandidateIds?: string[];
   chatMessages: ChatMessage[];
   createdAt: number;
   phaseDeadlineAt?: number;
   devMode?: boolean;
   lastNightKilledId?: string;
   lastVoteEliminatedId?: string;
+  lastVoteEliminatedIds?: string[];
   detectiveResult?: {
     detectiveId: string;
     targetId: string;

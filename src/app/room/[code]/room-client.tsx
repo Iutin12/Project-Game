@@ -87,6 +87,7 @@ export function RoomClient({ code }: { code: string }) {
     if (room.phase === "NIGHT_DOCTOR") return "Доктор выбирает, кого спасти.";
     if (room.phase === "DAY_DISCUSSION") return "Наступает день. Обсудите события ночи.";
     if (room.phase === "DAY_VOTING") return "Выберите игрока, против которого голосуете.";
+    if (room.phase === "DAY_REVOTE") return "Голоса разделились. Голосуйте только за кандидатов переголосования.";
     return "Ожидаем запуска игры.";
   }, [room]);
 
@@ -170,6 +171,7 @@ function RolePanel({ room }: { room: PublicRoom }) {
   const ownRole = room.ownRole;
   const killed = room.players.find((player) => player.id === room.lastNightKilledId);
   const eliminated = room.players.find((player) => player.id === room.lastVoteEliminatedId);
+  const eliminatedPlayers = room.players.filter((player) => room.lastVoteEliminatedIds?.includes(player.id));
 
   return (
     <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
@@ -198,8 +200,11 @@ function RolePanel({ room }: { room: PublicRoom }) {
           {killed ? `Этой ночью погиб: ${killed.name}` : "Этой ночью никто не погиб."}
         </p>
       ) : null}
-      {eliminated && room.phase !== "DAY_VOTING" ? (
-        <p className="mt-2 text-slate-700">По итогам голосования выбыл: {eliminated.name}</p>
+      {(eliminated || eliminatedPlayers.length > 0) && room.phase !== "DAY_VOTING" && room.phase !== "DAY_REVOTE" ? (
+        <p className="mt-2 text-slate-700">
+          По итогам голосования выбыл{eliminatedPlayers.length > 1 ? "и" : ""}:{" "}
+          {eliminatedPlayers.length > 0 ? eliminatedPlayers.map((player) => player.name).join(", ") : eliminated?.name}
+        </p>
       ) : null}
       {room.phase === "GAME_OVER" ? (
         <p className="mt-4 text-xl font-semibold text-mint">
@@ -313,14 +318,16 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
     );
   }
 
-  if (room.phase === "DAY_VOTING") {
+  if (room.phase === "DAY_VOTING" || room.phase === "DAY_REVOTE") {
+    const votingTargets =
+      room.phase === "DAY_REVOTE" ? targets.filter((player) => room.runoffCandidateIds?.includes(player.id)) : targets;
     return (
       <div className="space-y-3">
-        <TargetList
-          title="Голосование"
-          players={targets}
+        <VotingTargetPicker
+          room={room}
+          title={room.phase === "DAY_REVOTE" ? "Переголосование" : "Голосование"}
+          players={votingTargets}
           activeId={room.votes[room.ownPlayerId]}
-          lockAfterPick
           onPick={(id) => emitAction("cast_vote", { targetId: id })}
         />
         <PhaseAdvanceButton room={room} emitAction={emitAction} />
@@ -357,6 +364,9 @@ function canOwnPlayerAdvancePhase(room: PublicRoom) {
     return Boolean(room.nightActions?.doctorTargetId);
   }
   if (room.phase === "DAY_VOTING") {
+    return areVotesReady(room);
+  }
+  if (room.phase === "DAY_REVOTE") {
     return areVotesReady(room);
   }
 
@@ -492,6 +502,23 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
               />
             </label>
             <div className="rounded-xl border border-line bg-cloud p-3">
+              <p className="text-sm font-semibold text-ink">Если голоса равны</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button
+                  variant={room.settings.voteTieMode === "revote" ? "primary" : "secondary"}
+                  onClick={() => updateSettings({ voteTieMode: "revote" })}
+                >
+                  Переголосование
+                </Button>
+                <Button
+                  variant={room.settings.voteTieMode === "skip" ? "primary" : "secondary"}
+                  onClick={() => updateSettings({ voteTieMode: "skip" })}
+                >
+                  Никто
+                </Button>
+              </div>
+            </div>
+            <div className="rounded-xl border border-line bg-cloud p-3">
               <p className="text-sm font-semibold text-ink">Переход фаз</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <Button
@@ -540,6 +567,7 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
             Дон: {room.settings.hasDon ? "есть" : "нет"}. Любовница:{" "}
             {room.settings.hasMistress ? "есть" : "нет"}. Комиссар / шериф:{" "}
             {room.settings.hasDetective ? "есть" : "нет"}. Доктор: {room.settings.hasDoctor ? "есть" : "нет"}.
+            Ничья: {room.settings.voteTieMode === "revote" ? "переголосование" : "никто не выбывает"}.
             Режим фаз: {room.settings.mode === "timed" ? "таймеры" : "кнопка"}.
           </p>
         )}
@@ -610,6 +638,7 @@ function PlayersPanel({ title, players, empty = "Нет игроков" }: { tit
 function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string, payload?: unknown) => void }) {
   const [message, setMessage] = useState("");
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const previousMessageCountRef = useRef(room.chatMessages.length);
   const emojis = ["🙂", "😂", "😈", "🤔", "👏", "🔥"];
@@ -636,7 +665,10 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
   }, [room.chatMessages, room.ownPlayerId]);
 
   function scrollChatToBottom() {
-    messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: "smooth" });
+    panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => {
+      messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: "smooth" });
+    }, 120);
     setHasUnreadMessages(false);
   }
 
@@ -648,7 +680,7 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
   }
 
   return (
-    <div className="rounded-2xl border border-line bg-white p-4 shadow-soft">
+    <div ref={panelRef} className="rounded-2xl border border-line bg-white p-4 shadow-soft">
       <h2 className="font-display text-2xl font-semibold text-ink">Чат</h2>
       {hasUnreadMessages ? (
         <button
@@ -795,6 +827,72 @@ function MafiaVoteTimer({ deadlineAt }: { deadlineAt: number }) {
     <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
       Если мафия не договорится, цель выберется автоматически через {Math.max(0, Math.ceil((deadlineAt - now) / 1000))} сек.
     </p>
+  );
+}
+
+function VotingTargetPicker({
+  room,
+  title,
+  players,
+  activeId,
+  onPick
+}: {
+  room: PublicRoom;
+  title: string;
+  players: PublicPlayer[];
+  activeId?: string;
+  onPick: (id: string) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+      <h2 className="font-display text-3xl font-semibold text-ink">{title}</h2>
+      <p className="mt-2 text-sm text-slate-600">
+        {room.phase === "DAY_REVOTE"
+          ? "Можно голосовать только за игроков, набравших равное число голосов."
+          : "Выберите игрока. После выбора голос изменить нельзя."}
+      </p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {players.map((player) => {
+          const voters = room.players.filter((voter) => room.votes[voter.id] === player.id);
+          const isOwnPick = activeId === player.id;
+
+          return (
+            <button
+              key={player.id}
+              type="button"
+              disabled={Boolean(activeId)}
+              className={[
+                "rounded-2xl border p-3 text-left transition disabled:cursor-not-allowed",
+                isOwnPick
+                  ? "border-coral/40 bg-coral/10 shadow-soft"
+                  : voters.length > 0
+                    ? "border-ocean/25 bg-ocean/10"
+                    : "border-line bg-cloud hover:-translate-y-0.5 hover:border-ocean/30",
+                activeId && !isOwnPick ? "opacity-70" : ""
+              ].join(" ")}
+              onClick={() => onPick(player.id)}
+            >
+              <div className="flex items-start gap-3">
+                <span
+                  className={[
+                    "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-lg font-bold",
+                    isOwnPick ? "bg-coral text-white" : voters.length > 0 ? "bg-ocean text-white" : "bg-white text-slate-500"
+                  ].join(" ")}
+                >
+                  {player.name.slice(0, 1).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold text-ink">{player.name}</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-500">
+                    {voters.length > 0 ? voters.map((voter) => voter.name).join(", ") : "Пока нет голосов"}
+                  </span>
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
