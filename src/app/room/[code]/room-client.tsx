@@ -228,15 +228,12 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
   if (room.phase === "NIGHT_MAFIA" && (room.ownRole === "MAFIA" || room.ownRole === "DON")) {
     return (
       <div className="space-y-3">
-        <TargetList
-          title="Проголосуйте за жертву"
+        <MafiaTargetPicker
+          room={room}
           players={nonMafiaTargets}
           activeId={room.nightActions?.mafiaVotes?.[room.ownPlayerId]}
-          lockAfterPick
           onPick={(id) => emitAction("mafia_choose_target", { targetId: id })}
-        >
-          <MafiaVoteStatus room={room} />
-        </TargetList>
+        />
         <PhaseAdvanceButton room={room} emitAction={emitAction} />
       </div>
     );
@@ -710,6 +707,87 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
 
 function isChatNearBottom(node: HTMLDivElement) {
   return node.scrollHeight - node.scrollTop - node.clientHeight < 32;
+}
+
+function MafiaTargetPicker({
+  room,
+  players,
+  activeId,
+  onPick
+}: {
+  room: PublicRoom;
+  players: PublicPlayer[];
+  activeId?: string;
+  onPick: (id: string) => void;
+}) {
+  const votes = room.nightActions?.mafiaVotes ?? {};
+  const selectedTarget = room.players.find((player) => player.id === room.nightActions?.mafiaTargetId);
+  const deadlineAt = room.nightActions?.mafiaVoteDeadlineAt;
+
+  return (
+    <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+      <h2 className="font-display text-3xl font-semibold text-ink">Проголосуйте за жертву</h2>
+      <p className="mt-2 text-sm text-slate-600">
+        {selectedTarget ? `Текущая цель: ${selectedTarget.name}` : "Выберите общую цель. Выбор можно менять до завершения фазы."}
+      </p>
+      {deadlineAt ? <MafiaVoteTimer deadlineAt={deadlineAt} /> : null}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {players.map((player) => {
+          const voters = room.mafiaAllies.filter((ally) => votes[ally.id] === player.id);
+          const isOwnPick = activeId === player.id;
+          const isResolvedTarget = room.nightActions?.mafiaTargetId === player.id;
+
+          return (
+            <button
+              key={player.id}
+              type="button"
+              className={[
+                "rounded-2xl border p-3 text-left transition hover:-translate-y-0.5",
+                isOwnPick || isResolvedTarget
+                  ? "border-coral/40 bg-coral/10 shadow-soft"
+                  : voters.length > 0
+                    ? "border-ocean/25 bg-ocean/10"
+                    : "border-line bg-cloud hover:border-ocean/30"
+              ].join(" ")}
+              onClick={() => onPick(player.id)}
+            >
+              <div className="flex items-start gap-3">
+                <span
+                  className={[
+                    "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-lg font-bold",
+                    isOwnPick || isResolvedTarget ? "bg-coral text-white" : voters.length > 0 ? "bg-ocean text-white" : "bg-white text-slate-500"
+                  ].join(" ")}
+                >
+                  {player.name.slice(0, 1).toUpperCase()}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold text-ink">{player.name}</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-500">
+                    {voters.length > 0 ? voters.map((voter) => voter.name).join(", ") : "Пока никто не выбрал"}
+                  </span>
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function MafiaVoteTimer({ deadlineAt }: { deadlineAt: number }) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return (
+    <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
+      Если мафия не договорится, цель выберется автоматически через {Math.max(0, Math.ceil((deadlineAt - now) / 1000))} сек.
+    </p>
+  );
 }
 
 function TargetList({

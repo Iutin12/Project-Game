@@ -397,9 +397,6 @@ export function registerRoomSockets(io: Server) {
           if (room.phase !== "NIGHT_MAFIA" || (player.role !== "MAFIA" && player.role !== "DON") || !player.alive) {
             return { ok: false, error: "Сейчас нельзя выбрать жертву" };
           }
-          if (room.nightActions.mafiaVotes?.[player.id]) {
-            return { ok: false, error: "Вы уже выбрали жертву этой ночью" };
-          }
           const target = findAlivePlayer(room, payload.targetId);
           if (!target) return { ok: false, error: "Игрок не найден" };
           if (isMafiaRole(target.role)) return { ok: false, error: "Нельзя выбрать союзника мафии" };
@@ -574,9 +571,13 @@ function registerMafiaVote(io: Server, room: Room, voter: Player, targetId: stri
 
   const killers = getAliveMafiaKillers(room);
   if (!getAliveDon(room) && killers.length > 1 && killers.every((player) => room.nightActions.mafiaVotes?.[player.id])) {
-    resolveMafiaVote(room, true);
-    room.nightActions.mafiaVoteDeadlineAt = undefined;
-    clearMafiaVoteTimer(room.code);
+    const uniqueTargets = new Set(killers.map((player) => room.nightActions.mafiaVotes?.[player.id]));
+    if (uniqueTargets.size === 1) {
+      room.nightActions.mafiaVoteDeadlineAt = undefined;
+      clearMafiaVoteTimer(room.code);
+    } else if (!room.nightActions.mafiaVoteDeadlineAt) {
+      scheduleMafiaVoteTimer(io, room);
+    }
   }
 
   emitRoom(io, room.code);
@@ -912,7 +913,10 @@ function isMafiaKillReady(room: Room) {
   if (killers.length === 0) return false;
   const votes = room.nightActions.mafiaVotes ?? {};
   const firstVote = votes[killers[0].id];
-  return Boolean(firstVote) && killers.every((player) => votes[player.id] === firstVote);
+  const allVoted = killers.every((player) => votes[player.id]);
+  const allSameTarget = Boolean(firstVote) && killers.every((player) => votes[player.id] === firstVote);
+  const resolvedAfterTimerOrDon = allVoted && Boolean(room.nightActions.mafiaTargetId) && !room.nightActions.mafiaVoteDeadlineAt;
+  return allSameTarget || resolvedAfterTimerOrDon;
 }
 
 function areVotesReady(room: Room) {
