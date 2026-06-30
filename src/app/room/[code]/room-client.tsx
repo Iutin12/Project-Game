@@ -620,13 +620,15 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
 
     const lastMessage = room.chatMessages.at(-1);
     const hasNewMessage = room.chatMessages.length > previousMessageCountRef.current;
+    const isOwnMessage = lastMessage?.playerId === room.ownPlayerId;
+    const isChatVisible = isElementMostlyInViewport(messagesNode);
     const shouldStayPinned =
-      isChatNearBottom(messagesNode) || lastMessage?.playerId === room.ownPlayerId || previousMessageCountRef.current === 0;
+      (isChatNearBottom(messagesNode) && isChatVisible) || isOwnMessage || previousMessageCountRef.current === 0;
 
     if (shouldStayPinned) {
       messagesNode.scrollTo({ top: messagesNode.scrollHeight, behavior: hasNewMessage ? "smooth" : "auto" });
       setHasUnreadMessages(false);
-    } else if (hasNewMessage) {
+    } else if (hasNewMessage && !isOwnMessage) {
       setHasUnreadMessages(true);
     }
 
@@ -651,10 +653,11 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
       {hasUnreadMessages ? (
         <button
           type="button"
-          className="fixed bottom-5 right-5 z-40 rounded-full border border-ocean/15 bg-white/95 px-4 py-2 text-sm font-semibold text-ocean shadow-soft backdrop-blur transition hover:-translate-y-0.5 hover:bg-ocean/10 sm:bottom-7 sm:right-7"
+          className="fixed bottom-5 right-5 z-40 rounded-full border border-ocean/20 bg-white/95 px-4 py-2 text-sm font-semibold text-ocean shadow-soft backdrop-blur transition hover:-translate-y-0.5 hover:bg-ocean/10 sm:bottom-7 sm:right-7"
           onClick={scrollChatToBottom}
         >
-          Новые сообщения
+          <span className="mr-2 inline-flex h-2 w-2 rounded-full bg-coral shadow-[0_0_0_4px_rgba(255,107,93,0.14)]" />
+          Новое сообщение
         </button>
       ) : null}
       <div
@@ -707,6 +710,11 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
 
 function isChatNearBottom(node: HTMLDivElement) {
   return node.scrollHeight - node.scrollTop - node.clientHeight < 32;
+}
+
+function isElementMostlyInViewport(node: HTMLElement) {
+  const rect = node.getBoundingClientRect();
+  return rect.top >= 0 && rect.bottom <= window.innerHeight;
 }
 
 function MafiaTargetPicker({

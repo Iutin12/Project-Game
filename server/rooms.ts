@@ -15,6 +15,7 @@ const rooms = new Map<string, Room>();
 const socketPlayers = new Map<string, { roomCode: string; playerId: string }>();
 const mafiaVoteTimers = new Map<string, NodeJS.Timeout>();
 const phaseTimers = new Map<string, NodeJS.Timeout>();
+const MAFIA_REVOTE_TIMEOUT_MS = 40_000;
 let totalRoomsCreatedToday = 0;
 let statsDay = new Date().toDateString();
 
@@ -634,7 +635,7 @@ function scheduleMafiaVoteTimer(io: Server, room: Room) {
   const killers = getAliveMafiaKillers(room);
   if (killers.length <= 1 || getAliveDon(room)) return;
 
-  room.nightActions.mafiaVoteDeadlineAt = Date.now() + 20_000;
+  room.nightActions.mafiaVoteDeadlineAt = Date.now() + MAFIA_REVOTE_TIMEOUT_MS;
   mafiaVoteTimers.set(
     room.code,
     setTimeout(() => {
@@ -644,7 +645,7 @@ function scheduleMafiaVoteTimer(io: Server, room: Room) {
       currentRoom.nightActions.mafiaVoteDeadlineAt = undefined;
       clearMafiaVoteTimer(currentRoom.code);
       emitRoom(io, currentRoom.code);
-    }, 20_000)
+    }, MAFIA_REVOTE_TIMEOUT_MS)
   );
 }
 
