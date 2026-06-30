@@ -18,7 +18,7 @@ export function RoomClient({ code }: { code: string }) {
   const [isRestoring, setIsRestoring] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
-  const [roomTab, setRoomTab] = useState<"players" | "chat" | "settings">("players");
+  const [roomTab, setRoomTab] = useState<"room" | "settings">("room");
 
   const inviteUrl = typeof window === "undefined" ? "" : `${window.location.origin}/room/${code}`;
   const ownPlayer = room?.players.find((player) => player.id === room.ownPlayerId);
@@ -131,22 +131,22 @@ export function RoomClient({ code }: { code: string }) {
     <AppShell>
       <section className="py-6">
         <div className="rounded-[2rem] border border-line bg-white/85 p-3 shadow-soft backdrop-blur md:p-4">
-          <div className="relative overflow-hidden rounded-[1.5rem] border border-line bg-[radial-gradient(circle_at_0%_0%,rgba(239,61,61,0.16),transparent_18rem),linear-gradient(135deg,var(--color-surface),var(--color-surface-muted))] p-4 md:p-5">
-            <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative overflow-hidden rounded-[1.5rem] border border-line bg-[radial-gradient(circle_at_0%_0%,rgba(239,61,61,0.14),transparent_16rem),linear-gradient(135deg,var(--color-surface),var(--color-surface-muted))] p-3 md:p-4">
+            <div className="relative z-10 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="min-w-0">
-                <p className="text-xs font-bold uppercase tracking-[0.34em] text-ocean">Комната {code}</p>
-                <div className="mt-2 flex flex-wrap items-end gap-3">
-                  <h1 className="font-display text-3xl font-semibold leading-none text-ink md:text-4xl">
-                    {phaseLabels[room?.phase ?? "LOBBY"]}
-                  </h1>
-                  {room?.phaseDeadlineAt ? <PhaseCountdown deadlineAt={room.phaseDeadlineAt} /> : null}
-                </div>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{phaseHint}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="mr-2 text-xs font-bold uppercase tracking-[0.3em] text-ocean">Комната {code}</p>
                   <RoomChip>{alivePlayers.length} / 15 игроков</RoomChip>
                   <RoomChip>{deadPlayers.length} выбыло</RoomChip>
                   <RoomChip>ID: {code}</RoomChip>
                 </div>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <h1 className="font-display text-2xl font-semibold leading-none text-ink md:text-3xl">
+                    {phaseLabels[room?.phase ?? "LOBBY"]}
+                  </h1>
+                  {room?.phaseDeadlineAt ? <PhaseCountdown deadlineAt={room.phaseDeadlineAt} /> : null}
+                </div>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{phaseHint}</p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Button variant="secondary" onClick={copyInvite}>
@@ -171,11 +171,8 @@ export function RoomClient({ code }: { code: string }) {
               {error ? <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-coral">{error}</p> : null}
 
               <div className="flex flex-wrap gap-2 rounded-[1.5rem] border border-line bg-cloud/70 p-2">
-                <RoomTabButton active={roomTab === "players"} onClick={() => setRoomTab("players")}>
-                  Игроки
-                </RoomTabButton>
-                <RoomTabButton active={roomTab === "chat"} onClick={() => setRoomTab("chat")}>
-                  Чат
+                <RoomTabButton active={roomTab === "room"} onClick={() => setRoomTab("room")}>
+                  Комната
                   {room.chatMessages.length > 0 ? <span className="ml-2 rounded-full bg-white/70 px-2 py-0.5 text-xs">{room.chatMessages.length}</span> : null}
                 </RoomTabButton>
                 <RoomTabButton active={roomTab === "settings"} onClick={() => setRoomTab("settings")}>
@@ -183,24 +180,27 @@ export function RoomClient({ code }: { code: string }) {
                 </RoomTabButton>
               </div>
 
-              {roomTab === "players" ? (
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <PlayersPanel title="Живые игроки" players={alivePlayers} />
-                  <PlayersPanel title="Выбывшие" players={deadPlayers} empty="Пока никто не выбыл" />
-                  {spectators.length > 0 ? <PlayersPanel title="Ведущие" players={spectators} empty="Нет ведущих" /> : null}
+              {roomTab === "room" ? (
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.9fr)]">
+                  <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-1">
+                    <PlayersPanel title="Живые игроки" players={alivePlayers} />
+                    <PlayersPanel title="Выбывшие" players={deadPlayers} empty="Пока никто не выбыл" />
+                    {spectators.length > 0 ? <PlayersPanel title="Ведущие" players={spectators} empty="Нет ведущих" /> : null}
+                  </div>
+                  <ChatPanel room={room} emitAction={emitAction} />
                 </div>
               ) : null}
 
-              {roomTab === "chat" ? <ChatPanel room={room} emitAction={emitAction} /> : null}
-
               {roomTab === "settings" ? (
-                ownPlayer?.isHost ? (
-                  <HostPanel room={room} emitAction={emitAction} />
-                ) : (
-                  <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 text-sm leading-6 text-slate-600 shadow-soft">
-                    Настройки комнаты доступны только хосту. Игровые действия остаются на основном экране.
-                  </div>
-                )
+                <div className="flex justify-center">
+                  {ownPlayer?.isHost ? (
+                    <HostPanel room={room} emitAction={emitAction} />
+                  ) : (
+                    <div className="w-full max-w-3xl rounded-[1.5rem] border border-line bg-white/90 p-5 text-center text-sm leading-6 text-slate-600 shadow-soft">
+                      Настройки комнаты доступны только хосту. Игровые действия остаются на основном экране.
+                    </div>
+                  )}
+                </div>
               ) : null}
             </div>
           ) : null}
@@ -212,7 +212,7 @@ export function RoomClient({ code }: { code: string }) {
 
 function RoomChip({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-xl border border-line bg-white/70 px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">
+    <span className="rounded-xl border border-line bg-white/70 px-2.5 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
       {children}
     </span>
   );
@@ -490,7 +490,7 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
   }
 
   return (
-    <div className="rounded-[1.75rem] border border-line bg-white/90 p-4 shadow-soft backdrop-blur lg:max-w-4xl">
+    <div className="w-full max-w-5xl rounded-[1.75rem] border border-line bg-white/90 p-4 shadow-soft backdrop-blur">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-ocean">Управление</p>
