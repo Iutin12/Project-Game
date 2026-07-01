@@ -697,6 +697,7 @@ function PlayersPanel({ title, players, empty = "Нет игроков" }: { tit
 function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string, payload?: unknown) => void }) {
   const [message, setMessage] = useState("");
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const previousMessageCountRef = useRef(room.chatMessages.length);
@@ -710,14 +711,19 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
     const hasNewMessage = room.chatMessages.length > previousMessageCountRef.current;
     const isOwnMessage = lastMessage?.playerId === room.ownPlayerId;
     const isChatVisible = isElementMostlyInViewport(messagesNode);
+    const isNearBottom = isChatNearBottom(messagesNode);
     if (hasNewMessage || previousMessageCountRef.current === 0) {
-      messagesNode.scrollTo({ top: messagesNode.scrollHeight, behavior: hasNewMessage ? "smooth" : "auto" });
+      if (isOwnMessage || isNearBottom || previousMessageCountRef.current === 0) {
+        messagesNode.scrollTo({ top: messagesNode.scrollHeight, behavior: hasNewMessage ? "smooth" : "auto" });
+      }
     }
 
-    if (hasNewMessage && !isOwnMessage && !isChatVisible) {
+    if (hasNewMessage && !isOwnMessage && (!isChatVisible || !isNearBottom)) {
       setHasUnreadMessages(true);
-    } else if (isChatVisible || isOwnMessage) {
+      setUnreadCount((current) => current + (room.chatMessages.length - previousMessageCountRef.current));
+    } else if ((isChatVisible && isNearBottom) || isOwnMessage) {
       setHasUnreadMessages(false);
+      setUnreadCount(0);
     }
 
     previousMessageCountRef.current = room.chatMessages.length;
@@ -729,6 +735,7 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
       messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: "smooth" });
     }, 120);
     setHasUnreadMessages(false);
+    setUnreadCount(0);
   }
 
   function sendMessage() {
@@ -739,7 +746,10 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
   }
 
   return (
-    <div ref={panelRef} className="flex min-h-[24rem] flex-col rounded-[1.5rem] border border-line bg-white/90 p-4 shadow-soft">
+    <div
+      ref={panelRef}
+      className="grid h-[34rem] min-h-0 grid-rows-[auto_minmax(0,1fr)_auto_auto] rounded-[1.5rem] border border-line bg-white/90 p-4 shadow-soft"
+    >
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-semibold text-ink">Чат комнаты</h2>
         <span className="rounded-lg bg-cloud px-2 py-1 text-xs font-semibold text-slate-500">{room.chatMessages.length}</span>
@@ -751,14 +761,17 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
           onClick={scrollChatToBottom}
         >
           <span className="mr-2 inline-flex h-2 w-2 rounded-full bg-coral shadow-[0_0_0_4px_rgba(255,107,93,0.14)]" />
-          Новое сообщение
+          {unreadCount > 1 ? `${unreadCount} новых сообщения` : "Новое сообщение"}
         </button>
       ) : null}
       <div
         ref={messagesRef}
-        className="mt-4 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto rounded-2xl bg-cloud/70 p-3"
+        className="mt-4 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain rounded-2xl bg-cloud/70 p-3"
         onScroll={(event) => {
-          if (isChatNearBottom(event.currentTarget)) setHasUnreadMessages(false);
+          if (isChatNearBottom(event.currentTarget)) {
+            setHasUnreadMessages(false);
+            setUnreadCount(0);
+          }
         }}
       >
         {room.chatMessages.length === 0 ? (
