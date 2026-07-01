@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { JoinByCode } from "@/components/layout/JoinByCode";
 import { QuickCreateRoom } from "@/components/layout/QuickCreateRoom";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
@@ -8,7 +9,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <main className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
       <header className="flex items-center justify-between gap-4 py-2">
         <Link href="/" className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-ink">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-ocean text-xl text-white shadow-soft">♟</span>
+          <Image
+            src="/brand/project-game-logo.png"
+            alt="Project Game"
+            width={44}
+            height={44}
+            className="h-11 w-11 rounded-2xl object-cover shadow-soft"
+            priority
+          />
           <span>Project <span className="text-ocean">Game</span></span>
         </Link>
         <nav className="hidden items-center gap-7 text-sm font-semibold text-slate-600 md:flex">
