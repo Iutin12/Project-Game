@@ -526,7 +526,7 @@ function TieChallengePanel({ room, emitAction }: { room: PublicRoom; emitAction:
 
   const candidates = room.players.filter((player) => challenge.candidateIds.includes(player.id));
   const isCandidate = challenge.candidateIds.includes(room.ownPlayerId);
-  const ownAnswer = challenge.answers[room.ownPlayerId];
+  const ownProgress = challenge.progress[room.ownPlayerId];
   const secondsLeft = Math.max(0, Math.ceil((challenge.deadlineAt - now) / 1000));
 
   return (
@@ -534,42 +534,51 @@ function TieChallengePanel({ room, emitAction }: { room: PublicRoom; emitAction:
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-ocean">Испытание на вылет</p>
-          <h2 className="mt-2 font-display text-2xl font-semibold text-ink">{challenge.task.title}</h2>
+          <h2 className="mt-2 font-display text-2xl font-semibold text-ink">
+            {ownProgress?.task.title ?? "Серия быстрых заданий"}
+          </h2>
         </div>
         <span className="rounded-full bg-coral/10 px-3 py-1 text-sm font-bold text-coral">{secondsLeft} сек.</span>
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-600">
-        Участники: {candidates.map((player) => player.name).join(", ")}. Кто быстрее даст правильный ответ, остается в игре.
+        Участники: {candidates.map((player) => player.name).join(", ")}. В течение 30 секунд решайте задания подряд.
+        Кто наберет больше правильных ответов, остается в игре.
       </p>
-      <p className="mt-4 rounded-2xl bg-cloud/80 p-4 text-lg font-semibold text-ink">{challenge.task.prompt}</p>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        {challenge.task.options.map((option, index) => (
-          <button
-            key={`${challenge.task.id}-${option}`}
-            type="button"
-            disabled={!isCandidate || Boolean(ownAnswer)}
-            className={[
-              "rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition disabled:cursor-not-allowed",
-              ownAnswer?.optionIndex === index
-                ? "border-coral/40 bg-coral/10 text-coral"
-                : "border-line bg-cloud text-slate-700 hover:-translate-y-0.5 hover:border-ocean/30",
-              !isCandidate || ownAnswer ? "opacity-75" : ""
-            ].join(" ")}
-            onClick={() => emitAction("answer_tie_challenge", { optionIndex: index })}
-          >
-            {option}
-          </button>
+        {candidates.map((player) => (
+          <div key={player.id} className="rounded-2xl border border-line bg-cloud/70 px-3 py-2 text-sm text-slate-600">
+            <span className="font-semibold text-ink">{player.name}</span>: {challenge.progress[player.id]?.score ?? 0} верных
+          </div>
         ))}
       </div>
-      <p className="mt-3 text-sm text-slate-500">
-        {!isCandidate
-          ? "Вы не участвуете в испытании и ждете результата."
-          : ownAnswer
-            ? ownAnswer.correct
-              ? "Ответ принят. Если он самый быстрый среди правильных, вы останетесь."
-              : "Ответ принят. Если другие ответят правильно, вы можете выбыть."
-            : "Выберите один вариант ответа. Ответ изменить нельзя."}
-      </p>
+      {isCandidate && ownProgress ? (
+        <>
+          <p className="mt-4 rounded-2xl bg-cloud/80 p-4 text-lg font-semibold text-ink">{ownProgress.task.prompt}</p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {ownProgress.task.options.map((option, index) => (
+              <button
+                key={`${ownProgress.task.id}-${option}`}
+                type="button"
+                disabled={secondsLeft <= 0}
+                className="rounded-2xl border border-line bg-cloud px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-ocean/30 disabled:cursor-not-allowed disabled:opacity-70"
+                onClick={() => emitAction("answer_tie_challenge", { optionIndex: index })}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 text-sm text-slate-500">
+            Ваш счет: {ownProgress.score}.{" "}
+            {ownProgress.lastAnswerCorrect === true
+              ? "Верно, держим темп."
+              : ownProgress.lastAnswerCorrect === false
+                ? "Неверно, попробуйте следующий вариант или дождитесь нового задания."
+                : "Выберите ответ, чтобы получить следующее задание при верном решении."}
+          </p>
+        </>
+      ) : (
+        <p className="mt-4 text-sm text-slate-500">Вы не участвуете в испытании и ждете результата.</p>
+      )}
     </div>
   );
 }
@@ -735,7 +744,7 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
                 </div>
                 <SettingsSectionTitle
                   title="Если голоса равны"
-                  hint="Переголосование запускает дополнительную фазу только между лидерами. Если после переголосования равенство остается, выбывают все лидеры. «Никто» оставляет всех в игре при первой ничьей. «Испытание» после повторной ничьей дает претендентам короткое задание на скорость: быстрый пример или проверку внимания на 30 секунд."
+                  hint="Переголосование запускает дополнительную фазу только между лидерами. Если после переголосования равенство остается, выбывают все лидеры. «Никто» оставляет всех в игре при первой ничьей. «Испытание» после повторной ничьей дает претендентам 30 секунд на серию быстрых заданий: примеры и проверку внимания. Кто решит больше, остается."
                 />
                 <div className="grid gap-2 sm:grid-cols-3">
                   <Button

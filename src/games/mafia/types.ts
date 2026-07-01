@@ -59,23 +59,26 @@ export type TieChallengeTask = {
   correctOptionIndex: number;
 };
 
-export type TieChallengeAnswer = {
-  optionIndex: number;
-  correct: boolean;
-  answeredAt: number;
-  elapsedMs: number;
+export type TieChallengeProgress = {
+  task: TieChallengeTask;
+  score: number;
+  lastAnswerCorrect?: boolean;
+  lastAnsweredAt?: number;
 };
 
 export type TieChallenge = {
   candidateIds: string[];
-  task: TieChallengeTask;
-  answers: Record<string, TieChallengeAnswer>;
+  progress: Record<string, TieChallengeProgress>;
   startedAt: number;
   deadlineAt: number;
 };
 
-export type PublicTieChallenge = Omit<TieChallenge, "task"> & {
+export type PublicTieChallengeProgress = Omit<TieChallengeProgress, "task"> & {
   task: Omit<TieChallengeTask, "correctOptionIndex">;
+};
+
+export type PublicTieChallenge = Omit<TieChallenge, "progress"> & {
+  progress: Record<string, PublicTieChallengeProgress>;
 };
 
 export type Player = {

@@ -580,23 +580,26 @@ export function registerRoomSockets(io: Server) {
         if (!room.tieChallenge.candidateIds.includes(player.id)) {
           return { ok: false, error: "Испытание только для претендентов на вылет" };
         }
-        if (room.tieChallenge.answers[player.id]) {
-          return { ok: false, error: "Вы уже ответили" };
+        if (Date.now() >= room.tieChallenge.deadlineAt) {
+          resolveTieChallenge(io, room);
+          return { ok: true };
         }
-        if (!Number.isInteger(payload.optionIndex) || !room.tieChallenge.task.options[payload.optionIndex]) {
+
+        const progress = room.tieChallenge.progress[player.id];
+        if (!progress) return { ok: false, error: "Задание не найдено" };
+
+        if (!Number.isInteger(payload.optionIndex) || !progress.task.options[payload.optionIndex]) {
           return { ok: false, error: "Такого варианта ответа нет" };
         }
 
         const answeredAt = Date.now();
-        room.tieChallenge.answers[player.id] = {
-          optionIndex: payload.optionIndex,
-          correct: payload.optionIndex === room.tieChallenge.task.correctOptionIndex,
-          answeredAt,
-          elapsedMs: answeredAt - room.tieChallenge.startedAt
-        };
+        const correct = payload.optionIndex === progress.task.correctOptionIndex;
+        progress.lastAnswerCorrect = correct;
+        progress.lastAnsweredAt = answeredAt;
 
-        if (areTieChallengeCandidatesDone(room)) {
-          resolveTieChallenge(io, room);
+        if (correct) {
+          progress.score += 1;
+          progress.task = createTieChallengeTask();
         }
 
         return { ok: true };
@@ -976,13 +979,11 @@ function simulateCurrentPhase(room: Room) {
 
   if (room.phase === "DAY_TIE_CHALLENGE" && room.tieChallenge) {
     const firstCandidate = room.tieChallenge.candidateIds[0];
-    if (firstCandidate) {
-      room.tieChallenge.answers[firstCandidate] = {
-        optionIndex: room.tieChallenge.task.correctOptionIndex,
-        correct: true,
-        answeredAt: Date.now(),
-        elapsedMs: 1000
-      };
+    const progress = firstCandidate ? room.tieChallenge.progress[firstCandidate] : undefined;
+    if (progress) {
+      progress.score = 2;
+      progress.lastAnswerCorrect = true;
+      progress.lastAnsweredAt = Date.now();
     }
   }
 
@@ -1148,17 +1149,19 @@ function startTieChallenge(io: Server | undefined, room: Room, candidateIds: str
   room.votes = {};
   room.tieChallenge = {
     candidateIds,
-    task: createTieChallengeTask(),
-    answers: {},
+    progress: Object.fromEntries(
+      candidateIds.map((playerId) => [
+        playerId,
+        {
+          task: createTieChallengeTask(),
+          score: 0
+        }
+      ])
+    ),
     startedAt: Date.now(),
     deadlineAt: Date.now() + TIE_CHALLENGE_TIMEOUT_SEC * 1000
   };
   schedulePhaseTimerIfNeeded(io, room);
-}
-
-function areTieChallengeCandidatesDone(room: Room) {
-  if (!room.tieChallenge) return false;
-  return room.tieChallenge.candidateIds.every((playerId) => room.tieChallenge?.answers[playerId]);
 }
 
 function resolveTieChallenge(io: Server | undefined, room: Room) {
@@ -1166,10 +1169,16 @@ function resolveTieChallenge(io: Server | undefined, room: Room) {
   const challenge = room.tieChallenge;
   if (!challenge) return;
 
-  const correctAnswers = Object.entries(challenge.answers)
-    .filter(([, answer]) => answer.correct)
-    .sort(([, first], [, second]) => first.elapsedMs - second.elapsedMs || first.answeredAt - second.answeredAt);
-  const survivorId = correctAnswers[0]?.[0];
+  const leaders = challenge.candidateIds
+    .map((playerId) => ({
+      playerId,
+      score: challenge.progress[playerId]?.score ?? 0,
+      lastAnsweredAt: challenge.progress[playerId]?.lastAnsweredAt ?? Number.POSITIVE_INFINITY
+    }))
+    .sort((first, second) => second.score - first.score || first.lastAnsweredAt - second.lastAnsweredAt);
+  const bestScore = leaders[0]?.score ?? 0;
+  const topScorers = leaders.filter((item) => item.score === bestScore);
+  const survivorId = topScorers.length === 1 ? topScorers[0].playerId : undefined;
   const eliminatedIds = challenge.candidateIds.filter((playerId) => playerId !== survivorId);
 
   room.players = room.players.map((player) => (eliminatedIds.includes(player.id) ? { ...player, alive: false } : player));
@@ -1403,16 +1412,18 @@ function sanitizeVotes(
 
 function sanitizeTieChallenge(room: Room, canSeeAllAnswers: boolean, ownPlayerId: string): PublicRoom["tieChallenge"] {
   if (!room.tieChallenge) return undefined;
-  const { correctOptionIndex, ...task } = room.tieChallenge.task;
-  const answers = canSeeAllAnswers
-    ? room.tieChallenge.answers
-    : room.tieChallenge.answers[ownPlayerId]
-      ? { [ownPlayerId]: room.tieChallenge.answers[ownPlayerId] }
-      : {};
+  const progressEntries = Object.entries(room.tieChallenge.progress).filter(
+    ([playerId]) => canSeeAllAnswers || playerId === ownPlayerId
+  );
+  const progress = Object.fromEntries(
+    progressEntries.map(([playerId, item]) => {
+      const { correctOptionIndex, ...task } = item.task;
+      return [playerId, { ...item, task }];
+    })
+  );
   return {
     ...room.tieChallenge,
-    answers,
-    task
+    progress
   };
 }
 
