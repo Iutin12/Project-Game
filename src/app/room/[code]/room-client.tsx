@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { io, type Socket } from "socket.io-client";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
@@ -20,6 +20,7 @@ export function RoomClient({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   const [roomTab, setRoomTab] = useState<"room" | "settings">("room");
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [firstUnreadMessageId, setFirstUnreadMessageId] = useState<string | null>(null);
   const [chatScrollRequest, setChatScrollRequest] = useState(0);
   const previousRoomMessageCountRef = useRef(0);
 
@@ -63,11 +64,12 @@ export function RoomClient({ code }: { code: string }) {
     const previousCount = previousRoomMessageCountRef.current;
     const nextCount = room.chatMessages.length;
     const hasNewMessages = nextCount > previousCount;
-    const lastMessage = room.chatMessages.at(-1);
-    const isOwnMessage = lastMessage?.playerId === room.ownPlayerId;
+    const newMessages = room.chatMessages.slice(previousCount);
+    const unreadMessages = newMessages.filter((item) => item.playerId !== room.ownPlayerId);
 
-    if (previousCount > 0 && hasNewMessages && roomTab !== "room" && !isOwnMessage) {
-      setChatUnreadCount((current) => current + (nextCount - previousCount));
+    if (previousCount > 0 && hasNewMessages && roomTab !== "room" && unreadMessages.length > 0) {
+      setFirstUnreadMessageId((current) => current ?? unreadMessages[0]?.id ?? null);
+      setChatUnreadCount((current) => current + unreadMessages.length);
     }
 
     previousRoomMessageCountRef.current = nextCount;
@@ -101,8 +103,10 @@ export function RoomClient({ code }: { code: string }) {
   }
 
   function openRoomTab() {
+    if (roomTab === "room") {
+      setChatScrollRequest((current) => current + 1);
+    }
     setRoomTab("room");
-    setChatScrollRequest((current) => current + 1);
   }
 
   const phaseHint = useMemo(() => {
@@ -216,6 +220,8 @@ export function RoomClient({ code }: { code: string }) {
                     room={room}
                     emitAction={emitAction}
                     scrollRequest={chatScrollRequest}
+                    firstUnreadMessageId={firstUnreadMessageId}
+                    setFirstUnreadMessageId={setFirstUnreadMessageId}
                     setUnreadCount={setChatUnreadCount}
                   />
                 </div>
@@ -753,12 +759,16 @@ function ChatPanel({
   room,
   emitAction,
   scrollRequest,
+  firstUnreadMessageId,
+  setFirstUnreadMessageId,
   setUnreadCount
 }: {
   room: PublicRoom;
   emitAction: (event: string, payload?: unknown) => void;
   scrollRequest: number;
-  setUnreadCount: (update: number | ((current: number) => number)) => void;
+  firstUnreadMessageId: string | null;
+  setFirstUnreadMessageId: Dispatch<SetStateAction<string | null>>;
+  setUnreadCount: Dispatch<SetStateAction<number>>;
 }) {
   const [message, setMessage] = useState("");
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -787,9 +797,17 @@ function ChatPanel({
     }
 
     if (hasNewMessage && !isOwnMessage && (!isChatVisible || !isNearBottom)) {
-      setUnreadCount((current) => current + (room.chatMessages.length - previousMessageCountRef.current));
+      const unreadMessages = room.chatMessages
+        .slice(previousMessageCountRef.current)
+        .filter((item) => item.playerId !== room.ownPlayerId);
+
+      if (unreadMessages.length > 0) {
+        setFirstUnreadMessageId((current) => current ?? unreadMessages[0]?.id ?? null);
+        setUnreadCount((current) => current + unreadMessages.length);
+      }
     } else if ((isChatVisible && isNearBottom) || isOwnMessage) {
       setUnreadCount(0);
+      setFirstUnreadMessageId(null);
     }
 
     previousMessageCountRef.current = room.chatMessages.length;
@@ -798,7 +816,14 @@ function ChatPanel({
   function scrollChatToBottom() {
     panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     window.setTimeout(() => {
-      messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: "smooth" });
+      const unreadDivider = messagesRef.current?.querySelector<HTMLElement>("[data-unread-divider='true']");
+
+      if (unreadDivider) {
+        unreadDivider.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else {
+        messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: "smooth" });
+      }
+      setFirstUnreadMessageId(null);
     }, 120);
     setUnreadCount(0);
   }
@@ -825,6 +850,7 @@ function ChatPanel({
         onScroll={(event) => {
           if (isChatNearBottom(event.currentTarget)) {
             setUnreadCount(0);
+            setFirstUnreadMessageId(null);
           }
         }}
       >
@@ -832,9 +858,21 @@ function ChatPanel({
           <p className="text-sm text-slate-400">Пока нет сообщений</p>
         ) : null}
         {room.chatMessages.map((item) => (
-          <div key={item.id} className="rounded-2xl bg-white px-3 py-2 text-sm shadow-sm">
-            <p className="font-semibold text-ocean">{item.playerName}</p>
-            <p className="mt-1 break-words text-slate-600">{item.text}</p>
+          <div key={item.id}>
+            {item.id === firstUnreadMessageId ? (
+              <div
+                className="my-1 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.18em] text-coral"
+                data-unread-divider="true"
+              >
+                <span className="h-px flex-1 bg-coral/35" />
+                <span>Новые сообщения</span>
+                <span className="h-px flex-1 bg-coral/35" />
+              </div>
+            ) : null}
+            <div className="rounded-2xl bg-white px-3 py-2 text-sm shadow-sm">
+              <p className="font-semibold text-ocean">{item.playerName}</p>
+              <p className="mt-1 break-words text-slate-600">{item.text}</p>
+            </div>
           </div>
         ))}
       </div>
