@@ -133,6 +133,7 @@ function getNextEnabledPhase(room: Room, phase: GamePhase): GamePhase {
     if (nextPhase === "NIGHT_DETECTIVE" && !room.settings.hasDetective) continue;
     if (nextPhase === "NIGHT_DOCTOR" && !room.settings.hasDoctor) continue;
     if (nextPhase === "DAY_REVOTE") continue;
+    if (nextPhase === "DAY_TIE_CHALLENGE") continue;
     return nextPhase;
   }
 

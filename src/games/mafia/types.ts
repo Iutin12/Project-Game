@@ -10,6 +10,7 @@ export type GamePhase =
   | "DAY_DISCUSSION"
   | "DAY_VOTING"
   | "DAY_REVOTE"
+  | "DAY_TIE_CHALLENGE"
   | "GAME_OVER";
 
 export type MafiaSettings = {
@@ -24,7 +25,7 @@ export type MafiaSettings = {
   doctorTimerSec: number;
   dayTimerSec: number;
   votingTimerSec: number;
-  voteTieMode: "revote" | "skip";
+  voteTieMode: "revote" | "skip" | "challenge";
   voteVisibility: "public" | "anonymous";
   mode: "manual" | "timed";
 };
@@ -47,6 +48,34 @@ export type ChatMessage = {
   playerName: string;
   text: string;
   createdAt: number;
+};
+
+export type TieChallengeTask = {
+  id: string;
+  type: "math" | "quick_memory";
+  title: string;
+  prompt: string;
+  options: string[];
+  correctOptionIndex: number;
+};
+
+export type TieChallengeAnswer = {
+  optionIndex: number;
+  correct: boolean;
+  answeredAt: number;
+  elapsedMs: number;
+};
+
+export type TieChallenge = {
+  candidateIds: string[];
+  task: TieChallengeTask;
+  answers: Record<string, TieChallengeAnswer>;
+  startedAt: number;
+  deadlineAt: number;
+};
+
+export type PublicTieChallenge = Omit<TieChallenge, "task"> & {
+  task: Omit<TieChallengeTask, "correctOptionIndex">;
 };
 
 export type Player = {
@@ -74,6 +103,7 @@ export type Room = {
   roleReady: Record<string, boolean>;
   discussionReady: Record<string, boolean>;
   runoffCandidateIds?: string[];
+  tieChallenge?: TieChallenge;
   chatMessages: ChatMessage[];
   createdAt: number;
   phaseDeadlineAt?: number;
@@ -98,7 +128,7 @@ export type PublicPlayer = Omit<Player, "role"> & {
   role?: Role;
 };
 
-export type PublicRoom = Omit<Room, "hostKey" | "players" | "nightActions" | "detectiveResult" | "donCheckResult"> & {
+export type PublicRoom = Omit<Room, "hostKey" | "players" | "nightActions" | "detectiveResult" | "donCheckResult" | "tieChallenge"> & {
   players: PublicPlayer[];
   ownPlayerId: string;
   ownRole?: Role;
@@ -106,4 +136,5 @@ export type PublicRoom = Omit<Room, "hostKey" | "players" | "nightActions" | "de
   detectiveResult?: Room["detectiveResult"];
   donCheckResult?: Room["donCheckResult"];
   nightActions?: NightActions;
+  tieChallenge?: PublicTieChallenge;
 };

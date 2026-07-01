@@ -10,7 +10,7 @@ import {
   resolveRunoffVotes,
   resolveVotes
 } from "../src/games/mafia/logic";
-import type { ChatMessage, NightActions, Player, PublicRoom, Room, Votes } from "../src/games/mafia/types";
+import type { ChatMessage, NightActions, Player, PublicRoom, Room, TieChallengeTask, Votes } from "../src/games/mafia/types";
 
 export type PublicLobbyRoom = {
   code: string;
@@ -27,6 +27,7 @@ const socketPlayers = new Map<string, { roomCode: string; playerId: string }>();
 const mafiaVoteTimers = new Map<string, NodeJS.Timeout>();
 const phaseTimers = new Map<string, NodeJS.Timeout>();
 const MAFIA_REVOTE_TIMEOUT_MS = 40_000;
+const TIE_CHALLENGE_TIMEOUT_SEC = 30;
 let totalRoomsCreatedToday = 0;
 let statsDay = new Date().toDateString();
 
@@ -392,6 +393,7 @@ export function registerRoomSockets(io: Server) {
         room.roleReady = {};
         room.discussionReady = {};
         room.runoffCandidateIds = undefined;
+        room.tieChallenge = undefined;
         room.phaseDeadlineAt = undefined;
         room.winner = undefined;
         room.lastNightKilledId = undefined;
@@ -570,6 +572,39 @@ export function registerRoomSockets(io: Server) {
       emitOwnRoom(io, socket);
     });
 
+    socket.on("answer_tie_challenge", (payload: { optionIndex: number }, ack) => {
+      const result = withPlayerRoom(socket, (room, player) => {
+        if (room.phase !== "DAY_TIE_CHALLENGE" || !room.tieChallenge || !player.alive || player.isSpectator) {
+          return { ok: false, error: "Сейчас нет испытания" };
+        }
+        if (!room.tieChallenge.candidateIds.includes(player.id)) {
+          return { ok: false, error: "Испытание только для претендентов на вылет" };
+        }
+        if (room.tieChallenge.answers[player.id]) {
+          return { ok: false, error: "Вы уже ответили" };
+        }
+        if (!Number.isInteger(payload.optionIndex) || !room.tieChallenge.task.options[payload.optionIndex]) {
+          return { ok: false, error: "Такого варианта ответа нет" };
+        }
+
+        const answeredAt = Date.now();
+        room.tieChallenge.answers[player.id] = {
+          optionIndex: payload.optionIndex,
+          correct: payload.optionIndex === room.tieChallenge.task.correctOptionIndex,
+          answeredAt,
+          elapsedMs: answeredAt - room.tieChallenge.startedAt
+        };
+
+        if (areTieChallengeCandidatesDone(room)) {
+          resolveTieChallenge(io, room);
+        }
+
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
     socket.on("restart_game", (_, ack) => {
       const result = withHostRoom(socket, (room) => {
         room.phase = "LOBBY";
@@ -579,6 +614,7 @@ export function registerRoomSockets(io: Server) {
         room.roleReady = {};
         room.discussionReady = {};
         room.runoffCandidateIds = undefined;
+        room.tieChallenge = undefined;
         room.winner = undefined;
         room.lastNightKilledId = undefined;
         room.lastVoteEliminatedId = undefined;
@@ -752,7 +788,8 @@ function schedulePhaseTimerIfNeeded(io: Server | undefined, room: Room) {
   clearPhaseTimer(room.code);
   room.phaseDeadlineAt = undefined;
 
-  if (!io || room.settings.mode !== "timed") return;
+  if (!io) return;
+  if (room.settings.mode !== "timed" && room.phase !== "DAY_TIE_CHALLENGE") return;
   const timerSec = getPhaseTimerSec(room);
   if (!timerSec) return;
 
@@ -769,6 +806,7 @@ function schedulePhaseTimerIfNeeded(io: Server | undefined, room: Room) {
 }
 
 function getPhaseTimerSec(room: Room) {
+  if (room.phase === "DAY_TIE_CHALLENGE") return TIE_CHALLENGE_TIMEOUT_SEC;
   if (room.phase === "NIGHT_MAFIA") return room.settings.mafiaTimerSec;
   if (room.phase === "NIGHT_DON") return room.settings.donTimerSec;
   if (room.phase === "NIGHT_DETECTIVE") return room.settings.detectiveTimerSec;
@@ -807,7 +845,9 @@ function sanitizeSettings(settings: Partial<Room["settings"]>) {
   if (typeof settings.doctorTimerSec === "number") sanitized.doctorTimerSec = settings.doctorTimerSec;
   if (typeof settings.dayTimerSec === "number") sanitized.dayTimerSec = settings.dayTimerSec;
   if (typeof settings.votingTimerSec === "number") sanitized.votingTimerSec = settings.votingTimerSec;
-  if (settings.voteTieMode === "revote" || settings.voteTieMode === "skip") sanitized.voteTieMode = settings.voteTieMode;
+  if (settings.voteTieMode === "revote" || settings.voteTieMode === "skip" || settings.voteTieMode === "challenge") {
+    sanitized.voteTieMode = settings.voteTieMode;
+  }
   if (settings.voteVisibility === "public" || settings.voteVisibility === "anonymous") {
     sanitized.voteVisibility = settings.voteVisibility;
   }
@@ -916,19 +956,33 @@ function simulateCurrentPhase(room: Room) {
     if (doctor) room.nightActions.doctorTargetId = doctor.id;
   }
 
-  if (room.phase === "DAY_VOTING") {
+  if (room.phase === "DAY_VOTING" || room.phase === "DAY_REVOTE") {
     const alivePlayers = room.players.filter((player) => player.alive && !player.isSpectator);
+    const votingTargets =
+      room.phase === "DAY_REVOTE" ? alivePlayers.filter((player) => room.runoffCandidateIds?.includes(player.id)) : alivePlayers;
     const preferredTarget =
-      alivePlayers.find((player) => isMafiaRole(player.role)) ??
-      alivePlayers.find((player) => !isMafiaRole(player.role)) ??
-      alivePlayers[0];
+      votingTargets.find((player) => isMafiaRole(player.role)) ??
+      votingTargets.find((player) => !isMafiaRole(player.role)) ??
+      votingTargets[0];
 
     room.votes = {};
     for (const voter of alivePlayers) {
       if (voter.id === room.nightActions.mistressTargetId) continue;
-      const fallbackTarget = alivePlayers.find((player) => player.id !== voter.id);
+      const fallbackTarget = votingTargets.find((player) => player.id !== voter.id);
       const target = preferredTarget?.id === voter.id ? fallbackTarget : preferredTarget;
       if (target) room.votes[voter.id] = target.id;
+    }
+  }
+
+  if (room.phase === "DAY_TIE_CHALLENGE" && room.tieChallenge) {
+    const firstCandidate = room.tieChallenge.candidateIds[0];
+    if (firstCandidate) {
+      room.tieChallenge.answers[firstCandidate] = {
+        optionIndex: room.tieChallenge.task.correctOptionIndex,
+        correct: true,
+        answeredAt: Date.now(),
+        elapsedMs: 1000
+      };
     }
   }
 
@@ -957,17 +1011,31 @@ function advanceRoomPhase(io: Server | undefined, room: Room, timedOut = false) 
     }
   }
 
+  if (room.phase === "DAY_TIE_CHALLENGE") {
+    resolveTieChallenge(io, room);
+    return;
+  }
+
   if (room.phase === "DAY_VOTING" || room.phase === "DAY_REVOTE") {
     const resolved =
       room.phase === "DAY_REVOTE"
         ? resolveRunoffVotes(room.players, room.votes, room.runoffCandidateIds ?? [])
         : resolveVotes(room.players, room.votes);
 
-    if (room.phase === "DAY_VOTING" && room.settings.voteTieMode === "revote" && resolved.tiedIds.length > 1) {
+    if (
+      room.phase === "DAY_VOTING" &&
+      (room.settings.voteTieMode === "revote" || room.settings.voteTieMode === "challenge") &&
+      resolved.tiedIds.length > 1
+    ) {
       room.phase = "DAY_REVOTE";
       room.runoffCandidateIds = resolved.tiedIds;
       room.votes = {};
       schedulePhaseTimerIfNeeded(io, room);
+      return;
+    }
+
+    if (room.phase === "DAY_REVOTE" && room.settings.voteTieMode === "challenge" && resolved.tiedIds.length > 1) {
+      startTieChallenge(io, room, resolved.tiedIds);
       return;
     }
 
@@ -987,6 +1055,7 @@ function advanceRoomPhase(io: Server | undefined, room: Room, timedOut = false) 
     room.votes = {};
     room.discussionReady = {};
     room.runoffCandidateIds = undefined;
+    room.tieChallenge = undefined;
     room.nightActions = {};
     room.detectiveResult = undefined;
     room.donCheckResult = undefined;
@@ -1071,6 +1140,103 @@ function areVotesReady(room: Room) {
     (player) => player.alive && !player.isSpectator && player.id !== room.nightActions.mistressTargetId
   );
   return eligibleVoters.length > 0 && eligibleVoters.every((player) => room.votes[player.id]);
+}
+
+function startTieChallenge(io: Server | undefined, room: Room, candidateIds: string[]) {
+  room.phase = "DAY_TIE_CHALLENGE";
+  room.runoffCandidateIds = candidateIds;
+  room.votes = {};
+  room.tieChallenge = {
+    candidateIds,
+    task: createTieChallengeTask(),
+    answers: {},
+    startedAt: Date.now(),
+    deadlineAt: Date.now() + TIE_CHALLENGE_TIMEOUT_SEC * 1000
+  };
+  schedulePhaseTimerIfNeeded(io, room);
+}
+
+function areTieChallengeCandidatesDone(room: Room) {
+  if (!room.tieChallenge) return false;
+  return room.tieChallenge.candidateIds.every((playerId) => room.tieChallenge?.answers[playerId]);
+}
+
+function resolveTieChallenge(io: Server | undefined, room: Room) {
+  clearPhaseTimer(room.code);
+  const challenge = room.tieChallenge;
+  if (!challenge) return;
+
+  const correctAnswers = Object.entries(challenge.answers)
+    .filter(([, answer]) => answer.correct)
+    .sort(([, first], [, second]) => first.elapsedMs - second.elapsedMs || first.answeredAt - second.answeredAt);
+  const survivorId = correctAnswers[0]?.[0];
+  const eliminatedIds = challenge.candidateIds.filter((playerId) => playerId !== survivorId);
+
+  room.players = room.players.map((player) => (eliminatedIds.includes(player.id) ? { ...player, alive: false } : player));
+  room.lastVoteEliminatedId = eliminatedIds.length === 1 ? eliminatedIds[0] : undefined;
+  room.lastVoteEliminatedIds = eliminatedIds;
+
+  const winner = checkWinner(room.players);
+  if (winner) {
+    room.winner = winner;
+    room.phase = "GAME_OVER";
+    room.phaseDeadlineAt = undefined;
+    room.tieChallenge = undefined;
+    room.runoffCandidateIds = undefined;
+    clearMafiaVoteTimer(room.code);
+    return;
+  }
+
+  room.votes = {};
+  room.discussionReady = {};
+  room.runoffCandidateIds = undefined;
+  room.tieChallenge = undefined;
+  room.nightActions = {};
+  room.detectiveResult = undefined;
+  room.donCheckResult = undefined;
+  room.phaseDeadlineAt = undefined;
+  room.phase = getNextPhase(room);
+  scheduleMafiaVoteTimerIfNeeded(io, room);
+  schedulePhaseTimerIfNeeded(io, room);
+}
+
+function createTieChallengeTask(): TieChallengeTask {
+  const tasks: TieChallengeTask[] = [
+    {
+      id: randomUUID(),
+      type: "math",
+      title: "Быстрый пример",
+      prompt: "Сколько будет 17 + 8 - 6?",
+      options: ["17", "18", "19", "21"],
+      correctOptionIndex: 2
+    },
+    {
+      id: randomUUID(),
+      type: "math",
+      title: "Быстрый пример",
+      prompt: "Сколько будет 6 x 4 - 9?",
+      options: ["13", "15", "18", "21"],
+      correctOptionIndex: 1
+    },
+    {
+      id: randomUUID(),
+      type: "quick_memory",
+      title: "Проверка внимания",
+      prompt: "Запомни ряд: кот, луна, мост. Какое слово было вторым?",
+      options: ["кот", "луна", "мост", "дом"],
+      correctOptionIndex: 1
+    },
+    {
+      id: randomUUID(),
+      type: "quick_memory",
+      title: "Проверка внимания",
+      prompt: "Запомни ряд: 4, 9, 2, 7. Какое число стояло третьим?",
+      options: ["4", "9", "2", "7"],
+      correctOptionIndex: 2
+    }
+  ];
+
+  return tasks[Math.floor(Math.random() * tasks.length)];
 }
 
 function fillMissingPhaseAction(room: Room) {
@@ -1173,6 +1339,7 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
     roleReady: room.roleReady,
     discussionReady: room.discussionReady,
     chatMessages: room.chatMessages,
+    tieChallenge: sanitizeTieChallenge(room, canSeeAllRoles, ownPlayerId),
     createdAt: room.createdAt,
     ownPlayerId,
     ownRole,
@@ -1232,6 +1399,21 @@ function sanitizeVotes(
   if (phase !== "DAY_VOTING" && phase !== "DAY_REVOTE") return {};
   if (voteVisibility === "public") return votes;
   return votes[ownPlayerId] ? { [ownPlayerId]: votes[ownPlayerId] } : {};
+}
+
+function sanitizeTieChallenge(room: Room, canSeeAllAnswers: boolean, ownPlayerId: string): PublicRoom["tieChallenge"] {
+  if (!room.tieChallenge) return undefined;
+  const { correctOptionIndex, ...task } = room.tieChallenge.task;
+  const answers = canSeeAllAnswers
+    ? room.tieChallenge.answers
+    : room.tieChallenge.answers[ownPlayerId]
+      ? { [ownPlayerId]: room.tieChallenge.answers[ownPlayerId] }
+      : {};
+  return {
+    ...room.tieChallenge,
+    answers,
+    task
+  };
 }
 
 function sanitizeNightActions(nightActions: NightActions, canSeeAllRoles: boolean, ownRole?: Player["role"]) {
