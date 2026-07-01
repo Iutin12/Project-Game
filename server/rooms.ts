@@ -1210,42 +1210,84 @@ function resolveTieChallenge(io: Server | undefined, room: Room) {
 }
 
 function createTieChallengeTask(): TieChallengeTask {
-  const tasks: TieChallengeTask[] = [
+  return Math.random() < 0.6 ? createMathChallengeTask() : createAttentionChallengeTask();
+}
+
+function createMathChallengeTask(): TieChallengeTask {
+  const first = randomInt(6, 29);
+  const second = randomInt(3, 18);
+  const third = randomInt(2, 12);
+  const multiplierA = randomInt(3, 9);
+  const multiplierB = randomInt(3, 9);
+  const templates = [
     {
-      id: randomUUID(),
-      type: "math",
-      title: "Быстрый пример",
-      prompt: "Сколько будет 17 + 8 - 6?",
-      options: ["17", "18", "19", "21"],
-      correctOptionIndex: 2
+      prompt: `Сколько будет ${first} + ${second} - ${third}?`,
+      answer: first + second - third
     },
     {
-      id: randomUUID(),
-      type: "math",
-      title: "Быстрый пример",
-      prompt: "Сколько будет 6 x 4 - 9?",
-      options: ["13", "15", "18", "21"],
-      correctOptionIndex: 1
+      prompt: `Сколько будет ${first} - ${second} + ${third}?`,
+      answer: first - second + third
     },
     {
-      id: randomUUID(),
-      type: "quick_memory",
-      title: "Проверка внимания",
-      prompt: "Запомни ряд: кот, луна, мост. Какое слово было вторым?",
-      options: ["кот", "луна", "мост", "дом"],
-      correctOptionIndex: 1
-    },
-    {
-      id: randomUUID(),
-      type: "quick_memory",
-      title: "Проверка внимания",
-      prompt: "Запомни ряд: 4, 9, 2, 7. Какое число стояло третьим?",
-      options: ["4", "9", "2", "7"],
-      correctOptionIndex: 2
+      prompt: `Сколько будет ${multiplierA} x ${multiplierB} + ${third}?`,
+      answer: multiplierA * multiplierB + third
     }
   ];
+  const picked = templates[randomInt(0, templates.length - 1)];
+  const { options, correctOptionIndex } = makeNumericOptions(picked.answer);
 
-  return tasks[Math.floor(Math.random() * tasks.length)];
+  return {
+    id: randomUUID(),
+    type: "math",
+    title: "Быстрый пример",
+    prompt: picked.prompt,
+    options,
+    correctOptionIndex
+  };
+}
+
+function createAttentionChallengeTask(): TieChallengeTask {
+  const pools = [
+    ["кот", "луна", "мост", "лес", "река", "огонь", "камень", "ключ", "снег", "сова"],
+    ["7", "2", "9", "4", "6", "1", "8", "3", "5", "0"],
+    ["◆", "▲", "●", "■", "★", "✦", "◇", "○", "▣", "△"]
+  ];
+  const pool = shuffleList(pools[randomInt(0, pools.length - 1)]);
+  const sequence = pool.slice(0, 5);
+  const targetIndex = randomInt(0, sequence.length - 1);
+  const positionLabels = ["первым", "вторым", "третьим", "четвертым", "пятым"];
+  const correct = sequence[targetIndex];
+  const options = shuffleList([correct, ...pool.slice(5, 8)]).slice(0, 4);
+
+  return {
+    id: randomUUID(),
+    type: "quick_memory",
+    title: "Проверка внимания",
+    prompt: `Запомни ряд: ${sequence.join(", ")}. Что было ${positionLabels[targetIndex]}?`,
+    options,
+    correctOptionIndex: options.indexOf(correct)
+  };
+}
+
+function makeNumericOptions(answer: number) {
+  const values = new Set([answer]);
+  while (values.size < 4) {
+    const offset = randomInt(-8, 8);
+    if (offset !== 0) values.add(answer + offset);
+  }
+  const options = shuffleList([...values]).map(String);
+  return {
+    options,
+    correctOptionIndex: options.indexOf(String(answer))
+  };
+}
+
+function randomInt(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function shuffleList<T>(items: T[]) {
+  return [...items].sort(() => Math.random() - 0.5);
 }
 
 function fillMissingPhaseAction(room: Room) {
