@@ -167,6 +167,7 @@ export function RoomClient({ code }: { code: string }) {
                   <p className="mr-2 text-xs font-bold uppercase tracking-[0.3em] text-ocean">Комната {code}</p>
                   <RoomChip>{alivePlayers.length} / 15 игроков</RoomChip>
                   <RoomChip>{deadPlayers.length} выбыло</RoomChip>
+                  <RoomChip>{room?.visibility === "public" ? "Открытая" : "Закрытая"}</RoomChip>
                   <RoomChip>ID: {code}</RoomChip>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -642,8 +643,29 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
             ) : null}
 
             {settingsTab === "vote" ? (
-              <div className="grid gap-2">
-                <p className="text-sm font-semibold text-ink">Если голоса равны</p>
+              <div className="grid gap-3">
+                <SettingsSectionTitle
+                  title="Видимость голосов"
+                  hint="Публично: во время голосования видно, кто за кого голосует. Анонимно: каждый игрок видит только свой выбор, а ведущий видит все."
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant={room.settings.voteVisibility === "public" ? "primary" : "secondary"}
+                    onClick={() => updateSettings({ voteVisibility: "public" })}
+                  >
+                    Публично
+                  </Button>
+                  <Button
+                    variant={room.settings.voteVisibility === "anonymous" ? "primary" : "secondary"}
+                    onClick={() => updateSettings({ voteVisibility: "anonymous" })}
+                  >
+                    Анонимно
+                  </Button>
+                </div>
+                <SettingsSectionTitle
+                  title="Если голоса равны"
+                  hint="Переголосование запускает дополнительную фазу только между лидерами. Вариант «Никто» оставляет всех в игре при ничьей."
+                />
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     variant={room.settings.voteTieMode === "revote" ? "primary" : "secondary"}
@@ -663,6 +685,10 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
 
             {settingsTab === "phase" ? (
               <div className="grid gap-3">
+                <SettingsSectionTitle
+                  title="Переход фаз"
+                  hint="Кнопка: активные игроки сами завершают фазу после выбора. Таймеры: фаза завершается автоматически по заданному времени."
+                />
                 <div className="grid grid-cols-2 gap-2">
                   <Button variant={room.settings.mode === "manual" ? "primary" : "secondary"} onClick={() => updateSettings({ mode: "manual" })}>
                     Кнопка
@@ -689,7 +715,8 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
         ) : (
           <p className="mt-3 p-2 text-sm leading-6 text-slate-600">
             {room.settings.mode === "timed" ? "Фазы по таймеру" : "Фазы по кнопке"} · ничья:{" "}
-            {room.settings.voteTieMode === "revote" ? "переголосование" : "никто не выбывает"}
+            {room.settings.voteTieMode === "revote" ? "переголосование" : "никто не выбывает"} · голоса:{" "}
+            {room.settings.voteVisibility === "public" ? "публичные" : "анонимные"}
           </p>
         )}
       </div>
@@ -722,6 +749,26 @@ function SettingsTabButton({ active, children, onClick }: { active: boolean; chi
     >
       {children}
     </button>
+  );
+}
+
+function SettingsSectionTitle({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+      <span>{title}</span>
+      <span className="group relative inline-flex">
+        <button
+          type="button"
+          className="flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-xs font-bold text-slate-500 transition hover:border-ocean/30 hover:text-ocean focus:outline-none focus:ring-2 focus:ring-ocean/20"
+          aria-label={`Подсказка: ${title}`}
+        >
+          ?
+        </button>
+        <span className="pointer-events-none absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-2xl border border-line bg-white p-3 text-xs font-medium leading-5 text-slate-600 opacity-0 shadow-soft transition group-hover:opacity-100 group-focus-within:opacity-100">
+          {hint}
+        </span>
+      </span>
+    </div>
   );
 }
 
@@ -767,9 +814,6 @@ function PlayersPanel({ title, players, empty = "Нет игроков" }: { tit
               </span>
               <span className="min-w-0 truncate">
                 {player.name} {player.isHost ? "· хост" : ""}
-                <span className={player.connected ? "block text-xs text-mint" : "block text-xs font-semibold text-coral"}>
-                  {player.connected ? "online" : "offline"}
-                </span>
               </span>
             </span>
             <span
@@ -778,7 +822,7 @@ function PlayersPanel({ title, players, empty = "Нет игроков" }: { tit
                 player.connected ? "text-slate-400" : "text-coral"
               ].join(" ")}
             >
-              {player.isSpectator ? "ведущий" : player.role ? roleLabels[player.role] : player.connected ? "online" : "offline"}
+              {player.connected ? "online" : "offline"}
             </span>
           </div>
         ))}

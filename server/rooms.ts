@@ -808,6 +808,9 @@ function sanitizeSettings(settings: Partial<Room["settings"]>) {
   if (typeof settings.dayTimerSec === "number") sanitized.dayTimerSec = settings.dayTimerSec;
   if (typeof settings.votingTimerSec === "number") sanitized.votingTimerSec = settings.votingTimerSec;
   if (settings.voteTieMode === "revote" || settings.voteTieMode === "skip") sanitized.voteTieMode = settings.voteTieMode;
+  if (settings.voteVisibility === "public" || settings.voteVisibility === "anonymous") {
+    sanitized.voteVisibility = settings.voteVisibility;
+  }
   return sanitized;
 }
 
@@ -1166,7 +1169,7 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
       role: canSeeAllRoles || player.id === ownPlayerId ? player.role : undefined
     })),
     settings: room.settings,
-    votes: sanitizeVotes(room.votes, canSeeAllRoles, room.phase),
+    votes: sanitizeVotes(room.votes, canSeeAllRoles, room.phase, room.settings.voteVisibility, ownPlayerId),
     roleReady: room.roleReady,
     discussionReady: room.discussionReady,
     chatMessages: room.chatMessages,
@@ -1218,8 +1221,17 @@ function toPublicLobbyRoom(room: Room): PublicLobbyRoom {
   };
 }
 
-function sanitizeVotes(votes: Votes, isHost: boolean, phase: Room["phase"]) {
-  return isHost || phase === "DAY_VOTING" || phase === "DAY_REVOTE" ? votes : {};
+function sanitizeVotes(
+  votes: Votes,
+  canSeeAllVotes: boolean,
+  phase: Room["phase"],
+  voteVisibility: Room["settings"]["voteVisibility"],
+  ownPlayerId: string
+) {
+  if (canSeeAllVotes) return votes;
+  if (phase !== "DAY_VOTING" && phase !== "DAY_REVOTE") return {};
+  if (voteVisibility === "public") return votes;
+  return votes[ownPlayerId] ? { [ownPlayerId]: votes[ownPlayerId] } : {};
 }
 
 function sanitizeNightActions(nightActions: NightActions, canSeeAllRoles: boolean, ownRole?: Player["role"]) {

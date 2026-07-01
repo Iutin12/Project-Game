@@ -25,6 +25,7 @@ export type MafiaSettings = {
   dayTimerSec: number;
   votingTimerSec: number;
   voteTieMode: "revote" | "skip";
+  voteVisibility: "public" | "anonymous";
   mode: "manual" | "timed";
 };
 

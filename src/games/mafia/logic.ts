@@ -14,6 +14,7 @@ export const defaultMafiaSettings = {
   dayTimerSec: 300,
   votingTimerSec: 60,
   voteTieMode: "revote",
+  voteVisibility: "public",
   mode: "manual"
 } as const;
 
