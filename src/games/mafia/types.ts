@@ -70,6 +70,7 @@ export type Room = {
   settings: MafiaSettings;
   nightActions: NightActions;
   votes: Votes;
+  roleReady: Record<string, boolean>;
   discussionReady: Record<string, boolean>;
   runoffCandidateIds?: string[];
   chatMessages: ChatMessage[];

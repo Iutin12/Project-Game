@@ -423,6 +423,31 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
     );
   }
 
+  if (room.phase === "ROLE_REVEAL") {
+    const readyPlayers = room.players.filter((player) => player.alive && player.connected && !player.isSpectator && room.roleReady[player.id]);
+    const activePlayers = room.players.filter((player) => player.alive && player.connected && !player.isSpectator);
+    const ownReady = Boolean(room.roleReady[room.ownPlayerId]);
+
+    return (
+      <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">
+        <h2 className="font-display text-2xl font-semibold text-ink">Ознакомьтесь с ролью</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Роль уже выдана. Когда все игроки подтвердят, игра автоматически перейдет к следующей фазе.
+        </p>
+        <p className="mt-3 text-sm font-semibold text-slate-600">
+          Ознакомились: {readyPlayers.length} / {activePlayers.length}
+        </p>
+        <Button
+          className={ownReady ? "mt-4 w-full" : "mt-4 w-full animate-pulse ring-2 ring-ocean/25"}
+          disabled={ownReady}
+          onClick={() => emitAction("acknowledge_role")}
+        >
+          {ownReady ? "Ждем остальных игроков" : "Ознакомился"}
+        </Button>
+      </div>
+    );
+  }
+
   if (room.phase === "DAY_DISCUSSION") {
     const readyPlayers = room.players.filter((player) => player.alive && !player.isSpectator && room.discussionReady[player.id]);
     const alivePlayers = room.players.filter((player) => player.alive && !player.isSpectator);
@@ -677,8 +702,8 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
         ) : null}
         {room.phase !== "LOBBY" &&
         room.phase !== "GAME_OVER" &&
-        ((ownPlayer?.isSpectator && room.phase !== "DAY_DISCUSSION") || room.devMode || room.phase === "ROLE_REVEAL") &&
-        (room.settings.mode === "manual" || room.phase === "ROLE_REVEAL") ? (
+        ((ownPlayer?.isSpectator && room.phase !== "DAY_DISCUSSION" && room.phase !== "ROLE_REVEAL") || room.devMode) &&
+        room.settings.mode === "manual" ? (
           <Button onClick={() => emitAction("next_phase")}>Следующая фаза</Button>
         ) : null}
         {room.phase === "GAME_OVER" ? <Button onClick={() => emitAction("restart_game")}>Вернуться в лобби</Button> : null}
@@ -742,10 +767,17 @@ function PlayersPanel({ title, players, empty = "Нет игроков" }: { tit
               </span>
               <span className="min-w-0 truncate">
                 {player.name} {player.isHost ? "· хост" : ""}
-                <span className="block text-xs text-mint">{player.connected ? "online" : "offline"}</span>
+                <span className={player.connected ? "block text-xs text-mint" : "block text-xs font-semibold text-coral"}>
+                  {player.connected ? "online" : "offline"}
+                </span>
               </span>
             </span>
-            <span className="shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-medium text-slate-400">
+            <span
+              className={[
+                "shrink-0 rounded-lg bg-white px-2 py-1 text-xs font-medium",
+                player.connected ? "text-slate-400" : "text-coral"
+              ].join(" ")}
+            >
               {player.isSpectator ? "ведущий" : player.role ? roleLabels[player.role] : player.connected ? "online" : "offline"}
             </span>
           </div>
@@ -800,7 +832,7 @@ function ChatPanel({
     const isChatVisible = isElementMostlyInViewport(messagesNode);
     const isNearBottom = isChatNearBottom(messagesNode);
     if (hasNewMessage || previousMessageCountRef.current === 0) {
-      if (isOwnMessage || isNearBottom || previousMessageCountRef.current === 0) {
+      if (isOwnMessage || isChatVisible || isNearBottom || previousMessageCountRef.current === 0) {
         messagesNode.scrollTo({ top: messagesNode.scrollHeight, behavior: hasNewMessage ? "smooth" : "auto" });
       }
     }
