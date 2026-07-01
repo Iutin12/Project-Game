@@ -8,25 +8,21 @@ type GameCardProps = {
 export function GameCard({ game }: GameCardProps) {
   const content = (
     <article className="group relative h-full overflow-hidden rounded-xl border border-line bg-white p-4 shadow-soft transition hover:-translate-y-1 hover:border-ocean/30 hover:shadow-lg">
-      <div className="relative flex items-start gap-4">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-slate-50">
-          <img
-            src={game.illustration}
-            alt=""
-            aria-hidden="true"
-            className="h-12 w-12 opacity-90 transition group-hover:scale-105"
-          />
-        </div>
-        <div className="min-w-0 flex-1">
-          <span className="rounded-full bg-red-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-ocean">
-            {game.status === "available" ? "Доступно" : "Скоро"}
-          </span>
-          <h3 className="mt-3 text-lg font-bold text-ink">{game.title}</h3>
-          <p className="mt-1 text-xs leading-5 text-slate-600">{game.description}</p>
-        </div>
-        <span className="hidden rounded-full border border-line bg-slate-50 px-3 py-1 text-xs uppercase tracking-[0.16em] text-slate-500">
+      <div className="relative mb-4 h-36 overflow-hidden rounded-xl bg-slate-950">
+        <img
+          src={game.illustration}
+          alt=""
+          aria-hidden="true"
+          className="h-full w-full object-cover opacity-95 transition duration-300 group-hover:scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent" />
+        <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-ocean shadow-sm">
           {game.status === "available" ? "Доступно" : "Скоро"}
         </span>
+      </div>
+      <div className="relative">
+        <h3 className="text-lg font-bold text-ink">{game.title}</h3>
+        <p className="mt-1 text-xs leading-5 text-slate-600">{game.description}</p>
       </div>
       <div className="relative mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold text-slate-500">
         <span className="whitespace-nowrap">♟ {game.minPlayers}-{game.maxPlayers} игроков</span>

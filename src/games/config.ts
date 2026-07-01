@@ -19,7 +19,7 @@ export const games: GameConfig[] = [
     minPlayers: 5,
     maxPlayers: 15,
     route: "/games/mafia",
-    illustration: "/game-cards/mafia.svg",
+    illustration: "/game-cards/mafia.png",
     duration: "10-30 мин"
   },
   {
@@ -30,7 +30,7 @@ export const games: GameConfig[] = [
     minPlayers: 4,
     maxPlayers: 16,
     route: "/games/bunker",
-    illustration: "/game-cards/bunker.svg",
+    illustration: "/game-cards/bunker.png",
     duration: "15-30 мин"
   },
   {
@@ -41,7 +41,7 @@ export const games: GameConfig[] = [
     minPlayers: 3,
     maxPlayers: 12,
     route: "/games/spy",
-    illustration: "/game-cards/spy.svg",
+    illustration: "/game-cards/spy.png",
     duration: "10-20 мин"
   },
   {
@@ -52,7 +52,7 @@ export const games: GameConfig[] = [
     minPlayers: 3,
     maxPlayers: 12,
     route: "/games/whoami",
-    illustration: "/game-cards/whoami.svg",
+    illustration: "/game-cards/whoami.png",
     duration: "10-15 мин"
   },
   {
@@ -63,7 +63,7 @@ export const games: GameConfig[] = [
     minPlayers: 4,
     maxPlayers: 12,
     route: "/games/crocodile",
-    illustration: "/game-cards/crocodile.svg",
+    illustration: "/game-cards/crocodile.png",
     duration: "10-20 мин"
   }
 ];

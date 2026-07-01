@@ -22,8 +22,8 @@ export default function HowToPlayPage() {
             return (
               <article key={game.id} className="rounded-2xl border border-line bg-white/90 p-5 shadow-soft">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-cloud">
-                    <img src={game.illustration} alt="" aria-hidden="true" className="h-12 w-12" />
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-cloud">
+                    <img src={game.illustration} alt="" aria-hidden="true" className="h-full w-full object-cover" />
                   </div>
                   <div>
                     <span className="rounded-full bg-red-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-ocean">
