@@ -19,6 +19,9 @@ export function RoomClient({ code }: { code: string }) {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [roomTab, setRoomTab] = useState<"room" | "settings">("room");
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+  const [chatScrollRequest, setChatScrollRequest] = useState(0);
+  const previousRoomMessageCountRef = useRef(0);
 
   const inviteUrl = typeof window === "undefined" ? "" : `${window.location.origin}/room/${code}`;
   const ownPlayer = room?.players.find((player) => player.id === room.ownPlayerId);
@@ -54,6 +57,22 @@ export function RoomClient({ code }: { code: string }) {
     };
   }, [code]);
 
+  useEffect(() => {
+    if (!room) return;
+
+    const previousCount = previousRoomMessageCountRef.current;
+    const nextCount = room.chatMessages.length;
+    const hasNewMessages = nextCount > previousCount;
+    const lastMessage = room.chatMessages.at(-1);
+    const isOwnMessage = lastMessage?.playerId === room.ownPlayerId;
+
+    if (previousCount > 0 && hasNewMessages && roomTab !== "room" && !isOwnMessage) {
+      setChatUnreadCount((current) => current + (nextCount - previousCount));
+    }
+
+    previousRoomMessageCountRef.current = nextCount;
+  }, [room, roomTab]);
+
   function emitAction(event: string, payload?: unknown) {
     setError("");
     socket?.emit(event, payload ?? {}, (ack: Ack) => {
@@ -79,6 +98,11 @@ export function RoomClient({ code }: { code: string }) {
     await navigator.clipboard.writeText(inviteUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 1400);
+  }
+
+  function openRoomTab() {
+    setRoomTab("room");
+    setChatScrollRequest((current) => current + 1);
   }
 
   const phaseHint = useMemo(() => {
@@ -172,9 +196,9 @@ export function RoomClient({ code }: { code: string }) {
               {error ? <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-coral">{error}</p> : null}
 
               <div className="flex flex-wrap gap-2 rounded-[1.5rem] border border-line bg-cloud/70 p-2">
-                <RoomTabButton active={roomTab === "room"} onClick={() => setRoomTab("room")}>
+                <RoomTabButton active={roomTab === "room"} onClick={openRoomTab}>
                   Комната
-                  {room.chatMessages.length > 0 ? <span className="ml-2 rounded-full bg-white/70 px-2 py-0.5 text-xs">{room.chatMessages.length}</span> : null}
+                  {chatUnreadCount > 0 ? <span className="ml-2 rounded-full bg-white/70 px-2 py-0.5 text-xs">{chatUnreadCount}</span> : null}
                 </RoomTabButton>
                 <RoomTabButton active={roomTab === "settings"} onClick={() => setRoomTab("settings")}>
                   Настройки
@@ -188,7 +212,12 @@ export function RoomClient({ code }: { code: string }) {
                     <PlayersPanel title="Выбывшие" players={deadPlayers} empty="Пока никто не выбыл" />
                     {spectators.length > 0 ? <PlayersPanel title="Ведущие" players={spectators} empty="Нет ведущих" /> : null}
                   </div>
-                  <ChatPanel room={room} emitAction={emitAction} />
+                  <ChatPanel
+                    room={room}
+                    emitAction={emitAction}
+                    scrollRequest={chatScrollRequest}
+                    setUnreadCount={setChatUnreadCount}
+                  />
                 </div>
               ) : null}
 
@@ -720,14 +749,27 @@ function PlayersPanel({ title, players, empty = "Нет игроков" }: { tit
   );
 }
 
-function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string, payload?: unknown) => void }) {
+function ChatPanel({
+  room,
+  emitAction,
+  scrollRequest,
+  setUnreadCount
+}: {
+  room: PublicRoom;
+  emitAction: (event: string, payload?: unknown) => void;
+  scrollRequest: number;
+  setUnreadCount: (update: number | ((current: number) => number)) => void;
+}) {
   const [message, setMessage] = useState("");
-  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const previousMessageCountRef = useRef(room.chatMessages.length);
   const emojis = ["🙂", "😂", "😈", "🤔", "👏", "🔥"];
+
+  useEffect(() => {
+    if (scrollRequest === 0) return;
+    scrollChatToBottom();
+  }, [scrollRequest]);
 
   useEffect(() => {
     const messagesNode = messagesRef.current;
@@ -745,10 +787,8 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
     }
 
     if (hasNewMessage && !isOwnMessage && (!isChatVisible || !isNearBottom)) {
-      setHasUnreadMessages(true);
       setUnreadCount((current) => current + (room.chatMessages.length - previousMessageCountRef.current));
     } else if ((isChatVisible && isNearBottom) || isOwnMessage) {
-      setHasUnreadMessages(false);
       setUnreadCount(0);
     }
 
@@ -760,7 +800,6 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
     window.setTimeout(() => {
       messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: "smooth" });
     }, 120);
-    setHasUnreadMessages(false);
     setUnreadCount(0);
   }
 
@@ -780,22 +819,11 @@ function ChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
         <h2 className="font-display text-xl font-semibold text-ink">Чат комнаты</h2>
         <span className="rounded-lg bg-cloud px-2 py-1 text-xs font-semibold text-slate-500">{room.chatMessages.length}</span>
       </div>
-      {hasUnreadMessages ? (
-        <button
-          type="button"
-          className="fixed bottom-5 right-5 z-40 rounded-full border border-ocean/20 bg-white/95 px-4 py-2 text-sm font-semibold text-ocean shadow-soft backdrop-blur transition hover:-translate-y-0.5 hover:bg-ocean/10 sm:bottom-7 sm:right-7"
-          onClick={scrollChatToBottom}
-        >
-          <span className="mr-2 inline-flex h-2 w-2 rounded-full bg-coral shadow-[0_0_0_4px_rgba(255,107,93,0.14)]" />
-          {unreadCount > 1 ? `${unreadCount} новых сообщения` : "Новое сообщение"}
-        </button>
-      ) : null}
       <div
         ref={messagesRef}
         className="mt-4 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain rounded-2xl bg-cloud/70 p-3"
         onScroll={(event) => {
           if (isChatNearBottom(event.currentTarget)) {
-            setHasUnreadMessages(false);
             setUnreadCount(0);
           }
         }}
