@@ -774,7 +774,16 @@ function ChatPanel({
   const panelRef = useRef<HTMLDivElement | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const previousMessageCountRef = useRef(room.chatMessages.length);
+  const unreadDividerClearTimerRef = useRef<number | null>(null);
   const emojis = ["🙂", "😂", "😈", "🤔", "👏", "🔥"];
+
+  useEffect(() => {
+    return () => {
+      if (unreadDividerClearTimerRef.current) {
+        window.clearTimeout(unreadDividerClearTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (scrollRequest === 0) return;
@@ -807,7 +816,7 @@ function ChatPanel({
       }
     } else if ((isChatVisible && isNearBottom) || isOwnMessage) {
       setUnreadCount(0);
-      setFirstUnreadMessageId(null);
+      clearUnreadDividerWithDelay(isOwnMessage ? 0 : 5000);
     }
 
     previousMessageCountRef.current = room.chatMessages.length;
@@ -823,9 +832,26 @@ function ChatPanel({
       } else {
         messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight, behavior: "smooth" });
       }
-      setFirstUnreadMessageId(null);
+      clearUnreadDividerWithDelay(unreadDivider ? 5000 : 0);
     }, 120);
     setUnreadCount(0);
+  }
+
+  function clearUnreadDividerWithDelay(delayMs: number) {
+    if (unreadDividerClearTimerRef.current) {
+      window.clearTimeout(unreadDividerClearTimerRef.current);
+      unreadDividerClearTimerRef.current = null;
+    }
+
+    if (delayMs <= 0) {
+      setFirstUnreadMessageId(null);
+      return;
+    }
+
+    unreadDividerClearTimerRef.current = window.setTimeout(() => {
+      setFirstUnreadMessageId(null);
+      unreadDividerClearTimerRef.current = null;
+    }, delayMs);
   }
 
   function sendMessage() {
@@ -850,7 +876,7 @@ function ChatPanel({
         onScroll={(event) => {
           if (isChatNearBottom(event.currentTarget)) {
             setUnreadCount(0);
-            setFirstUnreadMessageId(null);
+            clearUnreadDividerWithDelay(5000);
           }
         }}
       >
