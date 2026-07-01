@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { JoinByCode } from "@/components/layout/JoinByCode";
+import { QuickCreateRoom } from "@/components/layout/QuickCreateRoom";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -14,10 +15,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Link className="rounded-full px-3 py-2 hover:bg-slate-100 hover:text-ink" href="/games">
             Игры
           </Link>
-          <Link className="rounded-full px-3 py-2 hover:bg-slate-100 hover:text-ink" href="/rules/mafia">
+          <Link className="rounded-full px-3 py-2 hover:bg-slate-100 hover:text-ink" href="/rules">
             Правила
           </Link>
-          <Link className="rounded-full px-3 py-2 hover:bg-slate-100 hover:text-ink" href="/dev/mafia-test">
+          <Link className="rounded-full px-3 py-2 hover:bg-slate-100 hover:text-ink" href="/how-to-play">
             Как играть
           </Link>
           <Link className="rounded-full px-3 py-2 hover:bg-slate-100 hover:text-ink" href="/games/mafia">
@@ -27,11 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <JoinByCode />
-          <Link href="/games/mafia">
-            <button className="rounded-lg bg-ocean px-3 py-3 text-sm font-semibold text-white shadow-soft transition hover:brightness-95 sm:px-4">
-              + Создать<span className="hidden sm:inline"> комнату</span>
-            </button>
-          </Link>
+          <QuickCreateRoom />
         </div>
       </header>
       {children}

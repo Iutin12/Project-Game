@@ -71,7 +71,10 @@ export function getRoom(code: string) {
 export function getStats() {
   refreshStatsDay();
   const gameRooms = [...rooms.values()].filter((room) => !room.devMode);
-  const publicRooms = gameRooms.filter((room) => room.visibility === "public" && room.phase === "LOBBY");
+  const publicRooms = gameRooms.filter((room) => {
+    const connectedPlayers = room.players.filter((player) => player.connected && !player.isBot && !player.isSpectator);
+    return room.visibility === "public" && room.phase === "LOBBY" && connectedPlayers.length > 0;
+  });
 
   return {
     roomsCreatedToday: totalRoomsCreatedToday,

@@ -74,20 +74,19 @@ export function OpenRooms() {
         <span className="rounded-full bg-emerald-50 px-3 py-2 text-sm font-bold text-mint">{rooms.length} онлайн</span>
       </div>
 
-      <div className="space-y-3">
+      <div className="max-h-[36rem] space-y-2 overflow-y-auto pr-1">
         {rooms.map((room) => (
-          <article key={room.code} className="rounded-2xl border border-line bg-cloud/70 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
+          <article key={room.code} className="rounded-2xl border border-line bg-cloud/70 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-ocean">Комната {room.code}</p>
-                <h3 className="mt-2 font-display text-2xl font-semibold text-ink">Мафия</h3>
-                <p className="mt-2 text-sm text-slate-500">
+                <h3 className="mt-1 text-lg font-bold text-ink">Мафия</h3>
+                <p className="mt-1 text-sm text-slate-500">
                   {room.playersCount} / {room.maxPlayers} игроков · {phaseLabels[room.phase]}
                 </p>
-                <p className="mt-1 text-xs text-slate-400">Хост: {room.hostName ?? "ожидает первого игрока"}</p>
               </div>
               <Link href={`/room/${room.code}`}>
-                <Button>Войти</Button>
+                <Button className="px-4 py-2">Войти</Button>
               </Link>
             </div>
           </article>
