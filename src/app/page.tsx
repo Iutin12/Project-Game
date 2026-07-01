@@ -3,18 +3,10 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { GameCard } from "@/components/game-card/GameCard";
 import { HomeStats } from "@/components/home/HomeStats";
+import { OpenRooms } from "@/components/home/OpenRooms";
 import { games } from "@/games/config";
 
 export default function HomePage() {
-  const previewPlayers = [
-    ["Аня", "Готова", "bg-rose-100"],
-    ["Игорь", "Готов", "bg-blue-100"],
-    ["Макс", "Ожидает", "bg-amber-100"],
-    ["Лена", "Готова", "bg-emerald-100"],
-    ["Даша", "Готова", "bg-teal-100"],
-    ["Саша", "Готова", "bg-sky-100"]
-  ];
-
   return (
     <AppShell>
       <section className="mt-8 grid gap-8 rounded-2xl border border-line bg-white/80 p-5 shadow-soft backdrop-blur lg:grid-cols-[1fr_1.05fr] lg:p-8">
@@ -39,38 +31,7 @@ export default function HomePage() {
           <HomeStats />
         </div>
 
-        <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
-          <div className="mb-5 flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-slate-500">Пример комнаты</p>
-              <h2 className="mt-6 flex items-center gap-3 text-xl font-bold text-ink">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ocean text-white">♟</span>
-                Комната: MAFIA-4827
-              </h2>
-              <p className="mt-3 text-sm font-medium text-slate-500">Игра: Мафия <span className="ml-7">6 / 15 игроков</span></p>
-            </div>
-            <span className="rounded-full bg-emerald-50 px-3 py-2 text-sm font-bold text-mint">В игре</span>
-          </div>
-          <div className="grid gap-5 md:grid-cols-[1fr_17rem]">
-            <div className="space-y-1">
-              {previewPlayers.map(([name, status, color], index) => (
-              <div key={name} className="flex items-center justify-between rounded-lg px-1 py-2 text-sm">
-                <span className="flex items-center gap-3 font-medium text-ink">
-                  <span className={`h-7 w-7 rounded-full ${color}`} />
-                  {name} {index === 0 ? <span className="text-xs text-amber-500">♛ Хост</span> : null}
-                </span>
-                <span className={status === "Ожидает" ? "text-amber-500" : "text-mint"}>{status}</span>
-              </div>
-              ))}
-            </div>
-            <div className="flex flex-col items-center justify-center rounded-2xl bg-slate-50 p-5 text-center">
-              <div className="text-5xl text-violet-500">♟♟</div>
-              <p className="mt-5 font-bold text-ink">Ждем игроков...</p>
-              <p className="mt-4 text-sm leading-6 text-slate-500">Поделитесь ссылкой, чтобы пригласить друзей</p>
-              <Button variant="secondary" className="mt-8 w-full">🔗 Поделиться ссылкой</Button>
-            </div>
-          </div>
-        </div>
+        <OpenRooms />
       </section>
 
       <section className="py-8">

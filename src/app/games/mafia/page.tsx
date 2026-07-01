@@ -10,12 +10,16 @@ export default function MafiaPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState("");
 
-  async function createRoom() {
+  async function createRoom(visibility: "private" | "public") {
     setIsCreating(true);
     setError("");
 
     try {
-      const response = await fetch("/api/create-room", { method: "POST" });
+      const response = await fetch("/api/create-room", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ visibility })
+      });
       if (!response.ok) throw new Error("Не удалось создать комнату");
       const data = (await response.json()) as { code: string; hostKey: string };
       window.localStorage.setItem(`hostKey:${data.code}`, data.hostKey);
@@ -34,13 +38,27 @@ export default function MafiaPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-mint">доступно сейчас</p>
           <h1 className="mt-3 font-display text-6xl font-semibold text-ink">Мафия</h1>
           <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">
-            Создайте приватную комнату, пригласите друзей по ссылке и проведите игру с
+            Создайте закрытую комнату для друзей или открытую комнату, которая появится на главном экране.
+            Внутри вас ждет игра с
             автоматической раздачей ролей, ночными действиями, голосованием и проверкой победы.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Button onClick={createRoom} disabled={isCreating}>
-              {isCreating ? "Создаем..." : "Создать комнату"}
-            </Button>
+          <div className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-2">
+            <CreateRoomChoice
+              title="Закрытая"
+              text="Войти смогут только игроки, у которых есть код или ссылка."
+              action={isCreating ? "Создаем..." : "Создать по коду"}
+              disabled={isCreating}
+              onClick={() => createRoom("private")}
+            />
+            <CreateRoomChoice
+              title="Открытая"
+              text="Комната появится на главном экране, и любой сможет зайти."
+              action={isCreating ? "Создаем..." : "Создать открытую"}
+              disabled={isCreating}
+              onClick={() => createRoom("public")}
+            />
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
             <a href="/rules/mafia">
               <Button variant="secondary">Правила</Button>
             </a>
@@ -63,5 +81,29 @@ export default function MafiaPage() {
         </div>
       </section>
     </AppShell>
+  );
+}
+
+function CreateRoomChoice({
+  title,
+  text,
+  action,
+  disabled,
+  onClick
+}: {
+  title: string;
+  text: string;
+  action: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <article className="rounded-2xl border border-line bg-white/85 p-4 shadow-soft">
+      <h2 className="font-display text-2xl font-semibold text-ink">{title}</h2>
+      <p className="mt-2 min-h-12 text-sm leading-6 text-slate-500">{text}</p>
+      <Button className="mt-4 w-full" disabled={disabled} onClick={onClick}>
+        {action}
+      </Button>
+    </article>
   );
 }

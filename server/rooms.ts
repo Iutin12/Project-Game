@@ -12,6 +12,16 @@ import {
 } from "../src/games/mafia/logic";
 import type { ChatMessage, NightActions, Player, PublicRoom, Room, Votes } from "../src/games/mafia/types";
 
+export type PublicLobbyRoom = {
+  code: string;
+  gameId: "mafia";
+  phase: Room["phase"];
+  playersCount: number;
+  maxPlayers: number;
+  hostName?: string;
+  createdAt: number;
+};
+
 const rooms = new Map<string, Room>();
 const socketPlayers = new Map<string, { roomCode: string; playerId: string }>();
 const mafiaVoteTimers = new Map<string, NodeJS.Timeout>();
@@ -20,15 +30,15 @@ const MAFIA_REVOTE_TIMEOUT_MS = 40_000;
 let totalRoomsCreatedToday = 0;
 let statsDay = new Date().toDateString();
 
-export function createRoom() {
-  return createMafiaRoom(false);
+export function createRoom(visibility: Room["visibility"] = "private") {
+  return createMafiaRoom(false, visibility);
 }
 
 export function createDevRoom() {
-  return createMafiaRoom(true);
+  return createMafiaRoom(true, "private");
 }
 
-function createMafiaRoom(devMode: boolean) {
+function createMafiaRoom(devMode: boolean, visibility: Room["visibility"]) {
   refreshStatsDay();
   let code = makeRoomCode();
   while (rooms.has(code)) code = makeRoomCode();
@@ -36,6 +46,7 @@ function createMafiaRoom(devMode: boolean) {
   const room: Room = {
     code,
     gameId: "mafia",
+    visibility,
     hostKey: randomUUID(),
     phase: "LOBBY",
     players: [],
@@ -59,15 +70,17 @@ export function getRoom(code: string) {
 
 export function getStats() {
   refreshStatsDay();
-  const publicRooms = [...rooms.values()].filter((room) => !room.devMode);
+  const gameRooms = [...rooms.values()].filter((room) => !room.devMode);
+  const publicRooms = gameRooms.filter((room) => room.visibility === "public" && room.phase === "LOBBY");
 
   return {
     roomsCreatedToday: totalRoomsCreatedToday,
-    activeRooms: publicRooms.length,
-    onlinePlayers: publicRooms.reduce(
+    activeRooms: gameRooms.length,
+    onlinePlayers: gameRooms.reduce(
       (total, room) => total + room.players.filter((player) => player.connected && !player.isBot && !player.isSpectator).length,
       0
-    )
+    ),
+    publicRooms: publicRooms.map(toPublicLobbyRoom)
   };
 }
 
@@ -1026,6 +1039,7 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
   return {
     code: room.code,
     gameId: room.gameId,
+    visibility: room.visibility,
     hostId: room.hostId,
     phase: room.phase,
     phaseDeadlineAt: room.phaseDeadlineAt,
@@ -1068,6 +1082,21 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
     lastVoteEliminatedId: room.lastVoteEliminatedId,
     lastVoteEliminatedIds: room.lastVoteEliminatedIds,
     winner: room.winner
+  };
+}
+
+function toPublicLobbyRoom(room: Room): PublicLobbyRoom {
+  const connectedPlayers = room.players.filter((player) => player.connected && !player.isBot && !player.isSpectator);
+  const host = room.players.find((player) => player.id === room.hostId);
+
+  return {
+    code: room.code,
+    gameId: room.gameId,
+    phase: room.phase,
+    playersCount: connectedPlayers.length,
+    maxPlayers: 15,
+    hostName: host?.name,
+    createdAt: room.createdAt
   };
 }
 

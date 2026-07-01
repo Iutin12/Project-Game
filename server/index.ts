@@ -12,7 +12,8 @@ const handle = app.getRequestHandler();
 app.prepare().then(() => {
   const httpServer = createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/api/create-room") {
-      const room = createRoom();
+      const body = await readJsonBody<{ visibility?: "private" | "public" }>(req);
+      const room = createRoom(body?.visibility === "public" ? "public" : "private");
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(room));
       return;
@@ -44,3 +45,29 @@ app.prepare().then(() => {
     console.log(`Project Game is running on http://localhost:${port}`);
   });
 });
+
+function readJsonBody<T>(req: import("node:http").IncomingMessage): Promise<T | undefined> {
+  return new Promise((resolve) => {
+    let body = "";
+
+    req.on("data", (chunk) => {
+      body += chunk;
+      if (body.length > 10_000) req.destroy();
+    });
+
+    req.on("end", () => {
+      if (!body) {
+        resolve(undefined);
+        return;
+      }
+
+      try {
+        resolve(JSON.parse(body) as T);
+      } catch {
+        resolve(undefined);
+      }
+    });
+
+    req.on("error", () => resolve(undefined));
+  });
+}

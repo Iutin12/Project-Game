@@ -60,6 +60,7 @@ export type Player = {
 export type Room = {
   code: string;
   gameId: "mafia";
+  visibility: "private" | "public";
   hostId?: string;
   hostKey: string;
   phase: GamePhase;
