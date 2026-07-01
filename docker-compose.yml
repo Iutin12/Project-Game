@@ -2,6 +2,8 @@ services:
   project-game:
     build:
       context: .
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:20-alpine}
     container_name: project-game
     restart: unless-stopped
     environment:
