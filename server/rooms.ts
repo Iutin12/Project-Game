@@ -1389,6 +1389,7 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
     votes: sanitizeVotes(room.votes, canSeeAllRoles, room.phase, room.settings.voteVisibility, ownPlayerId),
     roleReady: room.roleReady,
     discussionReady: room.discussionReady,
+    runoffCandidateIds: room.runoffCandidateIds,
     chatMessages: room.chatMessages,
     tieChallenge: sanitizeTieChallenge(room, canSeeAllRoles, ownPlayerId),
     createdAt: room.createdAt,

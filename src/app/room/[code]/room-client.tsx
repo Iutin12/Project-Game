@@ -1210,6 +1210,11 @@ function VotingTargetPicker({
           ? "Можно голосовать только за игроков, набравших равное число голосов."
           : "Выберите игрока. После выбора голос изменить нельзя."}
       </p>
+      {players.length === 0 ? (
+        <p className="mt-4 rounded-2xl border border-coral/20 bg-coral/10 p-3 text-sm font-semibold text-coral">
+          Список кандидатов переголосования пока не получен. Обновите комнату или дождитесь синхронизации.
+        </p>
+      ) : null}
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {players.map((player) => {
           const voters = room.players.filter((voter) => room.votes[voter.id] === player.id);
