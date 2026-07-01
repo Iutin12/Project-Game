@@ -876,7 +876,7 @@ function ChatPanel({
         onScroll={(event) => {
           if (isChatNearBottom(event.currentTarget)) {
             setUnreadCount(0);
-            clearUnreadDividerWithDelay(5000);
+            clearUnreadDividerWithDelay(0);
           }
         }}
       >
