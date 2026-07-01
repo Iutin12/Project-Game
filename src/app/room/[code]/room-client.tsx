@@ -84,6 +84,7 @@ export function RoomClient({ code }: { code: string }) {
   const phaseHint = useMemo(() => {
     if (!room) return "";
     if (room.phase === "NIGHT_MAFIA") return "Город засыпает. Мафия выбирает жертву.";
+    if (room.phase === "NIGHT_DON") return "Дон мафии ищет комиссара.";
     if (room.phase === "NIGHT_DETECTIVE") return "Комиссар выходит на проверку.";
     if (room.phase === "NIGHT_DOCTOR") return "Доктор выбирает, кого спасти.";
     if (room.phase === "DAY_DISCUSSION") return "Наступает день. Обсудите события ночи.";
@@ -328,6 +329,28 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
     );
   }
 
+  if (room.phase === "NIGHT_DON" && room.ownRole === "DON") {
+    return (
+      <div className="space-y-3">
+        <TargetList
+          title="Найти комиссара"
+          players={nonMafiaTargets}
+          activeId={room.nightActions?.donCheckTargetId}
+          lockAfterPick
+          onPick={(id) => emitAction("don_check_detective", { targetId: id })}
+        >
+          {room.donCheckResult ? (
+            <p className="mt-4 rounded-md bg-red-50 p-3 text-sm text-coral">
+              {room.players.find((player) => player.id === room.donCheckResult?.targetId)?.name} -
+              {room.donCheckResult.isDetective ? " комиссар" : " не комиссар"}
+            </p>
+          ) : null}
+        </TargetList>
+        <PhaseAdvanceButton room={room} emitAction={emitAction} />
+      </div>
+    );
+  }
+
   if (room.phase === "NIGHT_DETECTIVE" && room.ownRole === "DETECTIVE") {
     return (
       <div className="space-y-3">
@@ -428,6 +451,9 @@ function canOwnPlayerAdvancePhase(room: PublicRoom) {
   }
   if (room.phase === "NIGHT_DETECTIVE" && room.ownRole === "DETECTIVE") {
     return Boolean(room.nightActions?.detectiveTargetId);
+  }
+  if (room.phase === "NIGHT_DON" && room.ownRole === "DON") {
+    return Boolean(room.nightActions?.donCheckTargetId);
   }
   if (room.phase === "NIGHT_DOCTOR" && room.ownRole === "DOCTOR") {
     return Boolean(room.nightActions?.doctorTargetId);

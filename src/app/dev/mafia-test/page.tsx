@@ -288,6 +288,7 @@ function ManualPlayPanel({
 }) {
   const mafiaTarget = room.players.find((player) => player.id === room.nightActions?.mafiaTargetId);
   const mistressTarget = room.players.find((player) => player.id === room.nightActions?.mistressTargetId);
+  const donCheckTarget = room.players.find((player) => player.id === room.nightActions?.donCheckTargetId);
   const detectiveTarget = room.players.find((player) => player.id === room.nightActions?.detectiveTargetId);
   const doctorTarget = room.players.find((player) => player.id === room.nightActions?.doctorTargetId);
   const mafiaKillers = alivePlayers.filter((player) => player.role === "MAFIA" || player.role === "DON");
@@ -360,6 +361,25 @@ function ManualPlayPanel({
             />
           </>
         ) : null}
+      </section>
+    );
+  }
+
+  if (room.phase === "NIGHT_DON") {
+    const don = alivePlayers.find((player) => player.role === "DON");
+    const targets = alivePlayers.filter((player) => !isMafiaRole(player.role));
+    return (
+      <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+        <h2 className="font-display text-3xl font-semibold text-ink">Ход Дона</h2>
+        <p className="mt-2 text-slate-600">
+          Дон: {don ? don.name : "нет живого Дона"}. Проверен: {donCheckTarget ? donCheckTarget.name : "пока никто"}.
+          {room.donCheckResult ? ` Результат: ${room.donCheckResult.isDetective ? "комиссар" : "не комиссар"}.` : ""}
+        </p>
+        <TargetButtons
+          players={targets}
+          activeId={room.nightActions?.donCheckTargetId}
+          onPick={(targetId) => emitDev("dev_don_check_detective", { targetId })}
+        />
       </section>
     );
   }

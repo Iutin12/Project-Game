@@ -4,6 +4,7 @@ export type GamePhase =
   | "LOBBY"
   | "ROLE_REVEAL"
   | "NIGHT_MAFIA"
+  | "NIGHT_DON"
   | "NIGHT_DETECTIVE"
   | "NIGHT_DOCTOR"
   | "DAY_DISCUSSION"
@@ -31,6 +32,7 @@ export type NightActions = {
   mafiaTargetId?: string;
   mafiaVotes?: Votes;
   mafiaVoteDeadlineAt?: number;
+  donCheckTargetId?: string;
   mistressTargetId?: string;
   detectiveTargetId?: string;
   doctorTargetId?: string;
@@ -82,6 +84,11 @@ export type Room = {
     targetId: string;
     isMafia: boolean;
   };
+  donCheckResult?: {
+    donId: string;
+    targetId: string;
+    isDetective: boolean;
+  };
   winner?: "CIVILIANS" | "MAFIA";
 };
 
@@ -89,11 +96,12 @@ export type PublicPlayer = Omit<Player, "role"> & {
   role?: Role;
 };
 
-export type PublicRoom = Omit<Room, "hostKey" | "players" | "nightActions" | "detectiveResult"> & {
+export type PublicRoom = Omit<Room, "hostKey" | "players" | "nightActions" | "detectiveResult" | "donCheckResult"> & {
   players: PublicPlayer[];
   ownPlayerId: string;
   ownRole?: Role;
   mafiaAllies: PublicPlayer[];
   detectiveResult?: Room["detectiveResult"];
+  donCheckResult?: Room["donCheckResult"];
   nightActions?: NightActions;
 };

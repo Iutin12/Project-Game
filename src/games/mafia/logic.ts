@@ -128,6 +128,7 @@ function getNextEnabledPhase(room: Room, phase: GamePhase): GamePhase {
   const orderedPhases = nextIndex === -1 ? phaseOrder : phaseOrder.slice(nextIndex);
 
   for (const nextPhase of orderedPhases) {
+    if (nextPhase === "NIGHT_DON" && (!room.settings.hasDon || !room.settings.hasDetective)) continue;
     if (nextPhase === "NIGHT_DETECTIVE" && !room.settings.hasDetective) continue;
     if (nextPhase === "NIGHT_DOCTOR" && !room.settings.hasDoctor) continue;
     if (nextPhase === "DAY_REVOTE") continue;
