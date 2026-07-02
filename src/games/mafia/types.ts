@@ -117,11 +117,12 @@ export type Room = {
   runoffCandidateIds?: string[];
   tieChallenge?: TieChallenge;
   chatMessages: ChatMessage[];
+  mafiaChatMessages: ChatMessage[];
   createdAt: number;
   phaseDeadlineAt?: number;
   devMode?: boolean;
   lastNightKilledId?: string;
-  lastDoctorSelfHealId?: string;
+  lastDoctorHealTargetId?: string;
   lastVoteEliminatedId?: string;
   lastVoteEliminatedIds?: string[];
   detectiveResult?: {
@@ -146,6 +147,7 @@ export type PublicRoom = Omit<Room, "hostKey" | "players" | "nightActions" | "de
   ownPlayerId: string;
   ownRole?: Role;
   mafiaAllies: PublicPlayer[];
+  mafiaChatMessages: ChatMessage[];
   detectiveResult?: Room["detectiveResult"];
   donCheckResult?: Room["donCheckResult"];
   nightActions?: NightActions;

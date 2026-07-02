@@ -1,13 +1,23 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { JoinByCode } from "@/components/layout/JoinByCode";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, onLogoClick }: { children: React.ReactNode; onLogoClick?: () => void }) {
   return (
     <main className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-center justify-between gap-3 py-2 sm:gap-4">
-        <Link href="/" className="flex shrink-0 items-center gap-2 text-xl font-semibold tracking-tight text-ink sm:gap-3 sm:text-2xl">
+        <Link
+          href="/"
+          className="flex shrink-0 items-center gap-2 text-xl font-semibold tracking-tight text-ink sm:gap-3 sm:text-2xl"
+          onClick={(event) => {
+            if (!onLogoClick) return;
+            event.preventDefault();
+            onLogoClick();
+          }}
+        >
           <Image
             src="/brand/project-game-logo.png"
             alt="Project Game"

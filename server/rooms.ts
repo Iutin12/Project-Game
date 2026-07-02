@@ -65,6 +65,7 @@ function createMafiaRoom(devMode: boolean, visibility: Room["visibility"]) {
     roleReady: {},
     discussionReady: {},
     chatMessages: [],
+    mafiaChatMessages: [],
     createdAt: Date.now(),
     devMode
   };
@@ -160,6 +161,28 @@ export function registerRoomSockets(io: Server) {
           createdAt: Date.now()
         };
         room.chatMessages = [...room.chatMessages.slice(-79), message];
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("send_mafia_chat_message", (payload: { text: string }, ack) => {
+      const result = withPlayerRoom(socket, (room, player) => {
+        if (!isMafiaKillerRole(player.role) || player.isSpectator || !player.alive) {
+          return { ok: false, error: "Чат мафии доступен только живой мафии" };
+        }
+        const text = payload.text?.trim().slice(0, 280);
+        if (!text) return { ok: false, error: "Введите сообщение" };
+
+        const message: ChatMessage = {
+          id: randomUUID(),
+          playerId: player.id,
+          playerName: player.name,
+          text,
+          createdAt: Date.now()
+        };
+        room.mafiaChatMessages = [...room.mafiaChatMessages.slice(-79), message];
         return { ok: true };
       });
       ack?.(result);
@@ -646,6 +669,7 @@ export function registerRoomSockets(io: Server) {
         room.players = room.players.map((player) => ({ ...player, alive: true, role: undefined }));
         room.nightActions = {};
         room.votes = {};
+        room.mafiaChatMessages = [];
         room.lobbyReady = {};
         room.roleReady = {};
         room.discussionReady = {};
@@ -653,6 +677,7 @@ export function registerRoomSockets(io: Server) {
         room.tieChallenge = undefined;
         room.winner = undefined;
         room.lastNightKilledId = undefined;
+        room.lastDoctorHealTargetId = undefined;
         room.lastVoteEliminatedId = undefined;
         room.lastVoteEliminatedIds = undefined;
         room.detectiveResult = undefined;
@@ -730,6 +755,7 @@ function startGameFromLobby(io: Server, room: Room) {
   room.phase = "ROLE_REVEAL";
   room.nightActions = {};
   room.votes = {};
+  room.mafiaChatMessages = [];
   room.lobbyReady = {};
   room.roleReady = {};
   room.discussionReady = {};
@@ -738,7 +764,7 @@ function startGameFromLobby(io: Server, room: Room) {
   room.phaseDeadlineAt = undefined;
   room.winner = undefined;
   room.lastNightKilledId = undefined;
-  room.lastDoctorSelfHealId = undefined;
+  room.lastDoctorHealTargetId = undefined;
   room.lastVoteEliminatedId = undefined;
   room.lastVoteEliminatedIds = undefined;
   room.detectiveResult = undefined;
@@ -789,12 +815,16 @@ function getAliveDon(room: Room) {
 function getDoctorSaveError(room: Room, doctor: Player, target: Player) {
   if (
     room.settings.doctorSelfHealMode === "no_repeat" &&
-    doctor.id === target.id &&
-    room.lastDoctorSelfHealId === doctor.id
+    room.lastDoctorHealTargetId === target.id
   ) {
-    return "Доктор не может лечить себя две ночи подряд";
+    return "Доктор не может лечить одного и того же игрока две ночи подряд";
   }
   return undefined;
+}
+
+function getAutoDoctorTarget(room: Room, doctor: Player) {
+  const aliveTargets = room.players.filter((player) => player.alive && !player.isSpectator);
+  return aliveTargets.find((player) => !getDoctorSaveError(room, doctor, player));
 }
 
 function registerMafiaVote(io: Server, room: Room, voter: Player, targetId: string) {
@@ -1112,10 +1142,11 @@ function simulateCurrentPhase(room: Room) {
     room.phase = "ROLE_REVEAL";
     room.nightActions = {};
     room.votes = {};
+    room.mafiaChatMessages = [];
     room.discussionReady = {};
     room.winner = undefined;
     room.lastNightKilledId = undefined;
-    room.lastDoctorSelfHealId = undefined;
+    room.lastDoctorHealTargetId = undefined;
     room.lastVoteEliminatedId = undefined;
     room.lastVoteEliminatedIds = undefined;
     room.runoffCandidateIds = undefined;
@@ -1167,10 +1198,7 @@ function simulateCurrentPhase(room: Room) {
 
   if (room.phase === "NIGHT_DOCTOR") {
     const doctor = room.players.find((player) => player.alive && player.role === "DOCTOR");
-    if (doctor) {
-      const fallbackTarget = room.players.find((player) => player.alive && !player.isSpectator && player.id !== doctor.id);
-      room.nightActions.doctorTargetId = getDoctorSaveError(room, doctor, doctor) ? fallbackTarget?.id : doctor.id;
-    }
+    if (doctor) room.nightActions.doctorTargetId = getAutoDoctorTarget(room, doctor)?.id;
   }
 
   if (room.phase === "DAY_VOTING" || room.phase === "DAY_REVOTE") {
@@ -1212,11 +1240,11 @@ function advanceRoomPhase(io: Server | undefined, room: Room, timedOut = false) 
 
   if (shouldResolveNightAfterPhase(room)) {
     const doctor = room.players.find((player) => player.alive && player.role === "DOCTOR");
-    const doctorSelfHealId = doctor && room.nightActions.doctorTargetId === doctor.id ? doctor.id : undefined;
+    const doctorHealTargetId = doctor ? room.nightActions.doctorTargetId : undefined;
     const resolved = resolveNight(room.players, room.nightActions);
     room.players = resolved.players;
     room.lastNightKilledId = resolved.killedId;
-    room.lastDoctorSelfHealId = doctorSelfHealId;
+    room.lastDoctorHealTargetId = doctorHealTargetId;
     const winner = checkWinner(room.players);
     if (winner) {
       room.winner = winner;
@@ -1573,9 +1601,7 @@ function fillMissingPhaseAction(room: Room) {
   if (room.phase === "NIGHT_DOCTOR" && !room.nightActions.doctorTargetId) {
     const doctor = room.players.find((player) => player.alive && player.role === "DOCTOR");
     if (doctor) {
-      const selfHealAllowed = !getDoctorSaveError(room, doctor, doctor);
-      const fallbackTarget = room.players.find((player) => player.alive && !player.isSpectator && player.id !== doctor.id);
-      room.nightActions.doctorTargetId = selfHealAllowed ? doctor.id : fallbackTarget?.id;
+      room.nightActions.doctorTargetId = getAutoDoctorTarget(room, doctor)?.id;
     }
   }
 
@@ -1639,6 +1665,7 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
     discussionReady: room.discussionReady,
     runoffCandidateIds: room.runoffCandidateIds,
     chatMessages: room.chatMessages,
+    mafiaChatMessages: canSeeMafiaChat(ownPlayer) ? room.mafiaChatMessages : [],
     tieChallenge: sanitizeTieChallenge(room, canSeeAllRoles, ownPlayerId),
     createdAt: room.createdAt,
     ownPlayerId,
@@ -1654,7 +1681,7 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
         ? room.donCheckResult
         : undefined,
     lastNightKilledId: room.lastNightKilledId,
-    lastDoctorSelfHealId: room.lastDoctorSelfHealId,
+    lastDoctorHealTargetId: room.lastDoctorHealTargetId,
     lastVoteEliminatedId: room.lastVoteEliminatedId,
     lastVoteEliminatedIds: room.lastVoteEliminatedIds,
     winner: room.winner
@@ -1674,6 +1701,10 @@ function toPublicLobbyRoom(room: Room): PublicLobbyRoom {
     hostName: host?.name,
     createdAt: room.createdAt
   };
+}
+
+function canSeeMafiaChat(player?: Player) {
+  return Boolean(player && !player.isSpectator && isMafiaKillerRole(player.role));
 }
 
 function sanitizeVotes(

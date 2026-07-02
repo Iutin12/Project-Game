@@ -216,7 +216,7 @@ export function RoomClient({ code }: { code: string }) {
   }
 
   return (
-    <AppShell>
+    <AppShell onLogoClick={requestLeaveRoom}>
       <section className="py-6">
         <div className="rounded-[2rem] border border-line bg-white/85 p-3 shadow-soft backdrop-blur md:p-4">
           <div className="relative overflow-hidden rounded-[1.5rem] border border-line bg-[radial-gradient(circle_at_0%_0%,rgba(239,61,61,0.14),transparent_16rem),linear-gradient(135deg,var(--color-surface),var(--color-surface-muted))] p-3 md:p-4">
@@ -273,14 +273,17 @@ export function RoomClient({ code }: { code: string }) {
                     <PlayersPanel title="Выбывшие" players={deadPlayers} empty="Пока никто не выбыл" />
                     {spectators.length > 0 ? <PlayersPanel title="Ведущие" players={spectators} empty="Нет ведущих" /> : null}
                   </div>
-                  <ChatPanel
-                    room={room}
-                    emitAction={emitAction}
-                    scrollRequest={chatScrollRequest}
-                    firstUnreadMessageId={firstUnreadMessageId}
-                    setFirstUnreadMessageId={setFirstUnreadMessageId}
-                    setUnreadCount={setChatUnreadCount}
-                  />
+                  <div className="grid gap-4">
+                    <ChatPanel
+                      room={room}
+                      emitAction={emitAction}
+                      scrollRequest={chatScrollRequest}
+                      firstUnreadMessageId={firstUnreadMessageId}
+                      setFirstUnreadMessageId={setFirstUnreadMessageId}
+                      setUnreadCount={setChatUnreadCount}
+                    />
+                    {isMafiaKillerRole(room.ownRole) ? <MafiaChatPanel room={room} emitAction={emitAction} /> : null}
+                  </div>
                 </div>
               ) : null}
 
@@ -426,8 +429,7 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
       !player.isSpectator &&
       !(
         room.settings.doctorSelfHealMode === "no_repeat" &&
-        player.id === room.ownPlayerId &&
-        room.lastDoctorSelfHealId === room.ownPlayerId
+        player.id === room.lastDoctorHealTargetId
       )
   );
 
@@ -909,8 +911,8 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
                 {room.settings.hasDoctor ? (
                   <div className="grid gap-2 rounded-2xl border border-line bg-cloud/60 p-3">
                     <SettingsSectionTitle
-                      title="Самолечение доктора"
-                      hint="По умолчанию доктор не может лечить себя две ночи подряд. Если включить «Без ограничений», он сможет выбирать себя каждую ночь."
+                      title="Повторное лечение"
+                      hint="По умолчанию доктор не может лечить одного и того же игрока две ночи подряд. Если включить «Без ограничений», он сможет повторять лечение любой цели."
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <Button
@@ -1321,6 +1323,70 @@ function isChatNearBottom(node: HTMLDivElement) {
 function isElementMostlyInViewport(node: HTMLElement) {
   const rect = node.getBoundingClientRect();
   return rect.top >= 0 && rect.bottom <= window.innerHeight;
+}
+
+function MafiaChatPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string, payload?: unknown) => void }) {
+  const [message, setMessage] = useState("");
+  const messagesRef = useRef<HTMLDivElement | null>(null);
+  const previousMessageCountRef = useRef(room.mafiaChatMessages.length);
+
+  useEffect(() => {
+    const messagesNode = messagesRef.current;
+    if (!messagesNode) return;
+    if (room.mafiaChatMessages.length >= previousMessageCountRef.current) {
+      messagesNode.scrollTo({ top: messagesNode.scrollHeight, behavior: "smooth" });
+    }
+    previousMessageCountRef.current = room.mafiaChatMessages.length;
+  }, [room.mafiaChatMessages]);
+
+  function sendMessage() {
+    const text = message.trim();
+    if (!text) return;
+    emitAction("send_mafia_chat_message", { text });
+    setMessage("");
+  }
+
+  return (
+    <div className="grid h-[24rem] min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] rounded-[1.5rem] border border-coral/25 bg-coral/10 p-4 shadow-soft">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-coral">Только мафия</p>
+          <h2 className="font-display text-xl font-semibold text-ink">Чат мафии</h2>
+        </div>
+        <span className="rounded-lg bg-white/80 px-2 py-1 text-xs font-semibold text-slate-500">{room.mafiaChatMessages.length}</span>
+      </div>
+      <div ref={messagesRef} className="mt-4 flex min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain rounded-2xl bg-white/65 p-3">
+        {room.mafiaChatMessages.length === 0 ? (
+          <p className="text-sm text-slate-500">Здесь мафия может договориться приватно.</p>
+        ) : null}
+        {room.mafiaChatMessages.map((item) => (
+          <div key={item.id} className="rounded-2xl bg-white px-3 py-2 text-sm shadow-sm">
+            <p className="font-semibold text-coral">{item.playerName}</p>
+            <p className="mt-1 break-words text-slate-600">{item.text}</p>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex gap-2">
+        <input
+          className="min-w-0 flex-1 rounded-2xl border border-coral/25 bg-white px-3 py-3 text-sm text-ink outline-none focus:border-coral"
+          placeholder="Сообщение мафии..."
+          value={message}
+          maxLength={280}
+          onChange={(event) => setMessage(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") sendMessage();
+          }}
+        />
+        <Button type="button" className="rounded-2xl px-4" onClick={sendMessage}>
+          Отпр.
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function isMafiaKillerRole(role?: PublicRoom["ownRole"]) {
+  return role === "MAFIA" || role === "DON";
 }
 
 function MafiaTargetPicker({
