@@ -519,5 +519,5 @@ function TargetButtons({
 }
 
 function isMafiaRole(role?: Role) {
-  return role === "MAFIA" || role === "DON" || role === "MISTRESS";
+  return role === "MAFIA" || role === "DON";
 }

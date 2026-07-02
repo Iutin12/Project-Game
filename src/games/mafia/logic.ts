@@ -15,6 +15,8 @@ export const defaultMafiaSettings = {
   votingTimerSec: 60,
   voteTieMode: "revote",
   voteVisibility: "public",
+  donVoteMode: "decisive",
+  doctorSelfHealMode: "no_repeat",
   mode: "manual"
 } as const;
 
@@ -120,7 +122,7 @@ export function checkWinner(players: Player[]) {
 }
 
 export function isMafiaRole(role?: Role) {
-  return role === "MAFIA" || role === "DON" || role === "MISTRESS";
+  return role === "MAFIA" || role === "DON";
 }
 
 export function isMafiaKillerRole(role?: Role) {

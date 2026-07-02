@@ -29,6 +29,7 @@ const mafiaVoteTimers = new Map<string, NodeJS.Timeout>();
 const phaseTimers = new Map<string, NodeJS.Timeout>();
 const lobbyExpirationTimers = new Map<string, NodeJS.Timeout>();
 let socketServer: Server | undefined;
+const DON_DECISION_TIMEOUT_MS = 30_000;
 const MAFIA_REVOTE_TIMEOUT_MS = 40_000;
 const TIE_CHALLENGE_TIMEOUT_SEC = 30;
 const INACTIVE_ROLE_PHASE_TIMEOUT_MIN_SEC = 10;
@@ -124,6 +125,9 @@ export function registerRoomSockets(io: Server) {
       }
 
       if (!name) return ack?.({ ok: false, error: "Введите никнейм" });
+      if (hasDuplicatePlayerName(room, name)) {
+        return ack?.({ ok: false, error: "Игрок с таким никнеймом уже есть в комнате" });
+      }
       if (room.players.length >= 15) return ack?.({ ok: false, error: "Комната заполнена" });
 
       const player: Player = {
@@ -331,6 +335,8 @@ export function registerRoomSockets(io: Server) {
         const target = findAlivePlayer(room, payload.targetId);
         if (!doctor) return { ok: false, error: "В игре нет живого доктора" };
         if (!target) return { ok: false, error: "Цель не найдена или уже выбыла" };
+        const doctorSaveError = getDoctorSaveError(room, doctor, target);
+        if (doctorSaveError) return { ok: false, error: doctorSaveError };
         room.nightActions.doctorTargetId = target.id;
         return { ok: true };
       });
@@ -545,6 +551,8 @@ export function registerRoomSockets(io: Server) {
           }
           const target = findAlivePlayer(room, payload.targetId);
           if (!target) return { ok: false, error: "Игрок не найден" };
+          const doctorSaveError = getDoctorSaveError(room, player, target);
+          if (doctorSaveError) return { ok: false, error: doctorSaveError };
           room.nightActions.doctorTargetId = target.id;
           return { ok: true };
         })
@@ -730,6 +738,7 @@ function startGameFromLobby(io: Server, room: Room) {
   room.phaseDeadlineAt = undefined;
   room.winner = undefined;
   room.lastNightKilledId = undefined;
+  room.lastDoctorSelfHealId = undefined;
   room.lastVoteEliminatedId = undefined;
   room.lastVoteEliminatedIds = undefined;
   room.detectiveResult = undefined;
@@ -742,6 +751,15 @@ function startGameFromLobby(io: Server, room: Room) {
 
 function getConnectedLobbyPlayers(room: Room) {
   return room.players.filter((player) => player.connected && !player.isSpectator);
+}
+
+function hasDuplicatePlayerName(room: Room, name: string) {
+  const normalizedName = normalizePlayerName(name);
+  return room.players.some((player) => !player.isBot && normalizePlayerName(player.name) === normalizedName);
+}
+
+function normalizePlayerName(name: string) {
+  return name.trim().replace(/\s+/g, " ").toLocaleLowerCase("ru-RU");
 }
 
 function areLobbyPlayersReady(room: Room) {
@@ -768,6 +786,17 @@ function getAliveDon(room: Room) {
   return room.players.find((player) => player.alive && !player.isSpectator && player.role === "DON");
 }
 
+function getDoctorSaveError(room: Room, doctor: Player, target: Player) {
+  if (
+    room.settings.doctorSelfHealMode === "no_repeat" &&
+    doctor.id === target.id &&
+    room.lastDoctorSelfHealId === doctor.id
+  ) {
+    return "Доктор не может лечить себя две ночи подряд";
+  }
+  return undefined;
+}
+
 function registerMafiaVote(io: Server, room: Room, voter: Player, targetId: string) {
   room.nightActions.mafiaVotes = {
     ...(room.nightActions.mafiaVotes ?? {}),
@@ -776,14 +805,19 @@ function registerMafiaVote(io: Server, room: Room, voter: Player, targetId: stri
   resolveMafiaVote(room, false);
 
   const killers = getAliveMafiaKillers(room);
-  if (!getAliveDon(room) && killers.length > 1 && killers.every((player) => room.nightActions.mafiaVotes?.[player.id])) {
-    const uniqueTargets = new Set(killers.map((player) => room.nightActions.mafiaVotes?.[player.id]));
-    if (uniqueTargets.size === 1) {
-      room.nightActions.mafiaVoteDeadlineAt = undefined;
-      clearMafiaVoteTimer(room.code);
-    } else if (!room.nightActions.mafiaVoteDeadlineAt) {
-      scheduleMafiaVoteTimer(io, room);
-    }
+  const votes = room.nightActions.mafiaVotes ?? {};
+  const don = getAliveDon(room);
+  const allVoted = killers.length > 0 && killers.every((player) => votes[player.id]);
+  const uniqueTargets = new Set(killers.map((player) => votes[player.id]).filter(Boolean));
+  const allSameTarget = allVoted && uniqueTargets.size === 1;
+
+  if (allSameTarget) {
+    room.nightActions.mafiaVoteDeadlineAt = undefined;
+    clearMafiaVoteTimer(room.code);
+  } else if (don && room.settings.donVoteMode === "decisive" && votes[don.id]) {
+    scheduleDonDecisionTimer(io, room, votes[don.id]);
+  } else if (killers.length > 1 && allVoted && !room.nightActions.mafiaVoteDeadlineAt) {
+    scheduleMafiaVoteTimer(io, room);
   }
 
   if (room.settings.mode !== "timed" && hasInactiveRolePhaseSkip(room)) {
@@ -794,12 +828,15 @@ function registerMafiaVote(io: Server, room: Room, voter: Player, targetId: stri
 
 function resolveMafiaVote(room: Room, forcePickTiedTarget: boolean) {
   const votes = room.nightActions.mafiaVotes ?? {};
+  const killers = getAliveMafiaKillers(room);
+  const killerIds = new Set(killers.map((player) => player.id));
   const validTargets = new Set(
     room.players.filter((player) => player.alive && !player.isSpectator && !isMafiaKillerRole(player.role)).map((player) => player.id)
   );
   const tally = new Map<string, number>();
 
-  for (const targetId of Object.values(votes)) {
+  for (const [voterId, targetId] of Object.entries(votes)) {
+    if (!killerIds.has(voterId)) continue;
     if (!validTargets.has(targetId)) continue;
     tally.set(targetId, (tally.get(targetId) ?? 0) + 1);
   }
@@ -810,14 +847,16 @@ function resolveMafiaVote(room: Room, forcePickTiedTarget: boolean) {
     return;
   }
 
-  if (leaders.length === 1) {
-    room.nightActions.mafiaTargetId = leaders[0];
+  const firstVote = killers[0] ? votes[killers[0].id] : undefined;
+  const allSameTarget = Boolean(firstVote) && killers.every((player) => votes[player.id] === firstVote);
+  if (killers.length === 1 || allSameTarget) {
+    room.nightActions.mafiaTargetId = firstVote;
     return;
   }
 
   const don = getAliveDon(room);
   const donVote = don ? votes[don.id] : undefined;
-  if (donVote && leaders.includes(donVote)) {
+  if (forcePickTiedTarget && donVote && room.settings.donVoteMode === "decisive" && validTargets.has(donVote)) {
     room.nightActions.mafiaTargetId = donVote;
     return;
   }
@@ -841,7 +880,8 @@ function scheduleMafiaVoteTimer(io: Server, room: Room) {
   if (room.phase !== "NIGHT_MAFIA") return;
 
   const killers = getAliveMafiaKillers(room);
-  if (killers.length <= 1 || getAliveDon(room)) return;
+  if (killers.length <= 1) return;
+  if (getAliveDon(room) && room.settings.donVoteMode === "decisive") return;
 
   room.nightActions.mafiaVoteDeadlineAt = Date.now() + MAFIA_REVOTE_TIMEOUT_MS;
   mafiaVoteTimers.set(
@@ -854,6 +894,28 @@ function scheduleMafiaVoteTimer(io: Server, room: Room) {
       clearMafiaVoteTimer(currentRoom.code);
       emitRoom(io, currentRoom.code);
     }, MAFIA_REVOTE_TIMEOUT_MS)
+  );
+}
+
+function scheduleDonDecisionTimer(io: Server, room: Room, targetId: string) {
+  clearMafiaVoteTimer(room.code);
+  if (room.phase !== "NIGHT_MAFIA") return;
+
+  room.nightActions.mafiaVoteDeadlineAt = Date.now() + DON_DECISION_TIMEOUT_MS;
+  mafiaVoteTimers.set(
+    room.code,
+    setTimeout(() => {
+      const currentRoom = rooms.get(room.code);
+      if (!currentRoom || currentRoom.phase !== "NIGHT_MAFIA") return;
+      const don = getAliveDon(currentRoom);
+      const donVote = don ? currentRoom.nightActions.mafiaVotes?.[don.id] : undefined;
+      const resolvedTarget = donVote ?? targetId;
+      currentRoom.nightActions.mafiaTargetId = resolvedTarget;
+      currentRoom.nightActions.mafiaVoteDeadlineAt = undefined;
+      clearMafiaVoteTimer(currentRoom.code);
+      advanceRoomPhase(io, currentRoom, true);
+      emitRoom(io, currentRoom.code);
+    }, DON_DECISION_TIMEOUT_MS)
   );
 }
 
@@ -992,6 +1054,12 @@ function sanitizeSettings(settings: Partial<Room["settings"]>) {
   if (settings.voteVisibility === "public" || settings.voteVisibility === "anonymous") {
     sanitized.voteVisibility = settings.voteVisibility;
   }
+  if (settings.donVoteMode === "decisive" || settings.donVoteMode === "equal") {
+    sanitized.donVoteMode = settings.donVoteMode;
+  }
+  if (settings.doctorSelfHealMode === "no_repeat" || settings.doctorSelfHealMode === "unlimited") {
+    sanitized.doctorSelfHealMode = settings.doctorSelfHealMode;
+  }
   return sanitized;
 }
 
@@ -1047,6 +1115,7 @@ function simulateCurrentPhase(room: Room) {
     room.discussionReady = {};
     room.winner = undefined;
     room.lastNightKilledId = undefined;
+    room.lastDoctorSelfHealId = undefined;
     room.lastVoteEliminatedId = undefined;
     room.lastVoteEliminatedIds = undefined;
     room.runoffCandidateIds = undefined;
@@ -1098,7 +1167,10 @@ function simulateCurrentPhase(room: Room) {
 
   if (room.phase === "NIGHT_DOCTOR") {
     const doctor = room.players.find((player) => player.alive && player.role === "DOCTOR");
-    if (doctor) room.nightActions.doctorTargetId = doctor.id;
+    if (doctor) {
+      const fallbackTarget = room.players.find((player) => player.alive && !player.isSpectator && player.id !== doctor.id);
+      room.nightActions.doctorTargetId = getDoctorSaveError(room, doctor, doctor) ? fallbackTarget?.id : doctor.id;
+    }
   }
 
   if (room.phase === "DAY_VOTING" || room.phase === "DAY_REVOTE") {
@@ -1139,9 +1211,12 @@ function advanceRoomPhase(io: Server | undefined, room: Room, timedOut = false) 
   const previousPhase = room.phase;
 
   if (shouldResolveNightAfterPhase(room)) {
+    const doctor = room.players.find((player) => player.alive && player.role === "DOCTOR");
+    const doctorSelfHealId = doctor && room.nightActions.doctorTargetId === doctor.id ? doctor.id : undefined;
     const resolved = resolveNight(room.players, room.nightActions);
     room.players = resolved.players;
     room.lastNightKilledId = resolved.killedId;
+    room.lastDoctorSelfHealId = doctorSelfHealId;
     const winner = checkWinner(room.players);
     if (winner) {
       room.winner = winner;
@@ -1446,6 +1521,13 @@ function shuffleList<T>(items: T[]) {
 
 function fillMissingPhaseAction(room: Room) {
   if (room.phase === "NIGHT_MAFIA" && !room.nightActions.mafiaTargetId) {
+    const don = getAliveDon(room);
+    const donVote = don ? room.nightActions.mafiaVotes?.[don.id] : undefined;
+    if (donVote && room.settings.donVoteMode === "decisive") {
+      room.nightActions.mafiaTargetId = donVote;
+      return;
+    }
+
     const target = room.players.find((player) => player.alive && !player.isSpectator && !isMafiaKillerRole(player.role));
     if (target) {
       room.nightActions.mafiaVotes = {
@@ -1490,7 +1572,11 @@ function fillMissingPhaseAction(room: Room) {
 
   if (room.phase === "NIGHT_DOCTOR" && !room.nightActions.doctorTargetId) {
     const doctor = room.players.find((player) => player.alive && player.role === "DOCTOR");
-    if (doctor) room.nightActions.doctorTargetId = doctor.id;
+    if (doctor) {
+      const selfHealAllowed = !getDoctorSaveError(room, doctor, doctor);
+      const fallbackTarget = room.players.find((player) => player.alive && !player.isSpectator && player.id !== doctor.id);
+      room.nightActions.doctorTargetId = selfHealAllowed ? doctor.id : fallbackTarget?.id;
+    }
   }
 
   if ((room.phase === "DAY_VOTING" || room.phase === "DAY_REVOTE") && !areVotesReady(room)) {
@@ -1568,6 +1654,7 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
         ? room.donCheckResult
         : undefined,
     lastNightKilledId: room.lastNightKilledId,
+    lastDoctorSelfHealId: room.lastDoctorSelfHealId,
     lastVoteEliminatedId: room.lastVoteEliminatedId,
     lastVoteEliminatedIds: room.lastVoteEliminatedIds,
     winner: room.winner

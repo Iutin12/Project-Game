@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
@@ -11,8 +12,10 @@ import type { PublicPlayer, PublicRoom } from "@/games/mafia/types";
 type Ack = { ok: boolean; error?: string; playerId?: string };
 type RoomExpiredPayload = { code: string; reason?: string };
 const TIE_CHALLENGE_WAIT_SECONDS = 30;
+const LAST_LEFT_ROOM_KEY = "project-game:last-left-room";
 
 export function RoomClient({ code }: { code: string }) {
+  const router = useRouter();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [room, setRoom] = useState<PublicRoom | null>(null);
   const [name, setName] = useState("");
@@ -24,6 +27,7 @@ export function RoomClient({ code }: { code: string }) {
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
   const [firstUnreadMessageId, setFirstUnreadMessageId] = useState<string | null>(null);
   const [chatScrollRequest, setChatScrollRequest] = useState(0);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const previousRoomMessageCountRef = useRef(0);
 
   const inviteUrl = typeof window === "undefined" ? "" : `${window.location.origin}/room/${code}`;
@@ -58,6 +62,7 @@ export function RoomClient({ code }: { code: string }) {
         if (ack.ok) {
           setJoined(true);
           setError("");
+          clearRememberedRoom(code);
         } else {
           window.localStorage.removeItem(`playerId:${code}`);
         }
@@ -86,6 +91,19 @@ export function RoomClient({ code }: { code: string }) {
     previousRoomMessageCountRef.current = nextCount;
   }, [room, roomTab]);
 
+  useEffect(() => {
+    if (!room || room.phase === "GAME_OVER") return undefined;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      rememberCurrentRoom();
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [room]);
+
   function emitAction(event: string, payload?: unknown) {
     setError("");
     socket?.emit(event, payload ?? {}, (ack: Ack) => {
@@ -102,6 +120,7 @@ export function RoomClient({ code }: { code: string }) {
       }
       if (ack.playerId) window.localStorage.setItem(`playerId:${code}`, ack.playerId);
       window.localStorage.setItem(`playerName:${code}`, name.trim());
+      clearRememberedRoom(code);
       setJoined(true);
       setError("");
     });
@@ -118,6 +137,33 @@ export function RoomClient({ code }: { code: string }) {
       setChatScrollRequest((current) => current + 1);
     }
     setRoomTab("room");
+  }
+
+  function rememberCurrentRoom() {
+    if (!room) return;
+    window.localStorage.setItem(
+      LAST_LEFT_ROOM_KEY,
+      JSON.stringify({
+        code: room.code,
+        gameId: room.gameId,
+        phase: room.phase,
+        visibility: room.visibility,
+        leftAt: Date.now()
+      })
+    );
+  }
+
+  function requestLeaveRoom() {
+    if (!room || room.phase === "GAME_OVER") {
+      router.push("/");
+      return;
+    }
+    setShowLeaveConfirm(true);
+  }
+
+  function confirmLeaveRoom() {
+    rememberCurrentRoom();
+    router.push("/");
   }
 
   const phaseHint = useMemo(() => {
@@ -194,6 +240,9 @@ export function RoomClient({ code }: { code: string }) {
                 <Button variant="secondary" onClick={copyInvite}>
                   {copied ? "Ссылка скопирована" : "Пригласить"}
                 </Button>
+                <Button variant="secondary" onClick={requestLeaveRoom}>
+                  Выйти
+                </Button>
               </div>
             </div>
           </div>
@@ -249,9 +298,38 @@ export function RoomClient({ code }: { code: string }) {
             </div>
           ) : null}
         </div>
+        {showLeaveConfirm ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-md rounded-[1.5rem] border border-line bg-white p-5 shadow-soft">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-coral">Выход из комнаты</p>
+              <h2 className="mt-2 font-display text-3xl font-semibold text-ink">Точно выйти?</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                Игра еще не окончена. Вы останетесь в комнате как offline-игрок, а на главном экране появится быстрый возврат.
+              </p>
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                <Button variant="secondary" onClick={() => setShowLeaveConfirm(false)}>
+                  Остаться
+                </Button>
+                <Button onClick={confirmLeaveRoom}>Выйти</Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </section>
     </AppShell>
   );
+}
+
+function clearRememberedRoom(code: string) {
+  const raw = window.localStorage.getItem(LAST_LEFT_ROOM_KEY);
+  if (!raw) return;
+
+  try {
+    const remembered = JSON.parse(raw) as { code?: string };
+    if (remembered.code === code) window.localStorage.removeItem(LAST_LEFT_ROOM_KEY);
+  } catch {
+    window.localStorage.removeItem(LAST_LEFT_ROOM_KEY);
+  }
 }
 
 function RoomChip({ children }: { children: ReactNode }) {
@@ -342,7 +420,16 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
   const votingTargetsWithSelf = room.players.filter((player) => player.alive && !player.isSpectator);
   const mafiaAllyIds = new Set(room.mafiaAllies.map((player) => player.id));
   const nonMafiaTargets = targets.filter((player) => !mafiaAllyIds.has(player.id));
-  const healTargets = room.players.filter((player) => player.alive && !player.isSpectator);
+  const healTargets = room.players.filter(
+    (player) =>
+      player.alive &&
+      !player.isSpectator &&
+      !(
+        room.settings.doctorSelfHealMode === "no_repeat" &&
+        player.id === room.ownPlayerId &&
+        room.lastDoctorSelfHealId === room.ownPlayerId
+      )
+  );
 
   if (ownPlayer?.isSpectator) {
     return <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 text-slate-600 shadow-soft">Вы ведущий этой партии и наблюдаете за игрой без роли.</div>;
@@ -692,7 +779,10 @@ function isMafiaKillReady(room: PublicRoom) {
   const mafiaKillers = room.mafiaAllies.filter((player) => player.alive && (player.role === "MAFIA" || player.role === "DON"));
   const votes = room.nightActions?.mafiaVotes ?? {};
   const firstVote = mafiaKillers[0] ? votes[mafiaKillers[0].id] : undefined;
-  return Boolean(firstVote) && mafiaKillers.every((player) => votes[player.id] === firstVote);
+  const allVoted = mafiaKillers.length > 0 && mafiaKillers.every((player) => votes[player.id]);
+  const allSameTarget = Boolean(firstVote) && mafiaKillers.every((player) => votes[player.id] === firstVote);
+  const resolvedAfterDecision = allVoted && Boolean(room.nightActions?.mafiaTargetId) && !room.nightActions?.mafiaVoteDeadlineAt;
+  return allSameTarget || resolvedAfterDecision;
 }
 
 function areVotesReady(room: PublicRoom) {
@@ -791,9 +881,53 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
                   </select>
                 </label>
                 <SettingSwitch label="Дон мафии" checked={room.settings.hasDon} onChange={(checked) => updateSettings({ hasDon: checked })} />
+                {room.settings.hasDon ? (
+                  <div className="grid gap-2 rounded-2xl border border-line bg-cloud/60 p-3">
+                    <SettingsSectionTitle
+                      title="Голос Дона"
+                      hint="Решающее слово: если мафия спорит, через 30 секунд после выбора Дона итоговой станет его жертва. Наравне: Дон голосует как обычная мафия, без преимущества."
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant={room.settings.donVoteMode === "decisive" ? "primary" : "secondary"}
+                        onClick={() => updateSettings({ donVoteMode: "decisive" })}
+                      >
+                        Решающее
+                      </Button>
+                      <Button
+                        variant={room.settings.donVoteMode === "equal" ? "primary" : "secondary"}
+                        onClick={() => updateSettings({ donVoteMode: "equal" })}
+                      >
+                        Наравне
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
                 <SettingSwitch label="Любовница" checked={room.settings.hasMistress} onChange={(checked) => updateSettings({ hasMistress: checked })} />
                 <SettingSwitch label="Комиссар / шериф" checked={room.settings.hasDetective} onChange={(checked) => updateSettings({ hasDetective: checked })} />
                 <SettingSwitch label="Доктор" checked={room.settings.hasDoctor} onChange={(checked) => updateSettings({ hasDoctor: checked })} />
+                {room.settings.hasDoctor ? (
+                  <div className="grid gap-2 rounded-2xl border border-line bg-cloud/60 p-3">
+                    <SettingsSectionTitle
+                      title="Самолечение доктора"
+                      hint="По умолчанию доктор не может лечить себя две ночи подряд. Если включить «Без ограничений», он сможет выбирать себя каждую ночь."
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        variant={room.settings.doctorSelfHealMode === "no_repeat" ? "primary" : "secondary"}
+                        onClick={() => updateSettings({ doctorSelfHealMode: "no_repeat" })}
+                      >
+                        Без повтора
+                      </Button>
+                      <Button
+                        variant={room.settings.doctorSelfHealMode === "unlimited" ? "primary" : "secondary"}
+                        onClick={() => updateSettings({ doctorSelfHealMode: "unlimited" })}
+                      >
+                        Без ограничений
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
 
@@ -1210,7 +1344,7 @@ function MafiaTargetPicker({
       <p className="mt-2 text-sm text-slate-600">
         {selectedTarget ? `Текущая цель: ${selectedTarget.name}` : "Выберите общую цель. Выбор можно менять до завершения фазы."}
       </p>
-      {deadlineAt ? <MafiaVoteTimer deadlineAt={deadlineAt} /> : null}
+      {deadlineAt ? <MafiaVoteTimer room={room} deadlineAt={deadlineAt} /> : null}
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {players.map((player) => {
           const voters = room.mafiaAllies.filter((ally) => votes[ally.id] === player.id);
@@ -1255,8 +1389,9 @@ function MafiaTargetPicker({
   );
 }
 
-function MafiaVoteTimer({ deadlineAt }: { deadlineAt: number }) {
+function MafiaVoteTimer({ room, deadlineAt }: { room: PublicRoom; deadlineAt: number }) {
   const [now, setNow] = useState(Date.now());
+  const isDonDecision = room.settings.donVoteMode === "decisive" && room.mafiaAllies.some((player) => player.role === "DON");
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -1265,7 +1400,10 @@ function MafiaVoteTimer({ deadlineAt }: { deadlineAt: number }) {
 
   return (
     <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
-      Если мафия не договорится, цель выберется автоматически через {Math.max(0, Math.ceil((deadlineAt - now) / 1000))} сек.
+      {isDonDecision
+        ? "Если мафия не договорится, решит выбор Дона"
+        : "Если мафия не договорится, цель выберется автоматически"}{" "}
+      через {Math.max(0, Math.ceil((deadlineAt - now) / 1000))} сек.
     </p>
   );
 }
@@ -1386,6 +1524,7 @@ function MafiaVoteStatus({ room, compact = false }: { room: PublicRoom; compact?
   const mafiaKillers = room.mafiaAllies.filter((player) => player.alive && (player.role === "MAFIA" || player.role === "DON"));
   const selectedTarget = room.players.find((player) => player.id === room.nightActions?.mafiaTargetId);
   const deadlineAt = room.nightActions?.mafiaVoteDeadlineAt;
+  const isDonDecision = room.settings.donVoteMode === "decisive" && mafiaKillers.some((player) => player.role === "DON");
 
   useEffect(() => {
     if (!deadlineAt) return undefined;
@@ -1403,7 +1542,8 @@ function MafiaVoteStatus({ room, compact = false }: { room: PublicRoom; compact?
       </p>
       {deadlineAt ? (
         <p className="mt-1">
-          Без Дона итог будет выбран автоматически через {Math.max(0, Math.ceil((deadlineAt - now) / 1000))} сек.
+          {isDonDecision ? "Решит выбор Дона" : "Итог будет выбран автоматически"} через{" "}
+          {Math.max(0, Math.ceil((deadlineAt - now) / 1000))} сек.
         </p>
       ) : null}
       <div className="mt-2 grid gap-1">

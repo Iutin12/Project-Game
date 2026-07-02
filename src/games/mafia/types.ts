@@ -28,6 +28,8 @@ export type MafiaSettings = {
   votingTimerSec: number;
   voteTieMode: "revote" | "skip" | "challenge";
   voteVisibility: "public" | "anonymous";
+  donVoteMode: "decisive" | "equal";
+  doctorSelfHealMode: "no_repeat" | "unlimited";
   mode: "manual" | "timed";
 };
 
@@ -119,6 +121,7 @@ export type Room = {
   phaseDeadlineAt?: number;
   devMode?: boolean;
   lastNightKilledId?: string;
+  lastDoctorSelfHealId?: string;
   lastVoteEliminatedId?: string;
   lastVoteEliminatedIds?: string[];
   detectiveResult?: {

@@ -20,8 +20,19 @@ type Stats = {
   publicRooms?: OpenRoom[];
 };
 
+type RememberedRoom = {
+  code: string;
+  gameId: "mafia";
+  phase?: GamePhase;
+  visibility?: "private" | "public";
+  leftAt: number;
+};
+
+const LAST_LEFT_ROOM_KEY = "project-game:last-left-room";
+
 export function OpenRooms() {
   const [rooms, setRooms] = useState<OpenRoom[]>([]);
+  const [rememberedRoom, setRememberedRoom] = useState<RememberedRoom | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -34,6 +45,7 @@ export function OpenRooms() {
     }
 
     loadRooms();
+    loadRememberedRoom(setRememberedRoom);
     const timer = window.setInterval(loadRooms, 5000);
     return () => {
       mounted = false;
@@ -41,7 +53,9 @@ export function OpenRooms() {
     };
   }, []);
 
-  if (rooms.length === 0) {
+  const visibleRooms = rememberedRoom ? rooms.filter((room) => room.code !== rememberedRoom.code) : rooms;
+
+  if (rooms.length === 0 && !rememberedRoom) {
     return (
       <div className="flex min-h-[26rem] flex-col justify-between rounded-2xl border border-line bg-white p-5 shadow-soft">
         <div>
@@ -75,7 +89,23 @@ export function OpenRooms() {
       </div>
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-        {rooms.map((room) => (
+        {rememberedRoom ? (
+          <article className="rounded-2xl border border-coral/30 bg-coral/10 p-3 shadow-soft">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-coral">Последняя комната</p>
+                <h3 className="mt-1 text-lg font-bold text-ink">Мафия · {rememberedRoom.code}</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Вы недавно вышли отсюда. Можно вернуться за того же игрока.
+                </p>
+              </div>
+              <Link href={`/room/${rememberedRoom.code}`}>
+                <Button className="px-4 py-2">Вернуться</Button>
+              </Link>
+            </div>
+          </article>
+        ) : null}
+        {visibleRooms.map((room) => (
           <article key={room.code} className="rounded-2xl border border-line bg-cloud/70 p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -91,7 +121,28 @@ export function OpenRooms() {
             </div>
           </article>
         ))}
+        {visibleRooms.length === 0 && rememberedRoom ? (
+          <p className="rounded-2xl border border-line bg-cloud/70 p-4 text-sm text-slate-500">
+            Других открытых комнат сейчас нет.
+          </p>
+        ) : null}
       </div>
     </div>
   );
+}
+
+function loadRememberedRoom(setRememberedRoom: (room: RememberedRoom | null) => void) {
+  const raw = window.localStorage.getItem(LAST_LEFT_ROOM_KEY);
+  if (!raw) return;
+
+  try {
+    const parsed = JSON.parse(raw) as RememberedRoom;
+    if (!parsed.code || parsed.gameId !== "mafia") {
+      window.localStorage.removeItem(LAST_LEFT_ROOM_KEY);
+      return;
+    }
+    setRememberedRoom(parsed);
+  } catch {
+    window.localStorage.removeItem(LAST_LEFT_ROOM_KEY);
+  }
 }
