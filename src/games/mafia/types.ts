@@ -103,6 +103,7 @@ export type Room = {
   settings: MafiaSettings;
   nightActions: NightActions;
   votes: Votes;
+  lobbyReady: Record<string, boolean>;
   roleReady: Record<string, boolean>;
   discussionReady: Record<string, boolean>;
   runoffCandidateIds?: string[];

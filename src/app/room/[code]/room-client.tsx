@@ -192,11 +192,6 @@ export function RoomClient({ code }: { code: string }) {
                 <Button variant="secondary" onClick={copyInvite}>
                   {copied ? "Ссылка скопирована" : "Пригласить"}
                 </Button>
-                {room?.phase === "LOBBY" && ownPlayer?.isHost ? (
-                  <Button onClick={() => emitAction("start_game")} disabled={alivePlayers.length < 5}>
-                    Начать игру
-                  </Button>
-                ) : null}
               </div>
             </div>
           </div>
@@ -344,6 +339,33 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
 
   if (!ownPlayer?.alive && room.phase !== "LOBBY") {
     return <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 text-slate-600 shadow-soft">Вы выбыли, но можете наблюдать за игрой.</div>;
+  }
+
+  if (room.phase === "LOBBY") {
+    const lobbyPlayers = room.players.filter((player) => player.connected && !player.isSpectator);
+    const readyPlayers = lobbyPlayers.filter((player) => room.lobbyReady[player.id]);
+    const ownReady = Boolean(room.lobbyReady[room.ownPlayerId]);
+    const canStartSoon = lobbyPlayers.length >= 5;
+
+    return (
+      <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">
+        <h2 className="font-display text-2xl font-semibold text-ink">Готовность к игре</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Игра начнется автоматически, когда все подключенные игроки нажмут «Готов».
+        </p>
+        <p className="mt-3 text-sm font-semibold text-slate-600">
+          Готовы: {readyPlayers.length} / {lobbyPlayers.length}
+        </p>
+        {!canStartSoon ? <p className="mt-1 text-xs text-slate-500">Для старта нужно минимум 5 игроков.</p> : null}
+        <Button
+          className={ownReady ? "mt-4 w-full" : "mt-4 w-full animate-pulse ring-2 ring-ocean/25"}
+          variant={ownReady ? "secondary" : "primary"}
+          onClick={() => emitAction("set_lobby_ready", { ready: !ownReady })}
+        >
+          {ownReady ? "Не готов" : "Готов"}
+        </Button>
+      </div>
+    );
   }
 
   if (room.phase === "NIGHT_MAFIA" && (room.ownRole === "MAFIA" || room.ownRole === "DON")) {
@@ -822,10 +844,15 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
       </div>
 
       <div className="mt-4 grid gap-2">
-        {room.phase === "LOBBY" ? (
+        {room.phase === "LOBBY" && room.devMode ? (
           <Button onClick={() => emitAction("start_game")} disabled={connectedPlayersCount < 5}>
-            Начать игру
+            Запустить тестовую игру
           </Button>
+        ) : null}
+        {room.phase === "LOBBY" && !room.devMode ? (
+          <p className="rounded-2xl border border-line bg-cloud/70 p-3 text-sm leading-6 text-slate-600">
+            Старт произойдет автоматически, когда все подключенные игроки нажмут «Готов».
+          </p>
         ) : null}
         {room.phase !== "LOBBY" &&
         room.phase !== "GAME_OVER" &&

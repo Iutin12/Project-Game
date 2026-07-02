@@ -30,7 +30,8 @@ const lobbyExpirationTimers = new Map<string, NodeJS.Timeout>();
 let socketServer: Server | undefined;
 const MAFIA_REVOTE_TIMEOUT_MS = 40_000;
 const TIE_CHALLENGE_TIMEOUT_SEC = 30;
-const INACTIVE_ROLE_PHASE_TIMEOUT_SEC = 15;
+const INACTIVE_ROLE_PHASE_TIMEOUT_MIN_SEC = 10;
+const INACTIVE_ROLE_PHASE_TIMEOUT_MAX_SEC = 20;
 const LOBBY_EXPIRATION_MS = 30 * 60 * 1000;
 let totalRoomsCreatedToday = 0;
 let statsDay = new Date().toDateString();
@@ -58,6 +59,7 @@ function createMafiaRoom(devMode: boolean, visibility: Room["visibility"]) {
     settings: { ...defaultMafiaSettings },
     nightActions: {},
     votes: {},
+    lobbyReady: {},
     roleReady: {},
     discussionReady: {},
     chatMessages: [],
@@ -168,6 +170,7 @@ export function registerRoomSockets(io: Server) {
         player.isSpectator = !payload.participates;
         player.role = undefined;
         player.alive = true;
+        room.lobbyReady = {};
         return { ok: true };
       });
       ack?.(result);
@@ -257,6 +260,7 @@ export function registerRoomSockets(io: Server) {
         const validationError = getSettingsConfigError(nextSettings);
         if (validationError) return { ok: false, error: validationError };
         room.settings = nextSettings;
+        room.lobbyReady = {};
         return { ok: true };
       });
       ack?.(result);
@@ -383,33 +387,28 @@ export function registerRoomSockets(io: Server) {
       emitOwnRoom(io, socket);
     });
 
+    socket.on("set_lobby_ready", (payload: { ready: boolean }, ack) => {
+      const result = withPlayerRoom(socket, (room, player) => {
+        if (room.phase !== "LOBBY" || player.isSpectator) {
+          return { ok: false, error: "Готовность можно менять только игрокам в лобби" };
+        }
+        room.lobbyReady[player.id] = Boolean(payload.ready);
+
+        if (areLobbyPlayersReady(room)) {
+          const startError = startGameFromLobby(io, room);
+          if (startError) return { ok: false, error: startError };
+        }
+
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
     socket.on("start_game", (_, ack) => {
       const result = withHostRoom(socket, (room) => {
-        const connectedPlayers = room.players.filter((player) => player.connected && !player.isSpectator);
-        if (connectedPlayers.length < 5) {
-          return { ok: false, error: "Для старта нужно минимум 5 игроков" };
-        }
-        const validationError = getSettingsError(connectedPlayers.length, room.settings);
-        if (validationError) return { ok: false, error: validationError };
-
-        room.players = assignRoles(room.players, room);
-        room.phase = "ROLE_REVEAL";
-        room.nightActions = {};
-        room.votes = {};
-        room.roleReady = {};
-        room.discussionReady = {};
-        room.runoffCandidateIds = undefined;
-        room.tieChallenge = undefined;
-        room.phaseDeadlineAt = undefined;
-        room.winner = undefined;
-        room.lastNightKilledId = undefined;
-        room.lastVoteEliminatedId = undefined;
-        room.lastVoteEliminatedIds = undefined;
-        room.detectiveResult = undefined;
-        room.donCheckResult = undefined;
-        clearLobbyExpiration(room.code);
-        clearPhaseTimer(room.code);
-        scheduleMafiaVoteTimer(io, room);
+        const startError = startGameFromLobby(io, room);
+        if (startError) return { ok: false, error: startError };
         return { ok: true };
       });
       ack?.(result);
@@ -621,6 +620,7 @@ export function registerRoomSockets(io: Server) {
         room.players = room.players.map((player) => ({ ...player, alive: true, role: undefined }));
         room.nightActions = {};
         room.votes = {};
+        room.lobbyReady = {};
         room.roleReady = {};
         room.discussionReady = {};
         room.runoffCandidateIds = undefined;
@@ -651,6 +651,9 @@ export function registerRoomSockets(io: Server) {
       }
       if (room?.phase === "ROLE_REVEAL" && areRolePlayersReady(room)) {
         advanceRoomPhase(io, room);
+      }
+      if (room?.phase === "LOBBY" && areLobbyPlayersReady(room)) {
+        startGameFromLobby(io, room);
       }
       if (room) emitRoom(io, room.code);
     });
@@ -684,6 +687,48 @@ function withDevHostRoom(socket: Socket, action: (room: Room) => { ok: boolean; 
     if (!room.devMode) return { ok: false, error: "Dev-действие доступно только в тестовой комнате" };
     return action(room);
   });
+}
+
+function startGameFromLobby(io: Server, room: Room) {
+  if (room.phase !== "LOBBY") {
+    return "Игра уже запущена";
+  }
+  const connectedPlayers = getConnectedLobbyPlayers(room);
+  if (connectedPlayers.length < 5) {
+    return "Для старта нужно минимум 5 игроков";
+  }
+  const validationError = getSettingsError(connectedPlayers.length, room.settings);
+  if (validationError) return validationError;
+
+  room.players = assignRoles(room.players, room);
+  room.phase = "ROLE_REVEAL";
+  room.nightActions = {};
+  room.votes = {};
+  room.lobbyReady = {};
+  room.roleReady = {};
+  room.discussionReady = {};
+  room.runoffCandidateIds = undefined;
+  room.tieChallenge = undefined;
+  room.phaseDeadlineAt = undefined;
+  room.winner = undefined;
+  room.lastNightKilledId = undefined;
+  room.lastVoteEliminatedId = undefined;
+  room.lastVoteEliminatedIds = undefined;
+  room.detectiveResult = undefined;
+  room.donCheckResult = undefined;
+  clearLobbyExpiration(room.code);
+  clearPhaseTimer(room.code);
+  scheduleMafiaVoteTimer(io, room);
+  return undefined;
+}
+
+function getConnectedLobbyPlayers(room: Room) {
+  return room.players.filter((player) => player.connected && !player.isSpectator);
+}
+
+function areLobbyPlayersReady(room: Room) {
+  const players = getConnectedLobbyPlayers(room);
+  return players.length >= 5 && players.every((player) => room.lobbyReady[player.id]);
 }
 
 function findAlivePlayer(room: Room, playerId?: string) {
@@ -723,6 +768,9 @@ function registerMafiaVote(io: Server, room: Room, voter: Player, targetId: stri
     }
   }
 
+  if (room.settings.mode !== "timed" && getInactiveRolePhaseTimerSec(room)) {
+    schedulePhaseTimerIfNeeded(io, room);
+  }
   emitRoom(io, room.code);
 }
 
@@ -830,17 +878,27 @@ function getPhaseTimerSec(room: Room) {
 }
 
 function getInactiveRolePhaseTimerSec(room: Room) {
+  const inactiveTimeout = () => randomInt(INACTIVE_ROLE_PHASE_TIMEOUT_MIN_SEC, INACTIVE_ROLE_PHASE_TIMEOUT_MAX_SEC);
+
+  if (
+    room.phase === "NIGHT_MAFIA" &&
+    room.settings.hasMistress &&
+    isMafiaKillReady(room) &&
+    !room.players.some((player) => player.alive && !player.isSpectator && player.role === "MISTRESS")
+  ) {
+    return inactiveTimeout();
+  }
   if (room.phase === "NIGHT_DON" && !room.players.some((player) => player.alive && !player.isSpectator && player.role === "DON")) {
-    return INACTIVE_ROLE_PHASE_TIMEOUT_SEC;
+    return inactiveTimeout();
   }
   if (
     room.phase === "NIGHT_DETECTIVE" &&
     !room.players.some((player) => player.alive && !player.isSpectator && player.role === "DETECTIVE")
   ) {
-    return INACTIVE_ROLE_PHASE_TIMEOUT_SEC;
+    return inactiveTimeout();
   }
   if (room.phase === "NIGHT_DOCTOR" && !room.players.some((player) => player.alive && !player.isSpectator && player.role === "DOCTOR")) {
-    return INACTIVE_ROLE_PHASE_TIMEOUT_SEC;
+    return inactiveTimeout();
   }
   return undefined;
 }
@@ -1183,6 +1241,7 @@ function areDiscussionPlayersReady(room: Room) {
 
 function isNightMafiaReadyToAdvance(room: Room) {
   const mistress = room.players.find((player) => player.alive && !player.isSpectator && player.role === "MISTRESS");
+  if (room.settings.hasMistress && !mistress) return false;
   return isMafiaKillReady(room) && (!mistress || Boolean(room.nightActions.mistressTargetId));
 }
 
@@ -1448,6 +1507,7 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
     })),
     settings: room.settings,
     votes: sanitizeVotes(room.votes, canSeeAllRoles, room.phase, room.settings.voteVisibility, ownPlayerId),
+    lobbyReady: room.lobbyReady,
     roleReady: room.roleReady,
     discussionReady: room.discussionReady,
     runoffCandidateIds: room.runoffCandidateIds,
