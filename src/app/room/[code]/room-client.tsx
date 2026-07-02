@@ -199,7 +199,7 @@ export function RoomClient({ code }: { code: string }) {
           {room ? (
             <div className="mt-4 space-y-4">
               <div className="grid gap-4 lg:grid-cols-[minmax(16rem,0.85fr)_minmax(0,1.15fr)]">
-                <RolePanel room={room} />
+                <RolePanel room={room} emitAction={emitAction} />
                 <ActionPanel room={room} emitAction={emitAction} />
               </div>
 
@@ -275,8 +275,9 @@ function RoomTabButton({ active, children, onClick }: { active: boolean; childre
   );
 }
 
-function RolePanel({ room }: { room: PublicRoom }) {
+function RolePanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string) => void }) {
   const ownRole = room.ownRole;
+  const ownPlayer = room.players.find((player) => player.id === room.ownPlayerId);
   const killed = room.players.find((player) => player.id === room.lastNightKilledId);
   const eliminated = room.players.find((player) => player.id === room.lastVoteEliminatedId);
   const eliminatedPlayers = room.players.filter((player) => room.lastVoteEliminatedIds?.includes(player.id));
@@ -318,9 +319,16 @@ function RolePanel({ room }: { room: PublicRoom }) {
         </p>
       ) : null}
       {room.phase === "GAME_OVER" ? (
-        <p className="mt-4 text-xl font-semibold text-mint">
-          Победили: {room.winner === "MAFIA" ? "Мафия" : "Мирные жители"}
-        </p>
+        <div className="mt-4 space-y-3">
+          <p className="text-xl font-semibold text-mint">
+            Победили: {room.winner === "MAFIA" ? "Мафия" : "Мирные жители"}
+          </p>
+          {ownPlayer?.isHost ? (
+            <Button onClick={() => emitAction("restart_game")}>
+              Создать новое лобби с этими игроками
+            </Button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

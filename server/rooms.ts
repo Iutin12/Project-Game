@@ -768,7 +768,7 @@ function registerMafiaVote(io: Server, room: Room, voter: Player, targetId: stri
     }
   }
 
-  if (room.settings.mode !== "timed" && getInactiveRolePhaseTimerSec(room)) {
+  if (room.settings.mode !== "timed" && hasInactiveRolePhaseSkip(room)) {
     schedulePhaseTimerIfNeeded(io, room);
   }
   emitRoom(io, room.code);
@@ -848,9 +848,9 @@ function schedulePhaseTimerIfNeeded(io: Server | undefined, room: Room) {
   room.phaseDeadlineAt = undefined;
 
   if (!io) return;
-  const inactiveRoleTimerSec = getInactiveRolePhaseTimerSec(room);
-  if (room.settings.mode !== "timed" && room.phase !== "DAY_TIE_CHALLENGE" && !inactiveRoleTimerSec) return;
-  const timerSec = inactiveRoleTimerSec ?? getPhaseTimerSec(room);
+  const inactiveRolePhaseSkip = hasInactiveRolePhaseSkip(room);
+  if (room.settings.mode !== "timed" && room.phase !== "DAY_TIE_CHALLENGE" && !inactiveRolePhaseSkip) return;
+  const timerSec = inactiveRolePhaseSkip ? getInactiveRolePhaseTimerSec() : getPhaseTimerSec(room);
   if (!timerSec) return;
 
   room.phaseDeadlineAt = Date.now() + timerSec * 1000;
@@ -877,30 +877,32 @@ function getPhaseTimerSec(room: Room) {
   return undefined;
 }
 
-function getInactiveRolePhaseTimerSec(room: Room) {
-  const inactiveTimeout = () => randomInt(INACTIVE_ROLE_PHASE_TIMEOUT_MIN_SEC, INACTIVE_ROLE_PHASE_TIMEOUT_MAX_SEC);
-
+function hasInactiveRolePhaseSkip(room: Room) {
   if (
     room.phase === "NIGHT_MAFIA" &&
     room.settings.hasMistress &&
     isMafiaKillReady(room) &&
     !room.players.some((player) => player.alive && !player.isSpectator && player.role === "MISTRESS")
   ) {
-    return inactiveTimeout();
+    return true;
   }
   if (room.phase === "NIGHT_DON" && !room.players.some((player) => player.alive && !player.isSpectator && player.role === "DON")) {
-    return inactiveTimeout();
+    return true;
   }
   if (
     room.phase === "NIGHT_DETECTIVE" &&
     !room.players.some((player) => player.alive && !player.isSpectator && player.role === "DETECTIVE")
   ) {
-    return inactiveTimeout();
+    return true;
   }
   if (room.phase === "NIGHT_DOCTOR" && !room.players.some((player) => player.alive && !player.isSpectator && player.role === "DOCTOR")) {
-    return inactiveTimeout();
+    return true;
   }
-  return undefined;
+  return false;
+}
+
+function getInactiveRolePhaseTimerSec() {
+  return randomInt(INACTIVE_ROLE_PHASE_TIMEOUT_MIN_SEC, INACTIVE_ROLE_PHASE_TIMEOUT_MAX_SEC);
 }
 
 function scheduleLobbyExpiration(room: Room) {
@@ -1495,7 +1497,7 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
     visibility: room.visibility,
     hostId: room.hostId,
     phase: room.phase,
-    phaseDeadlineAt: room.phaseDeadlineAt,
+    phaseDeadlineAt: hasInactiveRolePhaseSkip(room) ? undefined : room.phaseDeadlineAt,
     players: room.players.map((player) => ({
       id: player.id,
       name: player.name,
