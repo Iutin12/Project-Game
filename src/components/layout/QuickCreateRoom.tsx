@@ -30,7 +30,7 @@ export function QuickCreateRoom() {
 
   return (
     <button
-      className="rounded-lg bg-ocean px-3 py-3 text-sm font-semibold text-white shadow-soft transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
+      className="shrink-0 whitespace-nowrap rounded-lg bg-ocean px-3 py-3 text-sm font-semibold text-white shadow-soft transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
       disabled={!availableGame || isCreating}
       onClick={createRoom}
       type="button"

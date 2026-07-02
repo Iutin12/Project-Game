@@ -7,14 +7,14 @@ import { ThemeToggle } from "@/components/theme/ThemeToggle";
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <main className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
-      <header className="flex items-center justify-between gap-4 py-2">
-        <Link href="/" className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-ink">
+      <header className="flex flex-wrap items-center justify-between gap-3 py-2 sm:gap-4">
+        <Link href="/" className="flex shrink-0 items-center gap-2 text-xl font-semibold tracking-tight text-ink sm:gap-3 sm:text-2xl">
           <Image
             src="/brand/project-game-logo.png"
             alt="Project Game"
             width={44}
             height={44}
-            className="h-11 w-11 rounded-2xl object-cover shadow-soft"
+            className="h-10 w-10 rounded-2xl object-cover shadow-soft sm:h-11 sm:w-11"
             priority
           />
           <span>Project <span className="text-ocean">Game</span></span>
@@ -33,7 +33,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Поддержка
           </Link>
         </nav>
-        <div className="flex items-center gap-3">
+        <div className="flex w-full min-w-0 items-center justify-end gap-2 sm:w-auto sm:gap-3">
           <ThemeToggle />
           <JoinByCode />
           <QuickCreateRoom />
