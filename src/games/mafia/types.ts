@@ -4,6 +4,7 @@ export type GamePhase =
   | "LOBBY"
   | "ROLE_REVEAL"
   | "NIGHT_MAFIA"
+  | "NIGHT_MISTRESS"
   | "NIGHT_DON"
   | "NIGHT_DETECTIVE"
   | "NIGHT_DOCTOR"
@@ -104,6 +105,10 @@ export type Room = {
   settings: MafiaSettings;
   nightActions: NightActions;
   votes: Votes;
+  voteProgress?: {
+    cast: number;
+    total: number;
+  };
   lobbyReady: Record<string, boolean>;
   roleReady: Record<string, boolean>;
   discussionReady: Record<string, boolean>;

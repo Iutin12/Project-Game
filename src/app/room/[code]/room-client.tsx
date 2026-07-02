@@ -123,6 +123,7 @@ export function RoomClient({ code }: { code: string }) {
   const phaseHint = useMemo(() => {
     if (!room) return "";
     if (room.phase === "NIGHT_MAFIA") return "Город засыпает. Мафия выбирает жертву.";
+    if (room.phase === "NIGHT_MISTRESS") return "Любовница выбирает игрока, которого отвлечет этой ночью.";
     if (room.phase === "NIGHT_DON") return "Дон мафии ищет комиссара.";
     if (room.phase === "NIGHT_DETECTIVE") return "Комиссар выходит на проверку.";
     if (room.phase === "NIGHT_DOCTOR") return "Доктор выбирает, кого спасти.";
@@ -392,14 +393,13 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
     );
   }
 
-  if (room.phase === "NIGHT_MAFIA" && room.ownRole === "MISTRESS") {
+  if (room.phase === "NIGHT_MISTRESS" && room.ownRole === "MISTRESS") {
     return (
       <div className="space-y-3">
         <TargetList
           title="Кого отвлечь этой ночью"
-          players={nonMafiaTargets}
+          players={targets}
           activeId={room.nightActions?.mistressTargetId}
-          lockAfterPick
           onPick={(id) => emitAction("mistress_distract_player", { targetId: id })}
         />
         <PhaseAdvanceButton room={room} emitAction={emitAction} />
@@ -659,8 +659,11 @@ function canOwnPlayerAdvancePhase(room: PublicRoom) {
   const ownPlayer = room.players.find((player) => player.id === room.ownPlayerId);
   if (!ownPlayer?.alive || ownPlayer.isSpectator) return false;
 
-  if (room.phase === "NIGHT_MAFIA" && (room.ownRole === "MAFIA" || room.ownRole === "DON" || room.ownRole === "MISTRESS")) {
+  if (room.phase === "NIGHT_MAFIA" && (room.ownRole === "MAFIA" || room.ownRole === "DON")) {
     return isNightMafiaReadyToAdvance(room);
+  }
+  if (room.phase === "NIGHT_MISTRESS" && room.ownRole === "MISTRESS") {
+    return Boolean(room.nightActions?.mistressTargetId);
   }
   if (room.phase === "NIGHT_DETECTIVE" && room.ownRole === "DETECTIVE") {
     return Boolean(room.nightActions?.detectiveTargetId);
@@ -682,8 +685,7 @@ function canOwnPlayerAdvancePhase(room: PublicRoom) {
 }
 
 function isNightMafiaReadyToAdvance(room: PublicRoom) {
-  const mistress = room.mafiaAllies.find((player) => player.alive && player.role === "MISTRESS");
-  return isMafiaKillReady(room) && (!mistress || Boolean(room.nightActions?.mistressTargetId));
+  return isMafiaKillReady(room);
 }
 
 function isMafiaKillReady(room: PublicRoom) {
@@ -694,6 +696,7 @@ function isMafiaKillReady(room: PublicRoom) {
 }
 
 function areVotesReady(room: PublicRoom) {
+  if (room.voteProgress) return room.voteProgress.total > 0 && room.voteProgress.cast >= room.voteProgress.total;
   const eligibleVoters = room.players.filter(
     (player) => player.alive && !player.isSpectator && player.id !== room.nightActions?.mistressTargetId
   );
@@ -1288,6 +1291,11 @@ function VotingTargetPicker({
           ? "Можно голосовать только за игроков, набравших равное число голосов. Выбор можно поменять до завершения фазы."
           : "Выберите игрока. Можно голосовать за себя и менять выбор до завершения фазы."}
       </p>
+      {room.voteProgress ? (
+        <p className="mt-3 rounded-2xl bg-cloud/80 px-4 py-3 text-sm font-semibold text-slate-600">
+          Проголосовали: {room.voteProgress.cast} / {room.voteProgress.total}
+        </p>
+      ) : null}
       {players.length === 0 ? (
         <p className="mt-4 rounded-2xl border border-coral/20 bg-coral/10 p-3 text-sm font-semibold text-coral">
           Список кандидатов переголосования пока не получен. Обновите комнату или дождитесь синхронизации.

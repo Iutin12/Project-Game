@@ -25,11 +25,10 @@ export function getMafiaCount(playerCount: number, setting: number | "auto") {
 export function assignRoles(players: Player[], room: Room): Player[] {
   const activePlayers = players.filter((player) => player.connected && !player.isSpectator);
   const mafiaCount = getMafiaCount(activePlayers.length, room.settings.mafiaCount);
-  const mafiaKillerRoles: Role[] = room.settings.hasDon ? ["DON"] : [];
-
-  while (mafiaKillerRoles.length < mafiaCount) {
-    mafiaKillerRoles.push("MAFIA");
-  }
+  const mafiaKillerRoles: Role[] = [
+    ...Array.from({ length: mafiaCount }, () => "MAFIA" as Role),
+    ...(room.settings.hasDon ? (["DON"] as Role[]) : [])
+  ];
 
   const roles: Role[] = [
     ...mafiaKillerRoles,
@@ -124,11 +123,16 @@ export function isMafiaRole(role?: Role) {
   return role === "MAFIA" || role === "DON" || role === "MISTRESS";
 }
 
+export function isMafiaKillerRole(role?: Role) {
+  return role === "MAFIA" || role === "DON";
+}
+
 function getNextEnabledPhase(room: Room, phase: GamePhase): GamePhase {
   const nextIndex = phaseOrder.indexOf(phase);
   const orderedPhases = nextIndex === -1 ? phaseOrder : phaseOrder.slice(nextIndex);
 
   for (const nextPhase of orderedPhases) {
+    if (nextPhase === "NIGHT_MISTRESS" && !room.settings.hasMistress) continue;
     if (nextPhase === "NIGHT_DON" && (!room.settings.hasDon || !room.settings.hasDetective)) continue;
     if (nextPhase === "NIGHT_DETECTIVE" && !room.settings.hasDetective) continue;
     if (nextPhase === "NIGHT_DOCTOR" && !room.settings.hasDoctor) continue;

@@ -5,6 +5,7 @@ import {
   checkWinner,
   defaultMafiaSettings,
   getNextPhase,
+  isMafiaKillerRole,
   isMafiaRole,
   resolveNight,
   resolveRunoffVotes,
@@ -272,7 +273,7 @@ export function registerRoomSockets(io: Server) {
         if (room.phase !== "NIGHT_MAFIA") return { ok: false, error: "Сейчас не ход мафии" };
         const target = findAlivePlayer(room, payload.targetId);
         if (!target) return { ok: false, error: "Цель не найдена или уже выбыла" };
-        if (isMafiaRole(target.role)) return { ok: false, error: "Мафия не выбирает своего союзника" };
+        if (isMafiaKillerRole(target.role)) return { ok: false, error: "Мафия не выбирает своего союзника" };
         const mafiaKiller =
           getAliveMafiaKillers(room).find((player) => player.id === payload.voterId) ?? getAliveMafiaKillers(room)[0];
         if (!mafiaKiller) return { ok: false, error: "В игре нет живой мафии, которая может убивать" };
@@ -290,7 +291,7 @@ export function registerRoomSockets(io: Server) {
         const target = findAlivePlayer(room, payload.targetId);
         if (!don) return { ok: false, error: "В игре нет живого Дона" };
         if (!target) return { ok: false, error: "Цель не найдена или уже выбыла" };
-        if (isMafiaRole(target.role)) return { ok: false, error: "Дон не проверяет союзника мафии" };
+        if (isMafiaKillerRole(target.role)) return { ok: false, error: "Дон не проверяет союзника мафии" };
         room.nightActions.donCheckTargetId = target.id;
         room.donCheckResult = {
           donId: don.id,
@@ -339,12 +340,11 @@ export function registerRoomSockets(io: Server) {
 
     socket.on("dev_mistress_distract_player", (payload: { targetId: string }, ack) => {
       const result = withDevHostRoom(socket, (room) => {
-        if (room.phase !== "NIGHT_MAFIA") return { ok: false, error: "Любовница ходит ночью вместе с мафией" };
+        if (room.phase !== "NIGHT_MISTRESS") return { ok: false, error: "Сейчас не ход любовницы" };
         const mistress = room.players.find((player) => player.alive && player.role === "MISTRESS");
         const target = findAlivePlayer(room, payload.targetId);
         if (!mistress) return { ok: false, error: "В игре нет живой любовницы" };
         if (!target) return { ok: false, error: "Цель не найдена или уже выбыла" };
-        if (isMafiaRole(target.role)) return { ok: false, error: "Любовница не отвлекает союзника мафии" };
         room.nightActions.mistressTargetId = target.id;
         return { ok: true };
       });
@@ -464,7 +464,7 @@ export function registerRoomSockets(io: Server) {
           }
           const target = findAlivePlayer(room, payload.targetId);
           if (!target) return { ok: false, error: "Игрок не найден" };
-          if (isMafiaRole(target.role)) return { ok: false, error: "Нельзя выбрать союзника мафии" };
+          if (isMafiaKillerRole(target.role)) return { ok: false, error: "Нельзя выбрать союзника мафии" };
           registerMafiaVote(io, room, player, target.id);
           return { ok: true };
         })
@@ -475,15 +475,11 @@ export function registerRoomSockets(io: Server) {
     socket.on("mistress_distract_player", (payload: { targetId: string }, ack) => {
       ack?.(
         withPlayerRoom(socket, (room, player) => {
-          if (room.phase !== "NIGHT_MAFIA" || player.role !== "MISTRESS" || !player.alive) {
+          if (room.phase !== "NIGHT_MISTRESS" || player.role !== "MISTRESS" || !player.alive) {
             return { ok: false, error: "Сейчас нельзя отвлечь игрока" };
-          }
-          if (room.nightActions.mistressTargetId) {
-            return { ok: false, error: "Любовница уже выбрала цель этой ночью" };
           }
           const target = findAlivePlayer(room, payload.targetId);
           if (!target) return { ok: false, error: "Игрок не найден" };
-          if (isMafiaRole(target.role)) return { ok: false, error: "Нельзя отвлечь союзника мафии" };
           room.nightActions.mistressTargetId = target.id;
           return { ok: true };
         })
@@ -502,7 +498,7 @@ export function registerRoomSockets(io: Server) {
           }
           const target = findAlivePlayer(room, payload.targetId);
           if (!target) return { ok: false, error: "Игрок не найден" };
-          if (isMafiaRole(target.role)) return { ok: false, error: "Нельзя проверять союзника мафии" };
+          if (isMafiaKillerRole(target.role)) return { ok: false, error: "Нельзя проверять союзника мафии" };
           room.nightActions.donCheckTargetId = target.id;
           room.donCheckResult = {
             donId: player.id,
@@ -799,7 +795,7 @@ function registerMafiaVote(io: Server, room: Room, voter: Player, targetId: stri
 function resolveMafiaVote(room: Room, forcePickTiedTarget: boolean) {
   const votes = room.nightActions.mafiaVotes ?? {};
   const validTargets = new Set(
-    room.players.filter((player) => player.alive && !player.isSpectator && !isMafiaRole(player.role)).map((player) => player.id)
+    room.players.filter((player) => player.alive && !player.isSpectator && !isMafiaKillerRole(player.role)).map((player) => player.id)
   );
   const tally = new Map<string, number>();
 
@@ -890,6 +886,7 @@ function schedulePhaseTimerIfNeeded(io: Server | undefined, room: Room) {
 function getPhaseTimerSec(room: Room) {
   if (room.phase === "DAY_TIE_CHALLENGE") return room.tieChallenge?.deadlineAt ? TIE_CHALLENGE_TIMEOUT_SEC : undefined;
   if (room.phase === "NIGHT_MAFIA") return room.settings.mafiaTimerSec;
+  if (room.phase === "NIGHT_MISTRESS") return room.settings.mafiaTimerSec;
   if (room.phase === "NIGHT_DON") return room.settings.donTimerSec;
   if (room.phase === "NIGHT_DETECTIVE") return room.settings.detectiveTimerSec;
   if (room.phase === "NIGHT_DOCTOR") return room.settings.doctorTimerSec;
@@ -901,9 +898,7 @@ function getPhaseTimerSec(room: Room) {
 
 function hasInactiveRolePhaseSkip(room: Room) {
   if (
-    room.phase === "NIGHT_MAFIA" &&
-    room.settings.hasMistress &&
-    isMafiaKillReady(room) &&
+    room.phase === "NIGHT_MISTRESS" &&
     !room.players.some((player) => player.alive && !player.isSpectator && player.role === "MISTRESS")
   ) {
     return true;
@@ -1004,10 +999,12 @@ function getSettingsError(playerCount: number, settings: Room["settings"]) {
   const mafiaCount =
     settings.mafiaCount === "auto" ? Math.max(1, Math.floor(playerCount / 4)) : settings.mafiaCount;
   const extraRolesCount =
-    Number(settings.hasMistress) + Number(settings.hasDetective) + Number(settings.hasDoctor);
+    Number(settings.hasDon) + Number(settings.hasMistress) + Number(settings.hasDetective) + Number(settings.hasDoctor);
 
   if (mafiaCount < 1) return "Нужна хотя бы одна мафия";
-  if (mafiaCount > Math.max(1, playerCount - 1)) return "Мафии не может быть столько же, сколько всех игроков";
+  if (mafiaCount + Number(settings.hasDon) > Math.max(1, playerCount - 1)) {
+    return "Мафии не может быть столько же, сколько всех игроков";
+  }
   if (mafiaCount + extraRolesCount > playerCount) return "Ролей больше, чем игроков";
   return undefined;
 }
@@ -1059,21 +1056,17 @@ function simulateCurrentPhase(room: Room) {
   }
 
   if (room.phase === "NIGHT_MAFIA") {
-    const target = room.players.find((player) => player.alive && !player.isSpectator && !isMafiaRole(player.role));
+    const target = room.players.find((player) => player.alive && !player.isSpectator && !isMafiaKillerRole(player.role));
     const mafiaKillers = getAliveMafiaKillers(room);
     if (target) {
       room.nightActions.mafiaVotes = Object.fromEntries(mafiaKillers.map((player) => [player.id, target.id]));
       resolveMafiaVote(room, true);
     }
-    const mistressTarget = room.players.find(
-      (player) => player.alive && !player.isSpectator && !isMafiaRole(player.role) && player.id !== target?.id
-    );
-    if (mistressTarget) room.nightActions.mistressTargetId = mistressTarget.id;
   }
 
   if (room.phase === "NIGHT_DON") {
     const don = room.players.find((player) => player.alive && !player.isSpectator && player.role === "DON");
-    const target = room.players.find((player) => player.alive && !player.isSpectator && !isMafiaRole(player.role));
+    const target = room.players.find((player) => player.alive && !player.isSpectator && !isMafiaKillerRole(player.role));
     if (don && target) {
       room.nightActions.donCheckTargetId = target.id;
       room.donCheckResult = {
@@ -1082,6 +1075,12 @@ function simulateCurrentPhase(room: Room) {
         isDetective: target.role === "DETECTIVE"
       };
     }
+  }
+
+  if (room.phase === "NIGHT_MISTRESS") {
+    const mistress = room.players.find((player) => player.alive && player.role === "MISTRESS");
+    const target = room.players.find((player) => player.alive && !player.isSpectator && player.id !== mistress?.id);
+    if (mistress && target) room.nightActions.mistressTargetId = target.id;
   }
 
   if (room.phase === "NIGHT_DETECTIVE") {
@@ -1224,7 +1223,8 @@ function shouldResolveNightAfterPhase(room: Room) {
   if (room.phase === "NIGHT_DOCTOR") return true;
   if (room.phase === "NIGHT_DETECTIVE") return !room.settings.hasDoctor;
   if (room.phase === "NIGHT_DON") return !room.settings.hasDetective && !room.settings.hasDoctor;
-  if (room.phase === "NIGHT_MAFIA") return !hasDonCheckPhase && !room.settings.hasDetective && !room.settings.hasDoctor;
+  if (room.phase === "NIGHT_MISTRESS") return !hasDonCheckPhase && !room.settings.hasDetective && !room.settings.hasDoctor;
+  if (room.phase === "NIGHT_MAFIA") return !room.settings.hasMistress && !hasDonCheckPhase && !room.settings.hasDetective && !room.settings.hasDoctor;
   return false;
 }
 
@@ -1233,8 +1233,11 @@ function canPlayerAdvancePhase(room: Room, player: Player) {
   if (player.isHost && player.isSpectator && room.phase !== "DAY_DISCUSSION" && room.settings.mode === "manual") return true;
   if (!player.alive || player.isSpectator) return false;
 
-  if (room.phase === "NIGHT_MAFIA" && isMafiaRole(player.role)) {
+  if (room.phase === "NIGHT_MAFIA" && isMafiaKillerRole(player.role)) {
     return isNightMafiaReadyToAdvance(room);
+  }
+  if (room.phase === "NIGHT_MISTRESS" && player.role === "MISTRESS") {
+    return Boolean(room.nightActions.mistressTargetId);
   }
   if (room.phase === "NIGHT_DON" && player.role === "DON") {
     return Boolean(room.nightActions.donCheckTargetId);
@@ -1263,9 +1266,7 @@ function areDiscussionPlayersReady(room: Room) {
 }
 
 function isNightMafiaReadyToAdvance(room: Room) {
-  const mistress = room.players.find((player) => player.alive && !player.isSpectator && player.role === "MISTRESS");
-  if (room.settings.hasMistress && !mistress) return false;
-  return isMafiaKillReady(room) && (!mistress || Boolean(room.nightActions.mistressTargetId));
+  return isMafiaKillReady(room);
 }
 
 function isMafiaKillReady(room: Room) {
@@ -1445,7 +1446,7 @@ function shuffleList<T>(items: T[]) {
 
 function fillMissingPhaseAction(room: Room) {
   if (room.phase === "NIGHT_MAFIA" && !room.nightActions.mafiaTargetId) {
-    const target = room.players.find((player) => player.alive && !player.isSpectator && !isMafiaRole(player.role));
+    const target = room.players.find((player) => player.alive && !player.isSpectator && !isMafiaKillerRole(player.role));
     if (target) {
       room.nightActions.mafiaVotes = {
         ...(room.nightActions.mafiaVotes ?? {}),
@@ -1468,9 +1469,15 @@ function fillMissingPhaseAction(room: Room) {
     }
   }
 
+  if (room.phase === "NIGHT_MISTRESS" && !room.nightActions.mistressTargetId) {
+    const mistress = room.players.find((player) => player.alive && player.role === "MISTRESS");
+    const target = room.players.find((player) => player.alive && !player.isSpectator && player.id !== mistress?.id);
+    if (mistress && target) room.nightActions.mistressTargetId = target.id;
+  }
+
   if (room.phase === "NIGHT_DON" && !room.nightActions.donCheckTargetId) {
     const don = room.players.find((player) => player.alive && player.role === "DON");
-    const target = room.players.find((player) => player.alive && !player.isSpectator && !isMafiaRole(player.role));
+    const target = room.players.find((player) => player.alive && !player.isSpectator && !isMafiaKillerRole(player.role));
     if (don && target) {
       room.nightActions.donCheckTargetId = target.id;
       room.donCheckResult = {
@@ -1540,6 +1547,7 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
     })),
     settings: room.settings,
     votes: sanitizeVotes(room.votes, canSeeAllRoles, room.phase, room.settings.voteVisibility, ownPlayerId),
+    voteProgress: getVoteProgress(room),
     lobbyReady: room.lobbyReady,
     roleReady: room.roleReady,
     discussionReady: room.discussionReady,
@@ -1549,20 +1557,7 @@ function toPublicRoom(room: Room, ownPlayerId: string): PublicRoom {
     createdAt: room.createdAt,
     ownPlayerId,
     ownRole,
-    mafiaAllies:
-      isMafiaRole(ownRole) || canSeeAllRoles
-        ? room.players
-            .filter((player) => !player.isSpectator && isMafiaRole(player.role))
-            .map((player) => ({
-              id: player.id,
-              name: player.name,
-              alive: player.alive,
-              connected: player.connected,
-              isHost: player.isHost,
-              isSpectator: player.isSpectator,
-              role: player.role
-            }))
-        : [],
+    mafiaAllies: getVisibleMafiaAllies(room, ownRole, canSeeAllRoles),
     nightActions: sanitizeNightActions(room.nightActions, canSeeAllRoles, ownRole),
     detectiveResult:
       room.phase === "NIGHT_DETECTIVE" && (room.detectiveResult?.detectiveId === ownPlayerId || canSeeAllRoles)
@@ -1607,6 +1602,33 @@ function sanitizeVotes(
   return votes[ownPlayerId] ? { [ownPlayerId]: votes[ownPlayerId] } : {};
 }
 
+function getVoteProgress(room: Room): Room["voteProgress"] {
+  if (room.phase !== "DAY_VOTING" && room.phase !== "DAY_REVOTE") return undefined;
+  const eligibleVoters = room.players.filter(
+    (player) => player.alive && !player.isSpectator && player.id !== room.nightActions.mistressTargetId
+  );
+  return {
+    cast: eligibleVoters.filter((player) => room.votes[player.id]).length,
+    total: eligibleVoters.length
+  };
+}
+
+function getVisibleMafiaAllies(room: Room, ownRole: Player["role"] | undefined, canSeeAllRoles: boolean): PublicRoom["mafiaAllies"] {
+  if (!canSeeAllRoles && !isMafiaKillerRole(ownRole)) return [];
+  return room.players
+    .filter((player) => !player.isSpectator && (canSeeAllRoles ? isMafiaRole(player.role) : isMafiaKillerRole(player.role)))
+    .map((player) => ({
+      id: player.id,
+      name: player.name,
+      alive: player.alive,
+      connected: player.connected,
+      isHost: player.isHost,
+      isSpectator: player.isSpectator,
+      role: player.role
+    }));
+}
+
+
 function sanitizeTieChallenge(room: Room, canSeeAllAnswers: boolean, ownPlayerId: string): PublicRoom["tieChallenge"] {
   if (!room.tieChallenge) return undefined;
   const progress = Object.fromEntries(
@@ -1635,17 +1657,18 @@ function sanitizeNightActions(nightActions: NightActions, canSeeAllRoles: boolea
       mafiaTargetId: nightActions.mafiaTargetId,
       mafiaVotes: nightActions.mafiaVotes,
       mafiaVoteDeadlineAt: nightActions.mafiaVoteDeadlineAt,
-      donCheckTargetId: nightActions.donCheckTargetId,
-      mistressTargetId: nightActions.mistressTargetId
+      donCheckTargetId: nightActions.donCheckTargetId
     };
   }
-  if (!isMafiaRole(ownRole)) return undefined;
+  if (ownRole === "MISTRESS") {
+    return { mistressTargetId: nightActions.mistressTargetId };
+  }
+  if (!isMafiaKillerRole(ownRole)) return undefined;
 
   return {
     mafiaTargetId: nightActions.mafiaTargetId,
     mafiaVotes: nightActions.mafiaVotes,
-    mafiaVoteDeadlineAt: nightActions.mafiaVoteDeadlineAt,
-    mistressTargetId: nightActions.mistressTargetId
+    mafiaVoteDeadlineAt: nightActions.mafiaVoteDeadlineAt
   };
 }
 
