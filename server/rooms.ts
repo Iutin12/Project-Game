@@ -30,6 +30,7 @@ const lobbyExpirationTimers = new Map<string, NodeJS.Timeout>();
 let socketServer: Server | undefined;
 const MAFIA_REVOTE_TIMEOUT_MS = 40_000;
 const TIE_CHALLENGE_TIMEOUT_SEC = 30;
+const INACTIVE_ROLE_PHASE_TIMEOUT_SEC = 15;
 const LOBBY_EXPIRATION_MS = 30 * 60 * 1000;
 let totalRoomsCreatedToday = 0;
 let statsDay = new Date().toDateString();
@@ -799,8 +800,9 @@ function schedulePhaseTimerIfNeeded(io: Server | undefined, room: Room) {
   room.phaseDeadlineAt = undefined;
 
   if (!io) return;
-  if (room.settings.mode !== "timed" && room.phase !== "DAY_TIE_CHALLENGE") return;
-  const timerSec = getPhaseTimerSec(room);
+  const inactiveRoleTimerSec = getInactiveRolePhaseTimerSec(room);
+  if (room.settings.mode !== "timed" && room.phase !== "DAY_TIE_CHALLENGE" && !inactiveRoleTimerSec) return;
+  const timerSec = inactiveRoleTimerSec ?? getPhaseTimerSec(room);
   if (!timerSec) return;
 
   room.phaseDeadlineAt = Date.now() + timerSec * 1000;
@@ -824,6 +826,22 @@ function getPhaseTimerSec(room: Room) {
   if (room.phase === "DAY_DISCUSSION") return room.settings.dayTimerSec;
   if (room.phase === "DAY_VOTING") return room.settings.votingTimerSec;
   if (room.phase === "DAY_REVOTE") return room.settings.votingTimerSec;
+  return undefined;
+}
+
+function getInactiveRolePhaseTimerSec(room: Room) {
+  if (room.phase === "NIGHT_DON" && !room.players.some((player) => player.alive && !player.isSpectator && player.role === "DON")) {
+    return INACTIVE_ROLE_PHASE_TIMEOUT_SEC;
+  }
+  if (
+    room.phase === "NIGHT_DETECTIVE" &&
+    !room.players.some((player) => player.alive && !player.isSpectator && player.role === "DETECTIVE")
+  ) {
+    return INACTIVE_ROLE_PHASE_TIMEOUT_SEC;
+  }
+  if (room.phase === "NIGHT_DOCTOR" && !room.players.some((player) => player.alive && !player.isSpectator && player.role === "DOCTOR")) {
+    return INACTIVE_ROLE_PHASE_TIMEOUT_SEC;
+  }
   return undefined;
 }
 
