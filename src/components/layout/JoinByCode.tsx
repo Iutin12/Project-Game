@@ -23,18 +23,19 @@ export function JoinByCode() {
     return (
       <button
         type="button"
-        className="hidden rounded-lg border border-line bg-white px-4 py-3 text-sm font-semibold text-ink shadow-sm hover:bg-slate-50 sm:inline-flex"
+        className="inline-flex rounded-lg border border-line bg-white px-3 py-3 text-sm font-semibold text-ink shadow-sm hover:bg-slate-50 sm:px-4"
         onClick={() => setIsOpen(true)}
       >
-        Войти по коду
+        <span className="sm:hidden">Код</span>
+        <span className="hidden sm:inline">Войти по коду</span>
       </button>
     );
   }
 
   return (
-    <form className="hidden items-center gap-2 sm:flex" onSubmit={submitCode}>
+    <form className="flex items-center gap-2" onSubmit={submitCode}>
       <input
-        className="h-11 w-36 rounded-lg border border-line bg-white px-3 text-sm font-semibold uppercase tracking-[0.12em] text-ink shadow-sm outline-none placeholder:normal-case placeholder:tracking-normal focus:border-ocean"
+        className="h-11 w-24 rounded-lg border border-line bg-white px-3 text-sm font-semibold uppercase tracking-[0.12em] text-ink shadow-sm outline-none placeholder:normal-case placeholder:tracking-normal focus:border-ocean sm:w-36"
         placeholder="Код комнаты"
         value={code}
         maxLength={8}
@@ -43,9 +44,10 @@ export function JoinByCode() {
       />
       <button
         type="submit"
-        className="h-11 rounded-lg bg-ocean px-4 text-sm font-semibold text-white shadow-soft hover:brightness-95"
+        className="h-11 rounded-lg bg-ocean px-3 text-sm font-semibold text-white shadow-soft hover:brightness-95 sm:px-4"
       >
-        Войти
+        <span className="sm:hidden">→</span>
+        <span className="hidden sm:inline">Войти</span>
       </button>
     </form>
   );

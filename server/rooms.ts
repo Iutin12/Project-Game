@@ -1414,16 +1414,14 @@ function createMissingItemChallengeTask(): TieChallengeTask {
   ];
   const pool = shuffleList(pools[randomInt(0, pools.length - 1)]);
   const sequence = pool.slice(0, 5);
-  const targetIndex = randomInt(0, sequence.length - 1);
-  const visibleSequence = sequence.map((item, index) => (index === targetIndex ? "___" : item));
-  const correct = sequence[targetIndex];
-  const options = shuffleList([correct, ...pool.slice(5, 8)]).slice(0, 4);
+  const correct = pool[5];
+  const options = shuffleList([correct, ...shuffleList(sequence).slice(0, 3)]);
 
   return {
     id: randomUUID(),
     type: "missing_item",
     title: "Чего не хватает",
-    prompt: `В ряду пропущен элемент: ${visibleSequence.join(", ")}. Что должно быть на месте пропуска?`,
+    prompt: `В строке есть: ${sequence.join(", ")}. Какого варианта нет в строке?`,
     options,
     correctOptionIndex: options.indexOf(correct)
   };
