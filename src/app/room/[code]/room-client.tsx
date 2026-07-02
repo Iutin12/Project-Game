@@ -9,6 +9,7 @@ import { roleDescriptions, roleLabels } from "@/games/mafia/roles";
 import type { PublicPlayer, PublicRoom } from "@/games/mafia/types";
 
 type Ack = { ok: boolean; error?: string; playerId?: string };
+type RoomExpiredPayload = { code: string; reason?: string };
 
 export function RoomClient({ code }: { code: string }) {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -34,6 +35,15 @@ export function RoomClient({ code }: { code: string }) {
     const nextSocket = io({ path: "/socket.io" });
     setSocket(nextSocket);
     nextSocket.on("room_updated", (nextRoom: PublicRoom) => setRoom(nextRoom));
+    nextSocket.on("room_expired", (payload: RoomExpiredPayload) => {
+      if (payload.code !== code) return;
+      window.localStorage.removeItem(`playerId:${code}`);
+      window.localStorage.removeItem(`hostKey:${code}`);
+      setRoom(null);
+      setJoined(false);
+      setIsRestoring(false);
+      setError(payload.reason ?? "Лобби удалено, потому что игра не была запущена.");
+    });
     nextSocket.on("connect", () => {
       const savedPlayerId = window.localStorage.getItem(`playerId:${code}`);
       const hostKey = window.localStorage.getItem(`hostKey:${code}`) ?? undefined;

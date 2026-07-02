@@ -26,8 +26,11 @@ const rooms = new Map<string, Room>();
 const socketPlayers = new Map<string, { roomCode: string; playerId: string }>();
 const mafiaVoteTimers = new Map<string, NodeJS.Timeout>();
 const phaseTimers = new Map<string, NodeJS.Timeout>();
+const lobbyExpirationTimers = new Map<string, NodeJS.Timeout>();
+let socketServer: Server | undefined;
 const MAFIA_REVOTE_TIMEOUT_MS = 40_000;
 const TIE_CHALLENGE_TIMEOUT_SEC = 30;
+const LOBBY_EXPIRATION_MS = 30 * 60 * 1000;
 let totalRoomsCreatedToday = 0;
 let statsDay = new Date().toDateString();
 
@@ -63,6 +66,7 @@ function createMafiaRoom(devMode: boolean, visibility: Room["visibility"]) {
 
   rooms.set(code, room);
   if (!devMode) totalRoomsCreatedToday += 1;
+  scheduleLobbyExpiration(room);
   return { code, hostKey: room.hostKey };
 }
 
@@ -90,6 +94,7 @@ export function getStats() {
 }
 
 export function registerRoomSockets(io: Server) {
+  socketServer = io;
   io.on("connection", (socket) => {
     socket.on("join_room", (payload: { code: string; name: string; hostKey?: string; playerId?: string }, ack) => {
       const room = getRoom(payload.code);
@@ -401,6 +406,7 @@ export function registerRoomSockets(io: Server) {
         room.lastVoteEliminatedIds = undefined;
         room.detectiveResult = undefined;
         room.donCheckResult = undefined;
+        clearLobbyExpiration(room.code);
         clearPhaseTimer(room.code);
         scheduleMafiaVoteTimer(io, room);
         return { ok: true };
@@ -626,6 +632,7 @@ export function registerRoomSockets(io: Server) {
         room.donCheckResult = undefined;
         clearMafiaVoteTimer(room.code);
         clearPhaseTimer(room.code);
+        scheduleLobbyExpiration(room);
         return { ok: true };
       });
       ack?.(result);
@@ -818,6 +825,42 @@ function getPhaseTimerSec(room: Room) {
   if (room.phase === "DAY_VOTING") return room.settings.votingTimerSec;
   if (room.phase === "DAY_REVOTE") return room.settings.votingTimerSec;
   return undefined;
+}
+
+function scheduleLobbyExpiration(room: Room) {
+  clearLobbyExpiration(room.code);
+  if (room.devMode || room.phase !== "LOBBY") return;
+  lobbyExpirationTimers.set(
+    room.code,
+    setTimeout(() => expireLobbyRoom(room.code), LOBBY_EXPIRATION_MS)
+  );
+}
+
+function expireLobbyRoom(roomCode: string) {
+  const room = rooms.get(roomCode);
+  if (!room || room.phase !== "LOBBY" || room.devMode) {
+    clearLobbyExpiration(roomCode);
+    return;
+  }
+
+  socketServer?.to(roomCode).emit("room_expired", {
+    code: roomCode,
+    reason: "Лобби удалено, потому что игра не была запущена в течение 30 минут."
+  });
+  rooms.delete(roomCode);
+  clearLobbyExpiration(roomCode);
+  clearMafiaVoteTimer(roomCode);
+  clearPhaseTimer(roomCode);
+
+  for (const [socketId, ref] of socketPlayers.entries()) {
+    if (ref.roomCode === roomCode) socketPlayers.delete(socketId);
+  }
+}
+
+function clearLobbyExpiration(roomCode: string) {
+  const timer = lobbyExpirationTimers.get(roomCode);
+  if (timer) clearTimeout(timer);
+  lobbyExpirationTimers.delete(roomCode);
 }
 
 function clearPhaseTimer(roomCode: string) {
