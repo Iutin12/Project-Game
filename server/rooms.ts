@@ -1230,8 +1230,7 @@ function shouldResolveNightAfterPhase(room: Room) {
 
 function canPlayerAdvancePhase(room: Room, player: Player) {
   if (player.isHost && room.devMode) return true;
-  if (player.isHost && player.isSpectator && room.phase !== "DAY_DISCUSSION") return true;
-  if (room.settings.mode !== "manual") return false;
+  if (player.isHost && player.isSpectator && room.phase !== "DAY_DISCUSSION" && room.settings.mode === "manual") return true;
   if (!player.alive || player.isSpectator) return false;
 
   if (room.phase === "NIGHT_MAFIA" && isMafiaRole(player.role)) {

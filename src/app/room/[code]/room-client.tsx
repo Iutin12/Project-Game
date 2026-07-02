@@ -542,7 +542,7 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
 function PhaseAdvanceButton({ room, emitAction }: { room: PublicRoom; emitAction: (event: string) => void }) {
   const canAdvance = canOwnPlayerAdvancePhase(room);
 
-  if (room.settings.mode !== "manual" || !canAdvance) return null;
+  if (!canAdvance) return null;
 
   return (
     <Button className="w-full animate-pulse ring-2 ring-ocean/25" onClick={() => emitAction("next_phase")}>
@@ -709,7 +709,7 @@ function PhaseCountdown({ deadlineAt }: { deadlineAt: number }) {
   }, []);
 
   return (
-    <p className="mt-3 w-fit rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-600">
+    <p className="mt-3 w-fit rounded-2xl bg-ocean px-5 py-3 text-base font-bold text-white shadow-soft">
       Осталось {Math.max(0, Math.ceil((deadlineAt - now) / 1000))} сек.
     </p>
   );

@@ -62,7 +62,7 @@ export function OpenRooms() {
   }
 
   return (
-    <div className="rounded-2xl border border-line bg-white p-5 shadow-soft">
+    <div className="flex h-full min-h-[26rem] max-h-[32rem] flex-col rounded-2xl border border-line bg-white p-5 shadow-soft">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-slate-500">Открытые комнаты</p>
@@ -74,7 +74,7 @@ export function OpenRooms() {
         <span className="rounded-full bg-emerald-50 px-3 py-2 text-sm font-bold text-mint">{rooms.length} онлайн</span>
       </div>
 
-      <div className="max-h-[36rem] space-y-2 overflow-y-auto pr-1">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {rooms.map((room) => (
           <article key={room.code} className="rounded-2xl border border-line bg-cloud/70 p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">

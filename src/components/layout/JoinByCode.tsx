@@ -23,7 +23,7 @@ export function JoinByCode() {
     return (
       <button
         type="button"
-        className="inline-flex shrink-0 whitespace-nowrap rounded-lg border border-line bg-white px-3 py-3 text-sm font-semibold text-ink shadow-sm hover:bg-slate-50 sm:px-4"
+        className="inline-flex shrink-0 whitespace-nowrap rounded-lg bg-ocean px-3 py-3 text-sm font-semibold text-white shadow-soft hover:brightness-95 sm:px-4"
         onClick={() => setIsOpen(true)}
       >
         <span className="sm:hidden">Код</span>

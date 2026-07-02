@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { JoinByCode } from "@/components/layout/JoinByCode";
-import { QuickCreateRoom } from "@/components/layout/QuickCreateRoom";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -36,7 +35,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex w-full min-w-0 items-center justify-end gap-2 sm:w-auto sm:gap-3">
           <ThemeToggle />
           <JoinByCode />
-          <QuickCreateRoom />
         </div>
       </header>
       {children}
