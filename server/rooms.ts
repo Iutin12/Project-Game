@@ -359,7 +359,6 @@ export function registerRoomSockets(io: Server) {
         const target = findVotingTarget(room, payload.targetId);
         if (!voter) return { ok: false, error: "Голосующий не найден или выбыл" };
         if (!target) return { ok: false, error: "Цель голосования не найдена или выбыла" };
-        if (voter.id === target.id) return { ok: false, error: "Нельзя голосовать против себя" };
         if (voter.id === room.nightActions.mistressTargetId) {
           return { ok: false, error: "Этот игрок отвлечен любовницей и пропускает голосование" };
         }
@@ -566,11 +565,8 @@ export function registerRoomSockets(io: Server) {
           if (player.id === room.nightActions.mistressTargetId) {
             return { ok: false, error: "Вы отвлечены любовницей и пропускаете голосование" };
           }
-          if (room.votes[player.id]) {
-            return { ok: false, error: "Вы уже проголосовали" };
-          }
           const target = findVotingTarget(room, payload.targetId);
-          if (!target || target.id === player.id) return { ok: false, error: "Игрок не найден" };
+          if (!target) return { ok: false, error: "Игрок не найден" };
           room.votes[player.id] = target.id;
           return { ok: true };
         })

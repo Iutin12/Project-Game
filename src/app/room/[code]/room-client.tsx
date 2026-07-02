@@ -338,6 +338,7 @@ function RolePanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
 function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event: string, payload?: unknown) => void }) {
   const ownPlayer = room.players.find((player) => player.id === room.ownPlayerId);
   const targets = room.players.filter((player) => player.alive && !player.isSpectator && player.id !== room.ownPlayerId);
+  const votingTargetsWithSelf = room.players.filter((player) => player.alive && !player.isSpectator);
   const mafiaAllyIds = new Set(room.mafiaAllies.map((player) => player.id));
   const nonMafiaTargets = targets.filter((player) => !mafiaAllyIds.has(player.id));
   const healTargets = room.players.filter((player) => player.alive && !player.isSpectator);
@@ -514,7 +515,9 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
 
   if (room.phase === "DAY_VOTING" || room.phase === "DAY_REVOTE") {
     const votingTargets =
-      room.phase === "DAY_REVOTE" ? targets.filter((player) => room.runoffCandidateIds?.includes(player.id)) : targets;
+      room.phase === "DAY_REVOTE"
+        ? votingTargetsWithSelf.filter((player) => room.runoffCandidateIds?.includes(player.id))
+        : votingTargetsWithSelf;
     return (
       <div className="space-y-3">
         <VotingTargetPicker
@@ -1282,8 +1285,8 @@ function VotingTargetPicker({
       <h2 className="font-display text-2xl font-semibold text-ink">{title}</h2>
       <p className="mt-2 text-sm text-slate-600">
         {room.phase === "DAY_REVOTE"
-          ? "Можно голосовать только за игроков, набравших равное число голосов."
-          : "Выберите игрока. После выбора голос изменить нельзя."}
+          ? "Можно голосовать только за игроков, набравших равное число голосов. Выбор можно поменять до завершения фазы."
+          : "Выберите игрока. Можно голосовать за себя и менять выбор до завершения фазы."}
       </p>
       {players.length === 0 ? (
         <p className="mt-4 rounded-2xl border border-coral/20 bg-coral/10 p-3 text-sm font-semibold text-coral">
@@ -1299,15 +1302,14 @@ function VotingTargetPicker({
             <button
               key={player.id}
               type="button"
-              disabled={Boolean(activeId)}
               className={[
-                "rounded-2xl border p-3 text-left transition disabled:cursor-not-allowed",
+                "rounded-2xl border p-3 text-left transition",
                 isOwnPick
                   ? "border-coral/40 bg-coral/10 shadow-soft"
                   : voters.length > 0
                     ? "border-ocean/25 bg-ocean/10"
                     : "border-line bg-cloud hover:-translate-y-0.5 hover:border-ocean/30",
-                activeId && !isOwnPick ? "opacity-70" : ""
+                activeId && !isOwnPick ? "opacity-85" : ""
               ].join(" ")}
               onClick={() => onPick(player.id)}
             >
