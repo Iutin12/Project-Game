@@ -52,7 +52,7 @@ export type ChatMessage = {
 
 export type TieChallengeTask = {
   id: string;
-  type: "math" | "quick_memory";
+  type: "math" | "missing_item";
   title: string;
   prompt: string;
   options: string[];
@@ -69,12 +69,13 @@ export type TieChallengeProgress = {
 export type TieChallenge = {
   candidateIds: string[];
   progress: Record<string, TieChallengeProgress>;
-  startedAt: number;
-  deadlineAt: number;
+  ready: Record<string, boolean>;
+  startedAt?: number;
+  deadlineAt?: number;
 };
 
 export type PublicTieChallengeProgress = Omit<TieChallengeProgress, "task"> & {
-  task: Omit<TieChallengeTask, "correctOptionIndex">;
+  task?: Omit<TieChallengeTask, "correctOptionIndex">;
 };
 
 export type PublicTieChallenge = Omit<TieChallenge, "progress"> & {

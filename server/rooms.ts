@@ -586,6 +586,9 @@ export function registerRoomSockets(io: Server) {
         if (!room.tieChallenge.candidateIds.includes(player.id)) {
           return { ok: false, error: "Испытание только для претендентов на вылет" };
         }
+        if (!room.tieChallenge.deadlineAt) {
+          return { ok: false, error: "Испытание начнется, когда все претенденты будут готовы" };
+        }
         if (Date.now() >= room.tieChallenge.deadlineAt) {
           resolveTieChallenge(io, room);
           return { ok: true };
@@ -606,6 +609,29 @@ export function registerRoomSockets(io: Server) {
         if (correct) {
           progress.score += 1;
           progress.task = createTieChallengeTask();
+        }
+
+        return { ok: true };
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("ready_for_tie_challenge", (_, ack) => {
+      const result = withPlayerRoom(socket, (room, player) => {
+        if (room.phase !== "DAY_TIE_CHALLENGE" || !room.tieChallenge || !player.alive || player.isSpectator) {
+          return { ok: false, error: "Сейчас нет испытания" };
+        }
+        if (!room.tieChallenge.candidateIds.includes(player.id)) {
+          return { ok: false, error: "Только претенденты подтверждают готовность к испытанию" };
+        }
+        if (room.tieChallenge.deadlineAt) {
+          return { ok: false, error: "Испытание уже началось" };
+        }
+
+        room.tieChallenge.ready[player.id] = true;
+        if (areTieChallengeCandidatesReady(room)) {
+          beginTieChallenge(io, room);
         }
 
         return { ok: true };
@@ -866,7 +892,7 @@ function schedulePhaseTimerIfNeeded(io: Server | undefined, room: Room) {
 }
 
 function getPhaseTimerSec(room: Room) {
-  if (room.phase === "DAY_TIE_CHALLENGE") return TIE_CHALLENGE_TIMEOUT_SEC;
+  if (room.phase === "DAY_TIE_CHALLENGE") return room.tieChallenge?.deadlineAt ? TIE_CHALLENGE_TIMEOUT_SEC : undefined;
   if (room.phase === "NIGHT_MAFIA") return room.settings.mafiaTimerSec;
   if (room.phase === "NIGHT_DON") return room.settings.donTimerSec;
   if (room.phase === "NIGHT_DETECTIVE") return room.settings.detectiveTimerSec;
@@ -1280,9 +1306,20 @@ function startTieChallenge(io: Server | undefined, room: Room, candidateIds: str
         }
       ])
     ),
-    startedAt: Date.now(),
-    deadlineAt: Date.now() + TIE_CHALLENGE_TIMEOUT_SEC * 1000
+    ready: {}
   };
+}
+
+function areTieChallengeCandidatesReady(room: Room) {
+  const challenge = room.tieChallenge;
+  if (!challenge || challenge.deadlineAt) return false;
+  return challenge.candidateIds.length > 0 && challenge.candidateIds.every((playerId) => challenge.ready[playerId]);
+}
+
+function beginTieChallenge(io: Server | undefined, room: Room) {
+  if (!room.tieChallenge || room.tieChallenge.deadlineAt) return;
+  room.tieChallenge.startedAt = Date.now();
+  room.tieChallenge.deadlineAt = Date.now() + TIE_CHALLENGE_TIMEOUT_SEC * 1000;
   schedulePhaseTimerIfNeeded(io, room);
 }
 
@@ -1332,7 +1369,7 @@ function resolveTieChallenge(io: Server | undefined, room: Room) {
 }
 
 function createTieChallengeTask(): TieChallengeTask {
-  return Math.random() < 0.6 ? createMathChallengeTask() : createAttentionChallengeTask();
+  return Math.random() < 0.6 ? createMathChallengeTask() : createMissingItemChallengeTask();
 }
 
 function createMathChallengeTask(): TieChallengeTask {
@@ -1368,24 +1405,25 @@ function createMathChallengeTask(): TieChallengeTask {
   };
 }
 
-function createAttentionChallengeTask(): TieChallengeTask {
+function createMissingItemChallengeTask(): TieChallengeTask {
   const pools = [
     ["кот", "луна", "мост", "лес", "река", "огонь", "камень", "ключ", "снег", "сова"],
     ["7", "2", "9", "4", "6", "1", "8", "3", "5", "0"],
-    ["◆", "▲", "●", "■", "★", "✦", "◇", "○", "▣", "△"]
+    ["◆", "▲", "●", "■", "★", "✦", "◇", "○", "▣", "△"],
+    ["север", "юг", "запад", "восток", "центр", "верх", "низ", "лево", "право", "рядом"]
   ];
   const pool = shuffleList(pools[randomInt(0, pools.length - 1)]);
   const sequence = pool.slice(0, 5);
   const targetIndex = randomInt(0, sequence.length - 1);
-  const positionLabels = ["первым", "вторым", "третьим", "четвертым", "пятым"];
+  const visibleSequence = sequence.map((item, index) => (index === targetIndex ? "___" : item));
   const correct = sequence[targetIndex];
   const options = shuffleList([correct, ...pool.slice(5, 8)]).slice(0, 4);
 
   return {
     id: randomUUID(),
-    type: "quick_memory",
-    title: "Проверка внимания",
-    prompt: `Запомни ряд: ${sequence.join(", ")}. Что было ${positionLabels[targetIndex]}?`,
+    type: "missing_item",
+    title: "Чего не хватает",
+    prompt: `В ряду пропущен элемент: ${visibleSequence.join(", ")}. Что должно быть на месте пропуска?`,
     options,
     correctOptionIndex: options.indexOf(correct)
   };
@@ -1578,13 +1616,11 @@ function sanitizeVotes(
 
 function sanitizeTieChallenge(room: Room, canSeeAllAnswers: boolean, ownPlayerId: string): PublicRoom["tieChallenge"] {
   if (!room.tieChallenge) return undefined;
-  const progressEntries = Object.entries(room.tieChallenge.progress).filter(
-    ([playerId]) => canSeeAllAnswers || playerId === ownPlayerId
-  );
   const progress = Object.fromEntries(
-    progressEntries.map(([playerId, item]) => {
+    Object.entries(room.tieChallenge.progress).map(([playerId, item]) => {
       const { correctOptionIndex, ...task } = item.task;
-      return [playerId, { ...item, task }];
+      const canSeeTask = canSeeAllAnswers || playerId === ownPlayerId;
+      return [playerId, { ...item, task: canSeeTask ? task : undefined }];
     })
   );
   return {

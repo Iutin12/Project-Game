@@ -10,6 +10,7 @@ import type { PublicPlayer, PublicRoom } from "@/games/mafia/types";
 
 type Ack = { ok: boolean; error?: string; playerId?: string };
 type RoomExpiredPayload = { code: string; reason?: string };
+const TIE_CHALLENGE_WAIT_SECONDS = 30;
 
 export function RoomClient({ code }: { code: string }) {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -567,7 +568,11 @@ function TieChallengePanel({ room, emitAction }: { room: PublicRoom; emitAction:
   const candidates = room.players.filter((player) => challenge.candidateIds.includes(player.id));
   const isCandidate = challenge.candidateIds.includes(room.ownPlayerId);
   const ownProgress = challenge.progress[room.ownPlayerId];
-  const secondsLeft = Math.max(0, Math.ceil((challenge.deadlineAt - now) / 1000));
+  const isStarted = Boolean(challenge.deadlineAt);
+  const secondsLeft = challenge.deadlineAt ? Math.max(0, Math.ceil((challenge.deadlineAt - now) / 1000)) : TIE_CHALLENGE_WAIT_SECONDS;
+  const readyCandidates = candidates.filter((player) => challenge.ready[player.id]);
+  const ownReady = Boolean(challenge.ready[room.ownPlayerId]);
+  const ownTask = ownProgress?.task;
 
   return (
     <div className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">
@@ -575,29 +580,53 @@ function TieChallengePanel({ room, emitAction }: { room: PublicRoom; emitAction:
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-ocean">Испытание на вылет</p>
           <h2 className="mt-2 font-display text-2xl font-semibold text-ink">
-            {ownProgress?.task.title ?? "Серия быстрых заданий"}
+            {isStarted ? (ownTask?.title ?? "Серия быстрых заданий") : "Готовность претендентов"}
           </h2>
         </div>
-        <span className="rounded-full bg-coral/10 px-3 py-1 text-sm font-bold text-coral">{secondsLeft} сек.</span>
+        {isStarted ? <span className="rounded-full bg-coral/10 px-3 py-1 text-sm font-bold text-coral">{secondsLeft} сек.</span> : null}
       </div>
       <p className="mt-3 text-sm leading-6 text-slate-600">
-        Участники: {candidates.map((player) => player.name).join(", ")}. В течение 30 секунд решайте задания подряд.
-        Кто наберет больше правильных ответов, остается в игре.
+        Участники: {candidates.map((player) => player.name).join(", ")}.{" "}
+        {isStarted
+          ? "В течение 30 секунд решайте задания подряд. Кто наберет больше правильных ответов, остается в игре."
+          : "Испытание начнется, когда все претенденты нажмут «Готов»."}
       </p>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {candidates.map((player) => (
           <div key={player.id} className="rounded-2xl border border-line bg-cloud/70 px-3 py-2 text-sm text-slate-600">
             <span className="font-semibold text-ink">{player.name}</span>: {challenge.progress[player.id]?.score ?? 0} верных
+            {!isStarted ? (
+              <span className="ml-2 text-xs font-semibold text-slate-500">
+                {challenge.ready[player.id] ? "готов" : "ждет"}
+              </span>
+            ) : null}
           </div>
         ))}
       </div>
-      {isCandidate && ownProgress ? (
+      {!isStarted ? (
+        <div className="mt-4 rounded-2xl border border-line bg-cloud/70 p-4">
+          <p className="text-sm font-semibold text-slate-600">
+            Готовы: {readyCandidates.length} / {candidates.length}
+          </p>
+          {isCandidate ? (
+            <Button
+              className={ownReady ? "mt-3 w-full" : "mt-3 w-full animate-pulse ring-2 ring-ocean/25"}
+              disabled={ownReady}
+              onClick={() => emitAction("ready_for_tie_challenge")}
+            >
+              {ownReady ? "Ждем второго претендента" : "Готов к испытанию"}
+            </Button>
+          ) : (
+            <p className="mt-2 text-sm text-slate-500">Вы наблюдаете за подготовкой претендентов.</p>
+          )}
+        </div>
+      ) : isCandidate && ownProgress && ownTask ? (
         <>
-          <p className="mt-4 rounded-2xl bg-cloud/80 p-4 text-lg font-semibold text-ink">{ownProgress.task.prompt}</p>
+          <p className="mt-4 rounded-2xl bg-cloud/80 p-4 text-lg font-semibold text-ink">{ownTask.prompt}</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            {ownProgress.task.options.map((option, index) => (
+            {ownTask.options.map((option, index) => (
               <button
-                key={`${ownProgress.task.id}-${option}`}
+                key={`${ownTask.id}-${option}`}
                 type="button"
                 disabled={secondsLeft <= 0}
                 className="rounded-2xl border border-line bg-cloud px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-ocean/30 disabled:cursor-not-allowed disabled:opacity-70"
@@ -864,6 +893,7 @@ function HostPanel({ room, emitAction }: { room: PublicRoom; emitAction: (event:
         ) : null}
         {room.phase !== "LOBBY" &&
         room.phase !== "GAME_OVER" &&
+        room.phase !== "DAY_TIE_CHALLENGE" &&
         ((ownPlayer?.isSpectator && room.phase !== "DAY_DISCUSSION" && room.phase !== "ROLE_REVEAL") || room.devMode) &&
         room.settings.mode === "manual" ? (
           <Button onClick={() => emitAction("next_phase")}>Следующая фаза</Button>
