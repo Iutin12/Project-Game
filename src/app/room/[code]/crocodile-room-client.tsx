@@ -553,7 +553,12 @@ function SettingsPanel({
           disabled={disabled}
           value={settings.wordPoolMode}
           options={[{ value: "all", label: "Все" }, { value: "categories", label: "Выбранные" }]}
-          onChange={(value) => updateSettings({ wordPoolMode: value as CrocodileSettings["wordPoolMode"] })}
+          onChange={(value) =>
+            updateSettings({
+              wordPoolMode: value as CrocodileSettings["wordPoolMode"],
+              selectedCategories: value === "all" ? [] : settings.selectedCategories
+            })
+          }
         />
         <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           {crocodileCategories.map((category) => {

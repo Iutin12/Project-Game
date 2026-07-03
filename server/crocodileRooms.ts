@@ -395,6 +395,7 @@ function sanitizeSettings(settings: Partial<CrocodileSettings>) {
   if (typeof settings.roundTimeSec === "number") sanitized.roundTimeSec = clamp(settings.roundTimeSec, 30, 180);
   if (settings.wordPoolMode === "all" || settings.wordPoolMode === "categories") sanitized.wordPoolMode = settings.wordPoolMode;
   if (Array.isArray(settings.selectedCategories)) sanitized.selectedCategories = settings.selectedCategories;
+  if (sanitized.wordPoolMode === "all") sanitized.selectedCategories = [];
   if (settings.roundsCount === null) sanitized.roundsCount = null;
   if (typeof settings.roundsCount === "number") sanitized.roundsCount = clamp(settings.roundsCount, 1, 30);
   if (typeof settings.teamsCount === "number") sanitized.teamsCount = clamp(settings.teamsCount, 2, 4);
