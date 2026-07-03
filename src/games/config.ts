@@ -58,12 +58,12 @@ export const games: GameConfig[] = [
   {
     id: "crocodile",
     title: "Крокодил",
-    description: "Объясняйте слова жестами, чтобы команда их угадала.",
-    status: "coming_soon",
-    minPlayers: 4,
-    maxPlayers: 12,
+    description: "Объясняйте слова жестами, мимикой и действиями, чтобы друзья их угадали.",
+    status: "available",
+    minPlayers: 3,
+    maxPlayers: 20,
     route: "/games/crocodile",
     illustration: "/game-cards/crocodile.png",
-    duration: "10-20 мин"
+    duration: "10-30 мин"
   }
 ];
