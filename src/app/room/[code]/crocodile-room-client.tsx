@@ -686,12 +686,19 @@ function ToggleRow({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between gap-3 rounded-2xl border border-line dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3">
+    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-line dark:border-white/10 bg-white px-4 py-3 dark:bg-slate-900">
       <span className="flex items-center gap-2 font-bold text-slate-600 dark:text-white/70">
         {label}
         {hint ? <Hint text={hint} /> : null}
       </span>
-      <input type="checkbox" disabled={disabled} checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <input
+        type="checkbox"
+        className="peer sr-only"
+        disabled={disabled}
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span className="relative h-7 w-12 shrink-0 rounded-full bg-slate-300 transition after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition peer-checked:bg-coral peer-checked:after:translate-x-5 peer-disabled:cursor-not-allowed peer-disabled:opacity-50 peer-focus-visible:ring-2 peer-focus-visible:ring-coral/30 dark:bg-slate-700" />
     </label>
   );
 }
