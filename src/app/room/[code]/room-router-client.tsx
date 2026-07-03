@@ -11,6 +11,8 @@ type RoomInfo = {
   phase: string;
 };
 
+const LAST_LEFT_ROOM_KEY = "project-game:last-left-room";
+
 export function RoomRouterClient({ code }: { code: string }) {
   const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(null);
   const [error, setError] = useState("");
@@ -23,6 +25,7 @@ export function RoomRouterClient({ code }: { code: string }) {
       if (!mounted) return;
 
       if (!response.ok) {
+        clearRememberedRoom(code);
         setError("Комната не найдена");
         return;
       }
@@ -60,4 +63,16 @@ export function RoomRouterClient({ code }: { code: string }) {
 
   if (roomInfo.gameId === "crocodile") return <CrocodileRoomClient code={code} />;
   return <MafiaRoomClient code={code} />;
+}
+
+function clearRememberedRoom(code: string) {
+  const raw = window.localStorage.getItem(LAST_LEFT_ROOM_KEY);
+  if (!raw) return;
+
+  try {
+    const remembered = JSON.parse(raw) as { code?: string };
+    if (remembered.code === code) window.localStorage.removeItem(LAST_LEFT_ROOM_KEY);
+  } catch {
+    window.localStorage.removeItem(LAST_LEFT_ROOM_KEY);
+  }
 }

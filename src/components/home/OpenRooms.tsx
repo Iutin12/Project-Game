@@ -30,6 +30,12 @@ type RememberedRoom = {
   leftAt: number;
 };
 
+type RoomInfo = {
+  code: string;
+  gameId: GameId;
+  phase: string;
+};
+
 const LAST_LEFT_ROOM_KEY = "project-game:last-left-room";
 
 const fallbackPhaseLabels: Record<string, string> = {
@@ -74,7 +80,7 @@ export function OpenRooms() {
     }
 
     loadRooms();
-    loadRememberedRoom(setRememberedRoom);
+    validateRememberedRoom(setRememberedRoom);
     const timer = window.setInterval(loadRooms, 5000);
     return () => {
       mounted = false;
@@ -168,7 +174,7 @@ export function OpenRooms() {
   );
 }
 
-function loadRememberedRoom(setRememberedRoom: (room: RememberedRoom | null) => void) {
+async function validateRememberedRoom(setRememberedRoom: (room: RememberedRoom | null) => void) {
   const raw = window.localStorage.getItem(LAST_LEFT_ROOM_KEY);
   if (!raw) return;
 
@@ -178,8 +184,24 @@ function loadRememberedRoom(setRememberedRoom: (room: RememberedRoom | null) => 
       window.localStorage.removeItem(LAST_LEFT_ROOM_KEY);
       return;
     }
-    setRememberedRoom(parsed);
+
+    const response = await fetch(`/api/room-info?code=${encodeURIComponent(parsed.code)}`, { cache: "no-store" });
+    if (!response.ok) {
+      window.localStorage.removeItem(LAST_LEFT_ROOM_KEY);
+      setRememberedRoom(null);
+      return;
+    }
+
+    const roomInfo = (await response.json()) as RoomInfo;
+    if (roomInfo.gameId !== parsed.gameId) {
+      window.localStorage.removeItem(LAST_LEFT_ROOM_KEY);
+      setRememberedRoom(null);
+      return;
+    }
+
+    setRememberedRoom({ ...parsed, phase: roomInfo.phase });
   } catch {
     window.localStorage.removeItem(LAST_LEFT_ROOM_KEY);
+    setRememberedRoom(null);
   }
 }
