@@ -207,21 +207,21 @@ export function CrocodileRoomClient({ code }: { code: string }) {
   return (
     <AppShell onLogoClick={leaveRoom}>
       <section className="py-6">
-        <div className="rounded-[2rem] border border-slate-700/30 bg-slate-950/90 p-4 text-white shadow-soft dark:border-slate-700 dark:bg-slate-950 sm:p-6">
-          <header className="rounded-[1.5rem] border border-white/10 bg-slate-900/80 p-5 shadow-soft">
+        <div className="rounded-[2rem] border border-slate-700/30 bg-white/80 p-4 text-ink shadow-soft dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:p-6">
+          <header className="rounded-[1.5rem] border border-line dark:border-white/10 bg-white/90 dark:bg-slate-900/80 p-5 shadow-soft">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-white/70">
+                <div className="flex flex-wrap items-center gap-2 text-sm font-bold text-slate-600 dark:text-white/70">
                   <span className="tracking-[0.28em] text-coral">КОМНАТА {room.code}</span>
-                  <span className="rounded-full border border-white/10 px-3 py-1">{connectedCount} / 20 игроков</span>
-                  <span className="rounded-full border border-white/10 px-3 py-1">{room.visibility === "public" ? "Открытая" : "Закрытая"}</span>
-                  <span className="rounded-full border border-white/10 px-3 py-1">{phaseLabels[room.phase]}</span>
+                  <span className="rounded-full border border-line dark:border-white/10 px-3 py-1">{connectedCount} / 20 игроков</span>
+                  <span className="rounded-full border border-line dark:border-white/10 px-3 py-1">{room.visibility === "public" ? "Открытая" : "Закрытая"}</span>
+                  <span className="rounded-full border border-line dark:border-white/10 px-3 py-1">{phaseLabels[room.phase]}</span>
                 </div>
                 <h1 className="mt-4 font-display text-4xl font-semibold sm:text-5xl">Крокодил</h1>
-                <p className="mt-2 max-w-2xl text-white/65">{getPhaseHint(room, explainer?.name)}</p>
+                <p className="mt-2 max-w-2xl text-slate-600 dark:text-white/65">{getPhaseHint(room, explainer?.name)}</p>
               </div>
               <div className="flex flex-wrap gap-3">
-                <Button variant="ghost" className="border-white/15 bg-transparent text-white hover:bg-white/10" onClick={copyInvite}>
+                <Button variant="ghost" className="border-line bg-transparent text-ink hover:bg-slate-100 dark:border-white/15 dark:text-white dark:hover:bg-white/10" onClick={copyInvite}>
                   {copied ? "Ссылка скопирована" : "Пригласить"}
                 </Button>
                 {room.phase === "LOBBY" && isHost ? (
@@ -231,15 +231,15 @@ export function CrocodileRoomClient({ code }: { code: string }) {
             </div>
           </header>
 
-          <div className="mt-5 rounded-[1.35rem] border border-white/10 bg-slate-900/70 p-2">
+          <div className="mt-5 rounded-[1.35rem] border border-line dark:border-white/10 bg-white/85 dark:bg-slate-900/70 p-2">
             <button
-              className={`rounded-2xl px-5 py-3 font-bold ${tab === "room" ? "bg-coral text-white" : "text-white/60"}`}
+              className={`rounded-2xl px-5 py-3 font-bold ${tab === "room" ? "bg-coral text-white" : "text-slate-500 dark:text-white/60"}`}
               onClick={() => setTab("room")}
             >
               Комната
             </button>
             <button
-              className={`rounded-2xl px-5 py-3 font-bold ${tab === "settings" ? "bg-coral text-white" : "text-white/60"}`}
+              className={`rounded-2xl px-5 py-3 font-bold ${tab === "settings" ? "bg-coral text-white" : "text-slate-500 dark:text-white/60"}`}
               onClick={() => setTab("settings")}
             >
               Настройки
@@ -291,10 +291,10 @@ export function CrocodileRoomClient({ code }: { code: string }) {
 
 function LobbyPanel({ room }: { room: PublicCrocodileRoom }) {
   return (
-    <section className="rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-5">
+    <section className="rounded-[1.5rem] border border-line dark:border-white/10 bg-white/85 dark:bg-slate-900/70 p-5">
       <p className="text-sm font-bold uppercase tracking-[0.22em] text-coral">Ожидание</p>
       <h2 className="mt-2 font-display text-3xl font-semibold">Готовим игру</h2>
-      <p className="mt-3 text-white/65">Для старта нужно минимум 3 игрока. Хост может выбрать режим, таймер, категории и количество раундов.</p>
+      <p className="mt-3 text-slate-600 dark:text-white/65">Для старта нужно минимум 3 игрока. Хост может выбрать режим, таймер, категории и количество раундов.</p>
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         <StatCard label="Режим" value={room.settings.gameMode === "teams" ? "Команды" : "Каждый за себя"} />
         <StatCard label="Слова" value={room.settings.roundMode === "multiple_words" ? "Много за раунд" : "Одно за раунд"} />
@@ -323,27 +323,27 @@ function RoundPanel({
   const activeTeam = room.round?.activeTeamId ? room.round.activeTeamId.replace("team_", "Команда ") : undefined;
 
   return (
-    <section className="rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-5">
+    <section className="rounded-[1.5rem] border border-line dark:border-white/10 bg-white/85 dark:bg-slate-900/70 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.22em] text-coral">Раунд {room.round?.index}</p>
           <h2 className="mt-2 font-display text-3xl font-semibold">Объясняет {explainerName ?? "игрок"}</h2>
-          {activeTeam ? <p className="mt-2 text-white/60">Угадывает {activeTeam}</p> : null}
+          {activeTeam ? <p className="mt-2 text-slate-500 dark:text-white/60">Угадывает {activeTeam}</p> : null}
         </div>
         {timeLeft !== null ? <div className="rounded-2xl bg-coral px-5 py-3 text-2xl font-black">{formatTime(timeLeft)}</div> : null}
       </div>
 
-      <div className="mt-5 rounded-[1.35rem] border border-white/10 bg-slate-950/70 p-5">
-        <p className="text-sm font-bold uppercase tracking-[0.18em] text-white/45">Слово</p>
+      <div className="mt-5 rounded-[1.35rem] border border-line dark:border-white/10 bg-slate-100/80 dark:bg-slate-950/70 p-5">
+        <p className="text-sm font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-white/45">Слово</p>
         <h3 className="mt-2 font-display text-4xl font-semibold">{room.round?.word?.text ?? "Скрыто"}</h3>
-        <p className="mt-2 text-sm text-white/55">
+        <p className="mt-2 text-sm text-slate-500 dark:text-white/55">
           {isExplainer ? "Покажите это слово жестами. Не называйте само слово и однокоренные формы." : "Пишите догадки в чат справа."}
         </p>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3">
         {isExplainer && room.settings.allowSkipWord ? (
-          <Button variant="ghost" className="border-white/15 bg-transparent text-white hover:bg-white/10" onClick={onSkip}>
+          <Button variant="ghost" className="border-line bg-transparent text-ink hover:bg-slate-100 dark:border-white/15 dark:text-white dark:hover:bg-white/10" onClick={onSkip}>
             Пропустить ({room.round?.skipsUsed ?? 0}/{room.settings.maxSkipsPerTurn})
           </Button>
         ) : null}
@@ -357,14 +357,14 @@ function ResultPanel({ room, isHost, onNext }: { room: PublicCrocodileRoom; isHo
   const lastGuesser = room.players.find((player) => player.id === room.round?.lastGuesserId);
 
   return (
-    <section className="rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-5">
+    <section className="rounded-[1.5rem] border border-line dark:border-white/10 bg-white/85 dark:bg-slate-900/70 p-5">
       <p className="text-sm font-bold uppercase tracking-[0.22em] text-coral">Итоги</p>
       <h2 className="mt-2 font-display text-3xl font-semibold">Раунд завершен</h2>
-      <p className="mt-3 text-white/65">
-        Последнее угаданное слово: <span className="font-bold text-white">{room.round?.lastCorrectWord ?? "не было"}</span>
+      <p className="mt-3 text-slate-600 dark:text-white/65">
+        Последнее угаданное слово: <span className="font-bold text-ink dark:text-white">{room.round?.lastCorrectWord ?? "не было"}</span>
         {lastGuesser ? ` · угадал ${lastGuesser.name}` : ""}
       </p>
-      <p className="mt-2 text-white/55">Угадано слов за раунд: {room.round?.guessedWords.length ?? 0}</p>
+      <p className="mt-2 text-slate-500 dark:text-white/55">Угадано слов за раунд: {room.round?.guessedWords.length ?? 0}</p>
       {isHost ? <Button className="mt-5" onClick={onNext}>Следующий раунд</Button> : null}
     </section>
   );
@@ -376,10 +376,10 @@ function GameOverPanel({ room, isHost, onRestart }: { room: PublicCrocodileRoom;
     : room.players.filter((player) => room.winnerIds?.includes(player.id)).map((player) => player.name).join(", ");
 
   return (
-    <section className="rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-5">
+    <section className="rounded-[1.5rem] border border-line dark:border-white/10 bg-white/85 dark:bg-slate-900/70 p-5">
       <p className="text-sm font-bold uppercase tracking-[0.22em] text-coral">Финал</p>
       <h2 className="mt-2 font-display text-3xl font-semibold">Победитель: {winners || "ничья"}</h2>
-      <p className="mt-3 text-white/65">Можно сыграть еще раз с теми же игроками и настройками.</p>
+      <p className="mt-3 text-slate-600 dark:text-white/65">Можно сыграть еще раз с теми же игроками и настройками.</p>
       {isHost ? <Button className="mt-5" onClick={onRestart}>Создать новое лобби</Button> : null}
     </section>
   );
@@ -387,26 +387,26 @@ function GameOverPanel({ room, isHost, onRestart }: { room: PublicCrocodileRoom;
 
 function PlayersPanel({ players, gameMode }: { players: PublicCrocodileRoom["players"]; gameMode: CrocodileSettings["gameMode"] }) {
   return (
-    <section className="rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-5">
+    <section className="rounded-[1.5rem] border border-line dark:border-white/10 bg-white/85 dark:bg-slate-900/70 p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-display text-3xl font-semibold">Игроки</h2>
-        <span className="rounded-full bg-slate-950/70 px-3 py-1 text-sm font-bold text-white/70">{players.length}</span>
+        <span className="rounded-full bg-slate-100/80 dark:bg-slate-950/70 px-3 py-1 text-sm font-bold text-slate-600 dark:text-white/70">{players.length}</span>
       </div>
       <div className="mt-4 max-h-[24rem] space-y-2 overflow-y-auto pr-1">
         {players.map((player) => (
-          <article key={player.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/45 p-3">
+          <article key={player.id} className="flex items-center justify-between gap-3 rounded-2xl border border-line dark:border-white/10 bg-slate-100/80 dark:bg-slate-950/45 p-3">
             <div className="flex min-w-0 items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-coral/15 font-black text-coral">
                 {player.name.slice(0, 1).toUpperCase()}
               </span>
               <div className="min-w-0">
-                <p className="truncate font-bold text-white">{player.name}{player.isHost ? " · хост" : ""}</p>
+                <p className="truncate font-bold text-ink dark:text-white">{player.name}{player.isHost ? " · хост" : ""}</p>
                 <p className={player.connected ? "text-sm text-emerald-400" : "text-sm text-coral"}>{player.connected ? "online" : "offline"}</p>
               </div>
             </div>
             <div className="text-right">
-              <p className="font-black text-white">{player.score}</p>
-              {gameMode === "teams" && player.teamId ? <p className="text-xs text-white/45">Команда {player.teamId.replace("team_", "")}</p> : null}
+              <p className="font-black text-ink dark:text-white">{player.score}</p>
+              {gameMode === "teams" && player.teamId ? <p className="text-xs text-slate-400 dark:text-white/45">Команда {player.teamId.replace("team_", "")}</p> : null}
             </div>
           </article>
         ))}
@@ -431,15 +431,15 @@ function ChatPanel({
   chatEndRef: React.RefObject<HTMLDivElement>;
 }) {
   return (
-    <section className="flex min-h-[34rem] flex-col rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-5">
+    <section className="flex min-h-[34rem] flex-col rounded-[1.5rem] border border-line dark:border-white/10 bg-white/85 dark:bg-slate-900/70 p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 className="font-display text-3xl font-semibold">Ответы</h2>
-        <span className="rounded-full bg-slate-950/70 px-3 py-1 text-sm font-bold text-white/70">{room.chatMessages.length}</span>
+        <span className="rounded-full bg-slate-100/80 dark:bg-slate-950/70 px-3 py-1 text-sm font-bold text-slate-600 dark:text-white/70">{room.chatMessages.length}</span>
       </div>
-      <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto rounded-[1.25rem] bg-slate-950/45 p-4">
-        {room.chatMessages.length === 0 ? <p className="text-white/45">Пока нет ответов. Первый смелый обычно задает темп.</p> : null}
+      <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto rounded-[1.25rem] bg-slate-100/80 dark:bg-slate-950/45 p-4">
+        {room.chatMessages.length === 0 ? <p className="text-slate-400 dark:text-white/45">Пока нет ответов. Первый смелый обычно задает темп.</p> : null}
         {room.chatMessages.map((message) => (
-          <article key={message.id} className={`rounded-2xl p-3 ${message.correct ? "bg-emerald-500/15 text-emerald-100" : "bg-slate-900 text-white/80"}`}>
+          <article key={message.id} className={`rounded-2xl p-3 ${message.correct ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-100" : "bg-white dark:bg-slate-900 text-slate-700 dark:text-white/80"}`}>
             <p className="text-sm font-bold text-coral">{message.playerName}</p>
             <p className="mt-1">{message.text}</p>
             {message.correct ? <p className="mt-1 text-sm font-bold text-emerald-300">Верно</p> : null}
@@ -449,7 +449,7 @@ function ChatPanel({
       </div>
       <div className="mt-4 flex gap-2">
         <input
-          className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-white outline-none placeholder:text-white/35 focus:border-coral"
+          className="min-w-0 flex-1 rounded-2xl border border-line dark:border-white/10 bg-slate-100/80 dark:bg-slate-950/70 px-4 py-3 text-ink outline-none placeholder:text-slate-400 dark:text-white focus:border-coral"
           placeholder={canGuess ? "Написать ответ..." : "Сейчас вы не угадываете"}
           value={guess}
           disabled={!canGuess}
@@ -477,13 +477,13 @@ function SettingsPanel({
   const settings = room.settings;
 
   return (
-    <section className="mt-5 rounded-[1.5rem] border border-white/10 bg-slate-900/70 p-5">
+    <section className="mt-5 rounded-[1.5rem] border border-line dark:border-white/10 bg-white/85 dark:bg-slate-900/70 p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-bold uppercase tracking-[0.22em] text-coral">Настройки</p>
           <h2 className="mt-2 font-display text-3xl font-semibold">Правила Крокодила</h2>
         </div>
-        {!isHost ? <span className="text-sm text-white/50">Менять настройки может только хост</span> : null}
+        {!isHost ? <span className="text-sm text-slate-500 dark:text-white/50">Менять настройки может только хост</span> : null}
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -547,7 +547,7 @@ function SettingsPanel({
           {crocodileCategories.map((category) => {
             const checked = settings.selectedCategories.includes(category.id);
             return (
-              <label key={category.id} className={`rounded-2xl border p-3 text-sm font-bold ${checked ? "border-coral bg-coral/15 text-white" : "border-white/10 bg-slate-950/40 text-white/60"}`}>
+              <label key={category.id} className={`rounded-2xl border p-3 text-sm font-bold ${checked ? "border-coral bg-coral/15 text-white" : "border-line dark:border-white/10 bg-slate-100/80 dark:bg-slate-950/40 text-slate-500 dark:text-white/60"}`}>
                 <input
                   type="checkbox"
                   className="sr-only"
@@ -567,8 +567,8 @@ function SettingsPanel({
 
 function SettingCard({ title, className = "", children }: { title: string; className?: string; children: React.ReactNode }) {
   return (
-    <div className={`rounded-[1.25rem] border border-white/10 bg-slate-950/45 p-4 ${className}`}>
-      <h3 className="mb-3 text-lg font-black text-white">{title}</h3>
+    <div className={`rounded-[1.25rem] border border-line dark:border-white/10 bg-slate-100/80 dark:bg-slate-950/45 p-4 ${className}`}>
+      <h3 className="mb-3 text-lg font-black text-ink dark:text-white">{title}</h3>
       <div className="space-y-3">{children}</div>
     </div>
   );
@@ -592,7 +592,7 @@ function Segmented({
           key={option.value}
           type="button"
           disabled={disabled}
-          className={`rounded-2xl px-4 py-3 font-bold transition ${value === option.value ? "bg-coral text-white" : "border border-white/10 bg-slate-900 text-white/65 hover:text-white"}`}
+          className={`rounded-2xl px-4 py-3 font-bold transition ${value === option.value ? "bg-coral text-white" : "border border-line dark:border-white/10 bg-white dark:bg-slate-900 text-slate-600 dark:text-white/65 hover:text-ink dark:hover:text-white"}`}
           onClick={() => onChange(option.value)}
         >
           {option.label}
@@ -616,10 +616,10 @@ function SelectRow({
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900 px-4 py-3">
-      <span className="font-bold text-white/70">{label}</span>
+    <label className="flex items-center justify-between gap-3 rounded-2xl border border-line dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3">
+      <span className="font-bold text-slate-600 dark:text-white/70">{label}</span>
       <select
-        className="rounded-xl border border-white/10 bg-slate-950 px-3 py-2 font-bold text-white outline-none disabled:opacity-50"
+        className="rounded-xl border border-line dark:border-white/10 bg-slate-100 dark:bg-slate-950 px-3 py-2 font-bold text-ink dark:text-white outline-none disabled:opacity-50"
         disabled={disabled}
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -632,8 +632,8 @@ function SelectRow({
 
 function ToggleRow({ label, checked, disabled, onChange }: { label: string; checked: boolean; disabled: boolean; onChange: (value: boolean) => void }) {
   return (
-    <label className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-900 px-4 py-3">
-      <span className="font-bold text-white/70">{label}</span>
+    <label className="flex items-center justify-between gap-3 rounded-2xl border border-line dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3">
+      <span className="font-bold text-slate-600 dark:text-white/70">{label}</span>
       <input type="checkbox" disabled={disabled} checked={checked} onChange={(event) => onChange(event.target.checked)} />
     </label>
   );
@@ -641,9 +641,9 @@ function ToggleRow({ label, checked, disabled, onChange }: { label: string; chec
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-950/45 p-4">
-      <p className="text-sm text-white/45">{label}</p>
-      <p className="mt-1 font-black text-white">{value}</p>
+    <div className="rounded-2xl border border-line dark:border-white/10 bg-slate-100/80 dark:bg-slate-950/45 p-4">
+      <p className="text-sm text-slate-400 dark:text-white/45">{label}</p>
+      <p className="mt-1 font-black text-ink dark:text-white">{value}</p>
     </div>
   );
 }
