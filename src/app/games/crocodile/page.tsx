@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/Button";
 
 export default function CrocodilePage() {
   const router = useRouter();
-  const [isCreating, setIsCreating] = useState(false);
+  const [creatingVisibility, setCreatingVisibility] = useState<"private" | "public" | null>(null);
   const [error, setError] = useState("");
 
   async function createRoom(visibility: "private" | "public") {
-    setIsCreating(true);
+    setCreatingVisibility(visibility);
     setError("");
 
     try {
@@ -27,7 +27,7 @@ export default function CrocodilePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Не удалось создать комнату");
     } finally {
-      setIsCreating(false);
+      setCreatingVisibility(null);
     }
   }
 
@@ -45,15 +45,15 @@ export default function CrocodilePage() {
             <CreateRoomChoice
               title="Закрытая"
               text="Войти смогут только игроки с кодом или ссылкой. Хороший вариант для своей компании."
-              action={isCreating ? "Создаем..." : "Создать по коду"}
-              disabled={isCreating}
+              action={creatingVisibility === "private" ? "Создаем..." : "Создать по коду"}
+              disabled={creatingVisibility !== null}
               onClick={() => createRoom("private")}
             />
             <CreateRoomChoice
               title="Открытая"
               text="Комната появится на главном экране, и любой игрок сможет присоединиться."
-              action={isCreating ? "Создаем..." : "Создать открытую"}
-              disabled={isCreating}
+              action={creatingVisibility === "public" ? "Создаем..." : "Создать открытую"}
+              disabled={creatingVisibility !== null}
               onClick={() => createRoom("public")}
             />
           </div>
