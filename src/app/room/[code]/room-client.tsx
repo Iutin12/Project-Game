@@ -1081,9 +1081,15 @@ function SettingsSectionTitle({ title, hint }: { title: string; hint: string }) 
 
 function SettingSwitch({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
-    <label className="flex items-center justify-between gap-3 rounded-xl border border-line bg-cloud/70 px-3 py-2 text-sm text-slate-700">
-      {label}
-      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-line bg-cloud/70 px-3 py-2 text-sm text-slate-700">
+      <span>{label}</span>
+      <input
+        type="checkbox"
+        className="peer sr-only"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span className="relative h-7 w-12 rounded-full bg-slate-300 transition after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition peer-checked:bg-coral peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-coral/30" />
     </label>
   );
 }
