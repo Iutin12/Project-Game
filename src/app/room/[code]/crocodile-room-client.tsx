@@ -487,7 +487,7 @@ function SettingsPanel({
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
-        <SettingCard title="Формат">
+        <SettingCard title="Формат" hint="Выберите, играют ли все сами за себя или игроки делятся на команды. В командном режиме угадывает только активная команда.">
           <Segmented
             disabled={disabled}
             value={settings.gameMode}
@@ -502,12 +502,13 @@ function SettingsPanel({
           />
         </SettingCard>
 
-        <SettingCard title="Раунд">
-          <SelectRow label="Сложность" disabled={disabled} value={settings.difficulty} onChange={(value) => updateSettings({ difficulty: value as CrocodileDifficultyFilter })}>
+        <SettingCard title="Раунд" hint="Количество раундов определяет, когда игра закончится. Без лимита хост завершает игру вручную через раунды.">
+          <SelectRow label="Сложность" hint="Фильтрует слова по сложности. Смешанная сложность берет задания из всех уровней." disabled={disabled} value={settings.difficulty} onChange={(value) => updateSettings({ difficulty: value as CrocodileDifficultyFilter })}>
             {Object.entries(difficultyLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </SelectRow>
           <SelectRow
             label="Раундов"
+            hint="Если выбрать без лимита, игра не закончится автоматически по количеству раундов."
             disabled={disabled}
             value={settings.roundsCount === null ? "unlimited" : String(settings.roundsCount)}
             onChange={(value) => updateSettings({ roundsCount: value === "unlimited" ? null : Number(value) })}
@@ -517,18 +518,19 @@ function SettingsPanel({
           </SelectRow>
         </SettingCard>
 
-        <SettingCard title="Таймер">
-          <ToggleRow label="Использовать таймер" checked={settings.useTimer} disabled={disabled} onChange={(value) => updateSettings({ useTimer: value })} />
-          <SelectRow label="Время" disabled={disabled || !settings.useTimer} value={String(settings.roundTimeSec)} onChange={(value) => updateSettings({ roundTimeSec: Number(value) })}>
+        <SettingCard title="Таймер" hint="Таймер автоматически завершает раунд, когда время истекло. Если выключить, раунд завершает объясняющий или хост.">
+          <ToggleRow label="Использовать таймер" hint="Включает ограничение времени на объяснение." checked={settings.useTimer} disabled={disabled} onChange={(value) => updateSettings({ useTimer: value })} />
+          <SelectRow label="Время" hint="Сколько секунд длится один раунд с таймером." disabled={disabled || !settings.useTimer} value={String(settings.roundTimeSec)} onChange={(value) => updateSettings({ roundTimeSec: Number(value) })}>
             {[30, 45, 60, 90, 120, 180].map((value) => <option key={value} value={value}>{value} сек</option>)}
           </SelectRow>
         </SettingCard>
 
-        <SettingCard title="Слова">
-          <ToggleRow label="Добавлять фразы в задания" checked={settings.allowPhrases} disabled={disabled} onChange={(value) => updateSettings({ allowPhrases: value })} />
-          <ToggleRow label="Можно пропускать" checked={settings.allowSkipWord} disabled={disabled} onChange={(value) => updateSettings({ allowSkipWord: value })} />
+        <SettingCard title="Слова" hint="Управляет пулом заданий и пропусками для объясняющего игрока.">
+          <ToggleRow label="Добавлять фразы в задания" hint="Если включено, в пул попадут не только одиночные слова, но и фразы вроде 'горячий шоколад'." checked={settings.allowPhrases} disabled={disabled} onChange={(value) => updateSettings({ allowPhrases: value })} />
+          <ToggleRow label="Можно пропускать" hint="Разрешает объясняющему заменить текущее слово без начисления очков." checked={settings.allowSkipWord} disabled={disabled} onChange={(value) => updateSettings({ allowSkipWord: value })} />
           <SelectRow
             label="Пропусков"
+            hint="Лимит пропусков за один раунд. Без лимита можно менять слова сколько угодно."
             disabled={disabled || !settings.allowSkipWord}
             value={settings.maxSkipsPerTurn === null ? "unlimited" : String(settings.maxSkipsPerTurn)}
             onChange={(value) => updateSettings({ maxSkipsPerTurn: value === "unlimited" ? null : Number(value) })}
@@ -540,15 +542,15 @@ function SettingsPanel({
       </div>
 
       {settings.gameMode === "teams" ? (
-        <SettingCard title="Команды" className="mt-4">
-          <SelectRow label="Количество" disabled={disabled} value={String(settings.teamsCount)} onChange={(value) => updateSettings({ teamsCount: Number(value) })}>
+        <SettingCard title="Команды" className="mt-4" hint="Командный режим доступен только если в комнате минимум 4 подключенных игрока.">
+          <SelectRow label="Количество" hint="Сколько команд будет создано при автоматической раздаче." disabled={disabled} value={String(settings.teamsCount)} onChange={(value) => updateSettings({ teamsCount: Number(value) })}>
             {[2, 3, 4].map((value) => <option key={value} value={value}>{value}</option>)}
           </SelectRow>
-          <ToggleRow label="Автоматически раздать команды" checked={settings.autoAssignTeams} disabled={disabled} onChange={(value) => updateSettings({ autoAssignTeams: value })} />
+          <ToggleRow label="Автоматически раздать команды" hint="Игроки будут распределены по командам при старте игры." checked={settings.autoAssignTeams} disabled={disabled} onChange={(value) => updateSettings({ autoAssignTeams: value })} />
         </SettingCard>
       ) : null}
 
-      <SettingCard title="Категории" className="mt-4">
+      <SettingCard title="Категории" className="mt-4" hint="Можно играть со всеми словами или ограничить задания выбранными темами.">
         <Segmented
           disabled={disabled}
           value={settings.wordPoolMode}
@@ -582,10 +584,23 @@ function SettingsPanel({
   );
 }
 
-function SettingCard({ title, className = "", children }: { title: string; className?: string; children: React.ReactNode }) {
+function SettingCard({
+  title,
+  hint,
+  className = "",
+  children
+}: {
+  title: string;
+  hint?: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className={`rounded-[1.25rem] border border-line dark:border-white/10 bg-slate-100/80 dark:bg-slate-950/45 p-4 ${className}`}>
-      <h3 className="mb-3 text-lg font-black text-ink dark:text-white">{title}</h3>
+      <h3 className="mb-3 flex items-center gap-2 text-lg font-black text-ink dark:text-white">
+        {title}
+        {hint ? <Hint text={hint} /> : null}
+      </h3>
       <div className="space-y-3">{children}</div>
     </div>
   );
@@ -621,12 +636,14 @@ function Segmented({
 
 function SelectRow({
   label,
+  hint,
   value,
   disabled,
   onChange,
   children
 }: {
   label: string;
+  hint?: string;
   value: string;
   disabled: boolean;
   onChange: (value: string) => void;
@@ -634,7 +651,10 @@ function SelectRow({
 }) {
   return (
     <label className="flex items-center justify-between gap-3 rounded-2xl border border-line dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3">
-      <span className="font-bold text-slate-600 dark:text-white/70">{label}</span>
+      <span className="flex items-center gap-2 font-bold text-slate-600 dark:text-white/70">
+        {label}
+        {hint ? <Hint text={hint} /> : null}
+      </span>
       <select
         className="rounded-xl border border-line dark:border-white/10 bg-slate-100 dark:bg-slate-950 px-3 py-2 font-bold text-ink dark:text-white outline-none disabled:opacity-50"
         disabled={disabled}
@@ -647,12 +667,39 @@ function SelectRow({
   );
 }
 
-function ToggleRow({ label, checked, disabled, onChange }: { label: string; checked: boolean; disabled: boolean; onChange: (value: boolean) => void }) {
+function ToggleRow({
+  label,
+  hint,
+  checked,
+  disabled,
+  onChange
+}: {
+  label: string;
+  hint?: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange: (value: boolean) => void;
+}) {
   return (
     <label className="flex items-center justify-between gap-3 rounded-2xl border border-line dark:border-white/10 bg-white dark:bg-slate-900 px-4 py-3">
-      <span className="font-bold text-slate-600 dark:text-white/70">{label}</span>
+      <span className="flex items-center gap-2 font-bold text-slate-600 dark:text-white/70">
+        {label}
+        {hint ? <Hint text={hint} /> : null}
+      </span>
       <input type="checkbox" disabled={disabled} checked={checked} onChange={(event) => onChange(event.target.checked)} />
     </label>
+  );
+}
+
+function Hint({ text }: { text: string }) {
+  return (
+    <span
+      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-line bg-white text-xs font-black text-slate-400 shadow-sm dark:border-white/10 dark:bg-slate-900 dark:text-white/50"
+      title={text}
+      aria-label={text}
+    >
+      ?
+    </span>
   );
 }
 
