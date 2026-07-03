@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { GameCard } from "@/components/game-card/GameCard";
 import { HomeStats } from "@/components/home/HomeStats";
 import { OpenRooms } from "@/components/home/OpenRooms";
+import { QuickCreateRoom } from "@/components/layout/QuickCreateRoom";
 import { games } from "@/games/config";
 
 export default function HomePage() {
@@ -29,9 +30,7 @@ export default function HomePage() {
             <Link href="/games">
               <Button className="min-w-44">Выбрать игру</Button>
             </Link>
-            <Link href="/games/mafia">
-              <Button variant="secondary" className="min-w-44">🔗 Создать комнату</Button>
-            </Link>
+            <QuickCreateRoom label="🔗 Создать комнату" variant="hero" />
           </div>
           <HomeStats />
         </div>
