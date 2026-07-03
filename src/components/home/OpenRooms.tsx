@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { phaseLabels } from "@/games/mafia/phases";
-import type { GamePhase } from "@/games/mafia/types";
+
+type GameId = "mafia" | "crocodile";
 
 type OpenRoom = {
   code: string;
-  gameId: "mafia";
-  phase: GamePhase;
+  gameId: GameId;
+  phase: string;
+  phaseLabel?: string;
+  title?: string;
   playersCount: number;
   maxPlayers: number;
   hostName?: string;
@@ -22,13 +24,40 @@ type Stats = {
 
 type RememberedRoom = {
   code: string;
-  gameId: "mafia";
-  phase?: GamePhase;
+  gameId: GameId;
+  phase?: string;
   visibility?: "private" | "public";
   leftAt: number;
 };
 
 const LAST_LEFT_ROOM_KEY = "project-game:last-left-room";
+
+const fallbackPhaseLabels: Record<string, string> = {
+  LOBBY: "Лобби",
+  ROLE_REVEAL: "Роли",
+  NIGHT_MAFIA: "Ночь",
+  NIGHT_MISTRESS: "Ночь",
+  NIGHT_DON: "Ночь",
+  NIGHT_DETECTIVE: "Ночь",
+  NIGHT_DOCTOR: "Ночь",
+  DAY_DISCUSSION: "Обсуждение",
+  DAY_VOTING: "Голосование",
+  DAY_REVOTE: "Переголосование",
+  DAY_TIE_CHALLENGE: "Испытание",
+  GAME_OVER: "Финал",
+  ROUND_ACTIVE: "Раунд идет",
+  ROUND_RESULT: "Итоги раунда"
+};
+
+const gameTitles: Record<GameId, string> = {
+  mafia: "Мафия",
+  crocodile: "Крокодил"
+};
+
+const gameIcons: Record<GameId, string> = {
+  mafia: "♟",
+  crocodile: "✋"
+};
 
 export function OpenRooms() {
   const [rooms, setRooms] = useState<OpenRoom[]>([]);
@@ -61,15 +90,15 @@ export function OpenRooms() {
         <div>
           <p className="text-sm font-semibold text-slate-500">Открытые комнаты</p>
           <h2 className="mt-6 flex items-center gap-3 text-xl font-bold text-ink">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ocean text-white">♟</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ocean text-white">✦</span>
             Сейчас нет открытых комнат
           </h2>
           <p className="mt-4 max-w-md text-sm leading-6 text-slate-500">
-            Создайте открытую комнату, и она появится здесь вместо примера. Любой игрок сможет зайти в нее с главного экрана.
+            Создайте открытую комнату для любой доступной игры, и она появится здесь. Любой игрок сможет зайти с главного экрана.
           </p>
         </div>
-        <Link href="/games/mafia">
-          <Button className="mt-8 w-full">Создать открытую комнату</Button>
+        <Link href="/games">
+          <Button className="mt-8 w-full">Выбрать игру</Button>
         </Link>
       </div>
     );
@@ -81,7 +110,7 @@ export function OpenRooms() {
         <div>
           <p className="text-sm font-semibold text-slate-500">Открытые комнаты</p>
           <h2 className="mt-6 flex items-center gap-3 text-xl font-bold text-ink">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ocean text-white">♟</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ocean text-white">✦</span>
             Можно войти свободно
           </h2>
         </div>
@@ -94,7 +123,9 @@ export function OpenRooms() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-coral">Последняя комната</p>
-                <h3 className="mt-1 text-lg font-bold text-ink">Мафия · {rememberedRoom.code}</h3>
+                <h3 className="mt-1 text-lg font-bold text-ink">
+                  {gameTitles[rememberedRoom.gameId]} · {rememberedRoom.code}
+                </h3>
                 <p className="mt-1 text-sm text-slate-500">
                   Вы недавно вышли отсюда. Можно вернуться за того же игрока.
                 </p>
@@ -106,14 +137,20 @@ export function OpenRooms() {
           </article>
         ) : null}
         {visibleRooms.map((room) => (
-          <article key={room.code} className="rounded-2xl border border-line bg-cloud/70 p-3">
+          <article key={`${room.gameId}-${room.code}`} className="rounded-2xl border border-line bg-cloud/70 p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-ocean">Комната {room.code}</p>
-                <h3 className="mt-1 text-lg font-bold text-ink">Мафия</h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  {room.playersCount} / {room.maxPlayers} игроков · {phaseLabels[room.phase]}
-                </p>
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ocean text-white">
+                  {gameIcons[room.gameId]}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-ocean">Комната {room.code}</p>
+                  <h3 className="mt-1 text-lg font-bold text-ink">{room.title ?? gameTitles[room.gameId]}</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {room.playersCount} / {room.maxPlayers} игроков · {room.phaseLabel ?? fallbackPhaseLabels[room.phase] ?? "Лобби"}
+                  </p>
+                  {room.hostName ? <p className="mt-1 text-xs text-slate-400">Хост: {room.hostName}</p> : null}
+                </div>
               </div>
               <Link href={`/room/${room.code}`}>
                 <Button className="px-4 py-2">Войти</Button>
@@ -137,7 +174,7 @@ function loadRememberedRoom(setRememberedRoom: (room: RememberedRoom | null) => 
 
   try {
     const parsed = JSON.parse(raw) as RememberedRoom;
-    if (!parsed.code || parsed.gameId !== "mafia") {
+    if (!parsed.code || (parsed.gameId !== "mafia" && parsed.gameId !== "crocodile")) {
       window.localStorage.removeItem(LAST_LEFT_ROOM_KEY);
       return;
     }

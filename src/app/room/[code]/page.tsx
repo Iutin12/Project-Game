@@ -1,5 +1,5 @@
-import { RoomClient } from "./room-client";
+import { RoomRouterClient } from "./room-router-client";
 
 export default function RoomPage({ params }: { params: { code: string } }) {
-  return <RoomClient code={params.code.toUpperCase()} />;
+  return <RoomRouterClient code={params.code.toUpperCase()} />;
 }
