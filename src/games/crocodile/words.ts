@@ -1,6 +1,7 @@
 import type { CrocodileWord } from "./types";
+import { generatedCrocodileWords } from "./generatedWords";
 
-export const crocodileWords: CrocodileWord[] = [
+const baseCrocodileWords: CrocodileWord[] = [
   { id: "animal_1", text: "Крокодил", category: "animals", difficulty: "easy", isPhrase: false },
   { id: "animal_2", text: "Кошка", category: "animals", difficulty: "easy", isPhrase: false },
   { id: "animal_3", text: "Собака", category: "animals", difficulty: "easy", isPhrase: false },
@@ -88,3 +89,21 @@ export const crocodileWords: CrocodileWord[] = [
   { id: "concept_2", text: "Свобода", category: "hard_concepts", difficulty: "hard", isPhrase: false },
   { id: "concept_3", text: "Парадокс", category: "hard_concepts", difficulty: "hard", isPhrase: false }
 ];
+
+export const crocodileWords: CrocodileWord[] = mergeUniqueWords(baseCrocodileWords, generatedCrocodileWords);
+
+function mergeUniqueWords(...groups: CrocodileWord[][]) {
+  const seen = new Set<string>();
+  const words: CrocodileWord[] = [];
+
+  for (const group of groups) {
+    for (const word of group) {
+      const key = word.text.toLocaleLowerCase("ru-RU").replace(/\s+/g, " ").trim();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      words.push(word);
+    }
+  }
+
+  return words;
+}
