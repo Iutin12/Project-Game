@@ -240,6 +240,9 @@ function startGame(io: Server | undefined, room: CrocodileRoom) {
   if (room.phase !== "LOBBY") return { ok: false, error: "Игра уже запущена" };
   const connectedPlayers = room.players.filter((player) => player.connected);
   if (connectedPlayers.length < 3) return { ok: false, error: "Для Крокодила нужно минимум 3 игрока" };
+  if (room.settings.gameMode === "teams" && connectedPlayers.length < 4) {
+    return { ok: false, error: "Командный режим доступен минимум для 4 игроков" };
+  }
   room.players = room.players.map((player) => ({ ...player, score: 0 }));
   const hasTeams = room.players.some((player) => player.teamId);
   if (room.settings.gameMode === "teams" && (room.settings.autoAssignTeams || !hasTeams)) {

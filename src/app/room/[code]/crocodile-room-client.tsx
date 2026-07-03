@@ -475,6 +475,8 @@ function SettingsPanel({
 }) {
   const disabled = !isHost || room.phase !== "LOBBY";
   const settings = room.settings;
+  const connectedPlayersCount = room.players.filter((player) => player.connected).length;
+  const teamsDisabled = connectedPlayersCount < 4;
 
   return (
     <section className="mt-5 rounded-[1.5rem] border border-line dark:border-white/10 bg-white/85 dark:bg-slate-900/70 p-5">
@@ -491,7 +493,10 @@ function SettingsPanel({
           <Segmented
             disabled={disabled}
             value={settings.gameMode}
-            options={[{ value: "solo", label: "Каждый за себя" }, { value: "teams", label: "Команды" }]}
+            options={[
+              { value: "solo", label: "Каждый за себя" },
+              { value: "teams", label: teamsDisabled ? "Команды от 4 игроков" : "Команды", disabled: teamsDisabled }
+            ]}
             onChange={(value) => updateSettings({ gameMode: value as CrocodileSettings["gameMode"] })}
           />
           <Segmented
@@ -613,7 +618,7 @@ function Segmented({
   onChange
 }: {
   value: string;
-  options: Array<{ value: string; label: string }>;
+  options: Array<{ value: string; label: string; disabled?: boolean }>;
   disabled: boolean;
   onChange: (value: string) => void;
 }) {
@@ -623,8 +628,8 @@ function Segmented({
         <button
           key={option.value}
           type="button"
-          disabled={disabled}
-          className={`rounded-2xl px-4 py-3 font-bold transition ${value === option.value ? "bg-coral text-white" : "border border-line dark:border-white/10 bg-white dark:bg-slate-900 text-slate-600 dark:text-white/65 hover:text-ink dark:hover:text-white"}`}
+          disabled={disabled || option.disabled}
+          className={`rounded-2xl px-4 py-3 font-bold transition disabled:cursor-not-allowed disabled:opacity-45 ${value === option.value ? "bg-coral text-white" : "border border-line dark:border-white/10 bg-white dark:bg-slate-900 text-slate-600 dark:text-white/65 hover:text-ink dark:hover:text-white"}`}
           onClick={() => onChange(option.value)}
         >
           {option.label}
