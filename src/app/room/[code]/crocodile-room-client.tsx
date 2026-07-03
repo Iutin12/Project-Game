@@ -297,7 +297,7 @@ function LobbyPanel({ room }: { room: PublicCrocodileRoom }) {
       <p className="mt-3 text-slate-600 dark:text-white/65">Для старта нужно минимум 3 игрока. Хост может выбрать режим, таймер, категории и количество раундов.</p>
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         <StatCard label="Режим" value={room.settings.gameMode === "teams" ? "Команды" : "Каждый за себя"} />
-        <StatCard label="Слова" value={room.settings.roundMode === "multiple_words" ? "Много за раунд" : "Одно за раунд"} />
+        <StatCard label="Раунды" value={room.settings.roundsCount === null ? "Без лимита" : String(room.settings.roundsCount)} />
         <StatCard label="Сложность" value={difficultyLabels[room.settings.difficulty]} />
       </div>
     </section>
@@ -344,7 +344,7 @@ function RoundPanel({
       <div className="mt-4 flex flex-wrap gap-3">
         {isExplainer && room.settings.allowSkipWord ? (
           <Button variant="ghost" className="border-line bg-transparent text-ink hover:bg-slate-100 dark:border-white/15 dark:text-white dark:hover:bg-white/10" onClick={onSkip}>
-            Пропустить ({room.round?.skipsUsed ?? 0}/{room.settings.maxSkipsPerTurn})
+            Пропустить ({room.settings.maxSkipsPerTurn === null ? "без лимита" : `${room.round?.skipsUsed ?? 0}/${room.settings.maxSkipsPerTurn}`})
           </Button>
         ) : null}
         {(isExplainer || room.players.find((player) => player.id === ownPlayerId)?.isHost) ? <Button onClick={onEnd}>Завершить раунд</Button> : null}
@@ -506,7 +506,13 @@ function SettingsPanel({
           <SelectRow label="Сложность" disabled={disabled} value={settings.difficulty} onChange={(value) => updateSettings({ difficulty: value as CrocodileDifficultyFilter })}>
             {Object.entries(difficultyLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </SelectRow>
-          <SelectRow label="Раундов" disabled={disabled} value={String(settings.roundsCount)} onChange={(value) => updateSettings({ roundsCount: Number(value) })}>
+          <SelectRow
+            label="Раундов"
+            disabled={disabled}
+            value={settings.roundsCount === null ? "unlimited" : String(settings.roundsCount)}
+            onChange={(value) => updateSettings({ roundsCount: value === "unlimited" ? null : Number(value) })}
+          >
+            <option value="unlimited">Без лимита</option>
             {[5, 10, 15, 20, 25, 30].map((value) => <option key={value} value={value}>{value}</option>)}
           </SelectRow>
         </SettingCard>
@@ -519,9 +525,15 @@ function SettingsPanel({
         </SettingCard>
 
         <SettingCard title="Слова">
-          <ToggleRow label="Разрешить фразы" checked={settings.allowPhrases} disabled={disabled} onChange={(value) => updateSettings({ allowPhrases: value })} />
+          <ToggleRow label="Добавлять фразы в задания" checked={settings.allowPhrases} disabled={disabled} onChange={(value) => updateSettings({ allowPhrases: value })} />
           <ToggleRow label="Можно пропускать" checked={settings.allowSkipWord} disabled={disabled} onChange={(value) => updateSettings({ allowSkipWord: value })} />
-          <SelectRow label="Пропусков" disabled={disabled || !settings.allowSkipWord} value={String(settings.maxSkipsPerTurn)} onChange={(value) => updateSettings({ maxSkipsPerTurn: Number(value) })}>
+          <SelectRow
+            label="Пропусков"
+            disabled={disabled || !settings.allowSkipWord}
+            value={settings.maxSkipsPerTurn === null ? "unlimited" : String(settings.maxSkipsPerTurn)}
+            onChange={(value) => updateSettings({ maxSkipsPerTurn: value === "unlimited" ? null : Number(value) })}
+          >
+            <option value="unlimited">Без лимита</option>
             {[0, 1, 2, 3, 5].map((value) => <option key={value} value={value}>{value}</option>)}
           </SelectRow>
         </SettingCard>

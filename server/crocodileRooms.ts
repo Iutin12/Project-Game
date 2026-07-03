@@ -176,7 +176,9 @@ export function registerCrocodileRoomSockets(io: Server) {
         if (room.phase !== "ROUND_ACTIVE" || !room.round) return { ok: false, error: "Сейчас нет активного раунда" };
         if (player.id !== room.round.explainerId) return { ok: false, error: "Пропускать слово может только объясняющий" };
         if (!room.settings.allowSkipWord) return { ok: false, error: "Пропуск слов выключен" };
-        if (room.round.skipsUsed >= room.settings.maxSkipsPerTurn) return { ok: false, error: "Лимит пропусков исчерпан" };
+        if (room.settings.maxSkipsPerTurn !== null && room.round.skipsUsed >= room.settings.maxSkipsPerTurn) {
+          return { ok: false, error: "Лимит пропусков исчерпан" };
+        }
         room.round.skipsUsed += 1;
         setNextWord(room);
         return { ok: true };
@@ -318,7 +320,7 @@ function setNextWord(room: CrocodileRoom) {
 
 function finishRound(room: CrocodileRoom) {
   clearRoundTimer(room.code);
-  if (room.round && room.round.index >= room.settings.roundsCount) {
+  if (room.round && room.settings.roundsCount !== null && room.round.index >= room.settings.roundsCount) {
     room.phase = "GAME_OVER";
     room.winnerIds = room.settings.gameMode === "solo" ? getWinnerIds(room.players) : undefined;
     room.winningTeamId = room.settings.gameMode === "teams" ? getWinningTeamId(room) : undefined;
@@ -393,6 +395,7 @@ function sanitizeSettings(settings: Partial<CrocodileSettings>) {
   if (typeof settings.roundTimeSec === "number") sanitized.roundTimeSec = clamp(settings.roundTimeSec, 30, 180);
   if (settings.wordPoolMode === "all" || settings.wordPoolMode === "categories") sanitized.wordPoolMode = settings.wordPoolMode;
   if (Array.isArray(settings.selectedCategories)) sanitized.selectedCategories = settings.selectedCategories;
+  if (settings.roundsCount === null) sanitized.roundsCount = null;
   if (typeof settings.roundsCount === "number") sanitized.roundsCount = clamp(settings.roundsCount, 1, 30);
   if (typeof settings.teamsCount === "number") sanitized.teamsCount = clamp(settings.teamsCount, 2, 4);
   if (typeof settings.autoAssignTeams === "boolean") sanitized.autoAssignTeams = settings.autoAssignTeams;
@@ -400,6 +403,7 @@ function sanitizeSettings(settings: Partial<CrocodileSettings>) {
   if (typeof settings.pointsForExplainer === "number") sanitized.pointsForExplainer = clamp(settings.pointsForExplainer, 0, 10);
   if (typeof settings.pointsForTeamGuess === "number") sanitized.pointsForTeamGuess = clamp(settings.pointsForTeamGuess, 0, 10);
   if (typeof settings.allowSkipWord === "boolean") sanitized.allowSkipWord = settings.allowSkipWord;
+  if (settings.maxSkipsPerTurn === null) sanitized.maxSkipsPerTurn = null;
   if (typeof settings.maxSkipsPerTurn === "number") sanitized.maxSkipsPerTurn = clamp(settings.maxSkipsPerTurn, 0, 10);
   return sanitized;
 }

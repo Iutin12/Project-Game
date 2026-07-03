@@ -10,14 +10,14 @@ export const defaultCrocodileSettings: CrocodileSettings = {
   roundTimeSec: 90,
   wordPoolMode: "all",
   selectedCategories: [],
-  roundsCount: 10,
+  roundsCount: null,
   teamsCount: 2,
   autoAssignTeams: true,
   pointsForGuesser: 1,
   pointsForExplainer: 1,
   pointsForTeamGuess: 1,
   allowSkipWord: true,
-  maxSkipsPerTurn: 2
+  maxSkipsPerTurn: null
 };
 
 export function getAvailableWords(settings: CrocodileSettings, usedWordIds: string[]) {

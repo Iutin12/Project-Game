@@ -31,14 +31,14 @@ export type CrocodileSettings = {
   roundTimeSec: number;
   wordPoolMode: "all" | "categories";
   selectedCategories: CrocodileCategoryId[];
-  roundsCount: number;
+  roundsCount: number | null;
   teamsCount: number;
   autoAssignTeams: boolean;
   pointsForGuesser: number;
   pointsForExplainer: number;
   pointsForTeamGuess: number;
   allowSkipWord: boolean;
-  maxSkipsPerTurn: number;
+  maxSkipsPerTurn: number | null;
 };
 
 export type CrocodileWord = {
