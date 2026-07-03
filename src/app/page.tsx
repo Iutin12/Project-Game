@@ -7,6 +7,11 @@ import { OpenRooms } from "@/components/home/OpenRooms";
 import { games } from "@/games/config";
 
 export default function HomePage() {
+  const sortedGames = [...games].sort((first, second) => {
+    if (first.status === second.status) return 0;
+    return first.status === "available" ? -1 : 1;
+  });
+
   return (
     <AppShell>
       <section className="mt-8 grid gap-8 rounded-2xl border border-line bg-white/80 p-5 shadow-soft backdrop-blur lg:grid-cols-[1fr_1.05fr] lg:p-8">
@@ -44,7 +49,7 @@ export default function HomePage() {
           </Link>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          {games.map((game) => (
+          {sortedGames.map((game) => (
             <GameCard key={game.id} game={game} />
           ))}
         </div>

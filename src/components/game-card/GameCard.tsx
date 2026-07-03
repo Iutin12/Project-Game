@@ -16,7 +16,11 @@ export function GameCard({ game }: GameCardProps) {
           className="h-full w-full object-cover opacity-95 transition duration-300 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-transparent" />
-        <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-ocean shadow-sm">
+        <span
+          className={`absolute left-3 top-3 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide shadow-sm ${
+            game.status === "available" ? "bg-emerald-50 text-emerald-600" : "bg-white/90 text-ocean"
+          }`}
+        >
           {game.status === "available" ? "Доступно" : "Скоро"}
         </span>
       </div>
