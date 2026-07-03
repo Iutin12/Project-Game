@@ -2,10 +2,21 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { JoinByCode } from "@/components/layout/JoinByCode";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export function AppShell({ children, onLogoClick }: { children: React.ReactNode; onLogoClick?: () => void }) {
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setShowBackToTop(window.scrollY > 480);
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <main className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-center justify-between gap-3 py-2 sm:gap-4">
@@ -48,6 +59,17 @@ export function AppShell({ children, onLogoClick }: { children: React.ReactNode;
         </div>
       </header>
       {children}
+      <button
+        type="button"
+        className={[
+          "fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-ocean text-xl font-black text-white shadow-soft transition duration-300 md:hidden",
+          showBackToTop ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0"
+        ].join(" ")}
+        aria-label="Подняться наверх"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      >
+        ↑
+      </button>
     </main>
   );
 }
