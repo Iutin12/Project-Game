@@ -7,6 +7,13 @@ import {
   getCrocodileStats,
   registerCrocodileRoomSockets
 } from "./crocodileRooms";
+import {
+  createBunkerRoom,
+  createDevBunkerRoom,
+  getBunkerRoomInfo,
+  getBunkerStats,
+  registerBunkerRoomSockets
+} from "./bunkerRooms";
 import { createDevRoom, createRoom, getRoom, getStats, registerRoomSockets } from "./rooms";
 
 const dev = process.env.NODE_ENV !== "production";
@@ -20,9 +27,10 @@ app.prepare().then(() => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
 
     if (req.method === "POST" && url.pathname === "/api/create-room") {
-      const body = await readJsonBody<{ gameId?: "mafia" | "crocodile"; visibility?: "private" | "public" }>(req);
+      const body = await readJsonBody<{ gameId?: "mafia" | "crocodile" | "bunker"; visibility?: "private" | "public" }>(req);
       const visibility = body?.visibility === "public" ? "public" : "private";
-      const room = body?.gameId === "crocodile" ? createCrocodileRoom(visibility) : createRoom(visibility);
+      const room =
+        body?.gameId === "crocodile" ? createCrocodileRoom(visibility) : body?.gameId === "bunker" ? createBunkerRoom(visibility) : createRoom(visibility);
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(room));
       return;
@@ -30,6 +38,14 @@ app.prepare().then(() => {
 
     if (req.method === "POST" && url.pathname === "/api/dev/create-mafia-test-room") {
       const room = createDevRoom();
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify(room));
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/dev/create-bunker-test-room") {
+      const body = await readJsonBody<{ playersCount?: number }>(req);
+      const room = createDevBunkerRoom(body?.playersCount ?? 6);
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(room));
       return;
@@ -45,9 +61,10 @@ app.prepare().then(() => {
       const code = url.searchParams.get("code")?.toUpperCase();
       const mafiaRoom = code ? getRoom(code) : undefined;
       const crocodileRoom = code ? getCrocodileRoomInfo(code) : undefined;
+      const bunkerRoom = code ? getBunkerRoomInfo(code) : undefined;
       const roomInfo = mafiaRoom
         ? { code: mafiaRoom.code, gameId: mafiaRoom.gameId, phase: mafiaRoom.phase }
-        : crocodileRoom;
+        : crocodileRoom ?? bunkerRoom;
 
       if (!roomInfo) {
         res.writeHead(404, { "content-type": "application/json" });
@@ -69,6 +86,7 @@ app.prepare().then(() => {
 
   registerRoomSockets(io);
   registerCrocodileRoomSockets(io);
+  registerBunkerRoomSockets(io);
 
   httpServer.listen(port, hostname, () => {
     console.log(`Project Game is running on http://localhost:${port}`);
@@ -78,12 +96,13 @@ app.prepare().then(() => {
 function getCombinedStats() {
   const mafiaStats = getStats();
   const crocodileStats = getCrocodileStats();
+  const bunkerStats = getBunkerStats();
 
   return {
-    roomsCreatedToday: mafiaStats.roomsCreatedToday + crocodileStats.roomsCreatedToday,
-    activeRooms: mafiaStats.activeRooms + crocodileStats.activeRooms,
-    onlinePlayers: mafiaStats.onlinePlayers + crocodileStats.onlinePlayers,
-    publicRooms: [...mafiaStats.publicRooms, ...crocodileStats.publicRooms].sort(
+    roomsCreatedToday: mafiaStats.roomsCreatedToday + crocodileStats.roomsCreatedToday + bunkerStats.roomsCreatedToday,
+    activeRooms: mafiaStats.activeRooms + crocodileStats.activeRooms + bunkerStats.activeRooms,
+    onlinePlayers: mafiaStats.onlinePlayers + crocodileStats.onlinePlayers + bunkerStats.onlinePlayers,
+    publicRooms: [...mafiaStats.publicRooms, ...crocodileStats.publicRooms, ...bunkerStats.publicRooms].sort(
       (first, second) => second.createdAt - first.createdAt
     )
   };

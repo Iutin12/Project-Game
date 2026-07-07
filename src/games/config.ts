@@ -26,7 +26,7 @@ export const games: GameConfig[] = [
     id: "bunker",
     title: "Бункер",
     description: "Игра на выживание, аргументацию и голосование.",
-    status: "coming_soon",
+    status: "available",
     minPlayers: 4,
     maxPlayers: 16,
     route: "/games/bunker",

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 
-type GameId = "mafia" | "crocodile";
+type GameId = "mafia" | "crocodile" | "bunker";
 
 type OpenRoom = {
   code: string;
@@ -52,17 +52,28 @@ const fallbackPhaseLabels: Record<string, string> = {
   DAY_TIE_CHALLENGE: "Испытание",
   GAME_OVER: "Финал",
   ROUND_ACTIVE: "Раунд идет",
-  ROUND_RESULT: "Итоги раунда"
+  ROUND_RESULT: "Итоги раунда",
+  SCENARIO_REVEAL: "Сценарий",
+  CHARACTER_PREVIEW: "Персонаж",
+  REVEAL_ROUND: "Раскрытие",
+  DISCUSSION: "Обсуждение",
+  SPECIAL_ACTIONS: "Спецкарты",
+  VOTING: "Голосование",
+  REVOTE: "Переголосование",
+  VOTING_RESULT: "Итоги",
+  ELIMINATION: "Исключение"
 };
 
 const gameTitles: Record<GameId, string> = {
   mafia: "Мафия",
-  crocodile: "Крокодил"
+  crocodile: "Крокодил",
+  bunker: "Бункер"
 };
 
 const gameIcons: Record<GameId, string> = {
   mafia: "♟",
-  crocodile: "✋"
+  crocodile: "✋",
+  bunker: "▣"
 };
 
 export function OpenRooms() {
@@ -180,7 +191,7 @@ async function validateRememberedRoom(setRememberedRoom: (room: RememberedRoom |
 
   try {
     const parsed = JSON.parse(raw) as RememberedRoom;
-    if (!parsed.code || (parsed.gameId !== "mafia" && parsed.gameId !== "crocodile")) {
+    if (!parsed.code || (parsed.gameId !== "mafia" && parsed.gameId !== "crocodile" && parsed.gameId !== "bunker")) {
       window.localStorage.removeItem(LAST_LEFT_ROOM_KEY);
       return;
     }
