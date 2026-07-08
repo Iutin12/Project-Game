@@ -744,17 +744,17 @@ function SpecialCardPreview({ card }: { card: BunkerSpecialCard }) {
 function FeaturedProfessionCard({ character }: { character?: PublicBunkerRoomState["characters"][string] }) {
   const profession = character?.profession;
   return (
-    <article className="mt-2 grid shrink-0 overflow-hidden rounded-[0.95rem] border border-[#7f6b57]/55 bg-[#0c141c] shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:grid-cols-[12rem_minmax(0,1fr)]">
-      <div className="relative h-32 border-b border-[#7f6b57]/35 sm:border-b-0 sm:border-r">
-        <img src={bunkerCardImages.profession} alt="" className="absolute inset-0 h-full w-full object-cover object-top opacity-80" />
+    <article className="mt-2 grid shrink-0 overflow-hidden rounded-[0.95rem] border border-[#7f6b57]/55 bg-[#0c141c] shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:grid-cols-[9.5rem_minmax(0,1fr)]">
+      <div className="relative h-28 border-b border-[#7f6b57]/35 sm:border-b-0 sm:border-r">
+        <img src={bunkerCardImages.profession} alt="" className="absolute inset-0 h-full w-full object-fill opacity-80" />
         <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0c141c]/20" />
       </div>
-      <div className="relative h-32 overflow-hidden p-4">
-        <div className="absolute right-4 top-3 h-24 w-24 rounded-full border border-[#7f6b57]/28 opacity-45" />
-        <div className="absolute right-9 top-8 h-14 w-14 rounded-full border border-[#7f6b57]/28 opacity-45" />
-        <p className="text-[0.62rem] font-black uppercase tracking-[0.24em] text-coral">Профессия</p>
-        <h3 className="mt-3 font-display text-2xl font-semibold leading-tight text-[#f4eee3]">{cardTitle(profession)}</h3>
-        <p className="mt-3 line-clamp-2 max-w-lg text-xs leading-5 text-white/58">{profession && !("hidden" in profession) ? profession.description : "Главная карта персонажа будет видна после выдачи ролей."}</p>
+      <div className="relative h-28 overflow-hidden p-4">
+        <div className="absolute right-4 top-3 h-20 w-20 rounded-full border border-[#7f6b57]/28 opacity-45" />
+        <div className="absolute right-8 top-7 h-12 w-12 rounded-full border border-[#7f6b57]/28 opacity-45" />
+        <p className="text-[0.58rem] font-black uppercase tracking-[0.24em] text-coral">Профессия</p>
+        <h3 className="mt-2 font-display text-xl font-semibold leading-tight text-[#f4eee3]">{cardTitle(profession)}</h3>
+        <p className="mt-2 line-clamp-2 max-w-lg text-[0.7rem] leading-4 text-white/58">{profession && !("hidden" in profession) ? profession.description : "Главная карта персонажа будет видна после выдачи ролей."}</p>
       </div>
     </article>
   );
@@ -764,7 +764,7 @@ function BoardCharacterCards({ character }: { character?: PublicBunkerRoomState[
   if (!character) return <p className="mt-5 text-white/45">Карты появятся после старта игры.</p>;
   const visibleCategories = bunkerCharacteristicCategories.filter((category) => category !== "profession").slice(0, 5);
   return (
-    <div className="mt-4 grid min-h-0 flex-1 grid-cols-2 content-start justify-between gap-x-4 gap-y-4 overflow-hidden sm:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,10rem))] xl:grid-cols-[repeat(3,minmax(0,12rem))]">
+    <div className="mt-4 grid min-h-0 flex-1 grid-cols-2 content-start justify-between gap-x-4 gap-y-4 overflow-hidden sm:grid-cols-3 lg:grid-cols-[repeat(3,7.5rem)] xl:grid-cols-[repeat(3,8.25rem)]">
       {visibleCategories.map((category) => (
         <BoardCharacterCard
           key={category}
@@ -792,11 +792,11 @@ function BoardCharacterCard({
 }) {
   const isHidden = !card || "hidden" in card;
   return (
-    <article className="relative aspect-[0.72] w-full overflow-hidden rounded-[1.05rem] border border-[#7f6b57]/55 bg-[#eadfcb] p-0 text-[#1d1713] shadow-[0_16px_35px_rgba(0,0,0,0.22)]">
-      <img src={bunkerCardImages[category]} alt="" className={`absolute inset-0 h-full w-full object-cover object-top ${isHidden ? "opacity-70 grayscale" : ""}`} />
-      <div className="absolute inset-x-3 bottom-3 rounded-xl border border-[#7d6554]/50 bg-[#0d151d] px-2 py-2 text-center text-[#f4eee3] shadow-sm">
-        <p className="text-sm font-black leading-4">{cardTitle(card)}</p>
-        <p className="mt-1 text-[0.58rem] font-black uppercase tracking-[0.16em] text-[#d9bfa6]">{revealed ? "открыто" : "скрыто"}</p>
+    <article className="relative aspect-[0.7] w-full overflow-hidden rounded-[0.9rem] border border-[#7f6b57]/55 bg-[#eadfcb] p-0 text-[#1d1713] shadow-[0_16px_35px_rgba(0,0,0,0.22)]">
+      <img src={bunkerCardImages[category]} alt="" className={`absolute inset-0 h-full w-full object-fill ${isHidden ? "opacity-70 grayscale" : ""}`} />
+      <div className="absolute inset-x-2 bottom-2 rounded-lg border border-[#7d6554]/50 bg-[#0d151d] px-2 py-1.5 text-center text-[#f4eee3] shadow-sm">
+        <p className="text-xs font-black leading-4">{cardTitle(card)}</p>
+        <p className="mt-0.5 text-[0.5rem] font-black uppercase tracking-[0.14em] text-[#d9bfa6]">{revealed ? "открыто" : "скрыто"}</p>
       </div>
     </article>
   );
@@ -804,14 +804,14 @@ function BoardCharacterCard({
 
 function BoardNextCard() {
   return (
-    <article className="relative aspect-[0.72] w-full overflow-hidden rounded-[1.05rem] border border-[#7f6b57]/45 bg-[#101923] p-4 text-center shadow-soft">
-      <div className="absolute inset-3 rounded-[0.85rem] border border-[#7f6b57]/28" />
+    <article className="relative aspect-[0.7] w-full overflow-hidden rounded-[0.9rem] border border-[#7f6b57]/45 bg-[#101923] p-3 text-center shadow-soft">
+      <div className="absolute inset-2 rounded-[0.7rem] border border-[#7f6b57]/28" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,rgba(217,191,166,0.14),transparent_32%)]" />
       <div className="relative flex h-full flex-col items-center justify-center">
-        <div className="text-5xl text-[#7f6b57]/60">✦</div>
-        <p className="mt-6 text-[0.68rem] font-black uppercase tracking-[0.18em] text-coral">Следующая карта</p>
-        <p className="mt-3 text-xs text-white/45">Пока не раскрыта</p>
-        <p className="mt-5 text-3xl text-[#7f6b57]/55">▣</p>
+        <div className="text-3xl text-[#7f6b57]/60">✦</div>
+        <p className="mt-4 text-[0.56rem] font-black uppercase tracking-[0.16em] text-coral">Следующая карта</p>
+        <p className="mt-2 text-[0.64rem] text-white/45">Пока не раскрыта</p>
+        <p className="mt-3 text-xl text-[#7f6b57]/55">▣</p>
       </div>
     </article>
   );
