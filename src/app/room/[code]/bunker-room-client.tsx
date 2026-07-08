@@ -280,6 +280,7 @@ function MainGamePanel({ room, ownCharacter, isHost, emitAction }: { room: Publi
   const currentCategory = room.currentRevealCategory;
   const revealOptions = bunkerCharacteristicCategories.filter((category) => !ownRevealed.has(category) && room.settings.enabledCardCategories.includes(category));
   const alreadyRevealedThisRound = room.revealedThisRoundPlayerIds.includes(room.ownPlayerId);
+  const canAdvanceReveal = canAdvanceRevealRound(room);
 
   if (room.phase === "LOBBY") return <Panel title="Ожидаем игроков" label="Лобби"><p>Минимум 4 игрока. Хост может настроить режим, количество мест, таймеры, спецкарты и голосование.</p><Stats room={room} /></Panel>;
   if (room.phase === "SCENARIO_REVEAL") return <ScenarioPanel room={room} onReady={() => emitAction("bunker:ready")} />;
@@ -288,7 +289,7 @@ function MainGamePanel({ room, ownCharacter, isHost, emitAction }: { room: Publi
     <Panel title={`Раунд ${room.currentRound}`} label="Раскрытие">
       <p>Выберите одну характеристику, которую хотите раскрыть в этом раунде. Подсказка раунда: {currentCategory ? bunkerCategoryLabels[currentCategory] : "любая карта"}.</p>
       {alreadyRevealedThisRound ? <p className="mt-3 rounded-2xl bg-mint/10 p-3 text-sm font-bold text-mint">Вы уже раскрыли характеристику в этом раунде.</p> : null}
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-4 grid max-h-80 gap-3 overflow-y-auto pr-2 sm:grid-cols-2 xl:grid-cols-3">
         {revealOptions.map((category) => (
           <button
             key={category}
@@ -301,7 +302,11 @@ function MainGamePanel({ room, ownCharacter, isHost, emitAction }: { room: Publi
           </button>
         ))}
       </div>
-      {isHost ? <Button variant="secondary" className="mt-3" onClick={() => emitAction("bunker:next_phase")}>К обсуждению</Button> : null}
+      {isHost ? (
+        <Button variant="secondary" className="mt-3" disabled={!canAdvanceReveal} onClick={() => emitAction("bunker:next_phase")}>
+          {canAdvanceReveal ? "К обсуждению" : "Ждем раскрытия карт"}
+        </Button>
+      ) : null}
     </Panel>
   );
   if (room.phase === "DISCUSSION") return <Panel title="Обсуждение" label="Аргументы"><p>Обсудите, кто будет полезен при катастрофе и условиях бункера. Используйте раскрытые характеристики.</p>{room.settings.useTimer ? (isHost ? <Button className="mt-5" onClick={() => emitAction("bunker:next_phase")}>К голосованию</Button> : null) : <ReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Перейти к голосованию" readyLabel="Готов к голосованию" />}</Panel>;
@@ -339,9 +344,9 @@ function BunkerBoard({
 
           <article className="mt-5 overflow-hidden rounded-[1.15rem] border border-white/18 bg-[#0d151d] shadow-soft">
             <div className="relative min-h-[22rem] p-4 pb-6 sm:p-5 sm:pb-6">
-              <img src="/bunker-cards/shelter-scene.png" alt="" className="absolute inset-0 h-full w-full object-cover opacity-52" />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#0d151d]/96 via-[#0d151d]/78 to-[#0d151d]/18" />
-              <div className="relative max-w-[34rem]">
+              <img src="/bunker-cards/shelter-scene.png" alt="" className="absolute inset-3 h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] rounded-[0.95rem] object-cover opacity-52" />
+              <div className="absolute inset-3 rounded-[0.95rem] bg-gradient-to-r from-[#0d151d]/96 via-[#0d151d]/78 to-[#0d151d]/18" />
+              <div className="relative max-w-[33rem] px-2 py-2">
                 <h3 className="font-display text-3xl font-semibold text-[#f4eee3]">{room.shelter?.title ?? "Бункер"}</h3>
                 <p className="mt-3 text-base leading-7 text-white/72">{room.shelter?.description}</p>
                 <div className="mt-4 h-px bg-white/20" />
@@ -396,11 +401,11 @@ function BoardReadyFooter({
   const aliveCount = room.players.filter((player) => player.status === "alive").length;
   const isReady = room.readyPlayerIds.includes(room.ownPlayerId);
   return (
-    <div className="flex flex-nowrap items-center gap-3 overflow-x-auto pb-1">
+    <div className="flex flex-wrap items-center gap-3 pb-1 sm:flex-nowrap sm:overflow-x-auto">
       <button
         type="button"
         disabled={isReady}
-        className="relative inline-flex h-16 min-w-72 items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-[#f4eee3] shadow-[0_0_30px_rgba(255,99,92,0.16)] transition hover:scale-[1.01] disabled:opacity-75"
+        className="relative inline-flex h-16 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-[#f4eee3] shadow-[0_0_30px_rgba(255,99,92,0.16)] transition hover:scale-[1.01] disabled:opacity-75 sm:w-auto sm:min-w-72"
         onClick={onReady}
       >
         <img src="/bunker-cards/ready-button-red.png" alt="" className="absolute inset-0 h-full w-full object-fill" />
@@ -409,7 +414,7 @@ function BoardReadyFooter({
         </span>
         <span className="relative whitespace-nowrap">{isReady ? readyLabel : actionLabel}</span>
       </button>
-      <div className="relative inline-flex h-16 min-w-56 items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-white/76">
+      <div className="relative inline-flex h-16 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-white/76 sm:w-auto sm:min-w-56">
         <img src="/bunker-cards/ready-counter-blue.png" alt="" className="absolute inset-0 h-full w-full object-fill" />
         <img src="/bunker-cards/ready-players.png" alt="" className="relative h-9 w-12 object-cover object-center mix-blend-screen" />
         <span className="relative">Готовы: {room.readyPlayerIds.length} / {aliveCount}</span>
@@ -423,24 +428,29 @@ function BoardRevealAction({ room, emitAction, isHost }: { room: PublicBunkerRoo
   const ownRevealed = new Set(ownCharacter?.revealedCategories ?? []);
   const alreadyRevealedThisRound = room.revealedThisRoundPlayerIds.includes(room.ownPlayerId);
   const revealOptions = bunkerCharacteristicCategories.filter((category) => !ownRevealed.has(category) && room.settings.enabledCardCategories.includes(category));
+  const canAdvance = canAdvanceRevealRound(room);
   return (
     <div>
       <p className="text-sm leading-6 text-white/65">Раунд {room.currentRound}: выберите одну характеристику, которую хотите раскрыть группе.</p>
       {alreadyRevealedThisRound ? <p className="mt-3 rounded-2xl border border-mint/30 bg-mint/10 p-3 text-sm font-bold text-mint">Вы уже раскрыли характеристику в этом раунде.</p> : null}
-      <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+      <div className="mt-4 grid max-h-72 gap-3 overflow-y-auto pr-2 sm:grid-cols-2 xl:grid-cols-3">
         {revealOptions.map((category) => (
           <button
             key={category}
             disabled={alreadyRevealedThisRound}
-            className="min-w-36 rounded-2xl border border-white/14 bg-white/5 p-3 text-left text-sm font-black text-white/80 transition hover:border-coral hover:bg-coral/10 disabled:cursor-not-allowed disabled:opacity-45"
+            className="rounded-2xl border border-white/14 bg-white/5 p-3 text-left text-sm font-black text-white/80 transition hover:border-coral hover:bg-coral/10 disabled:cursor-not-allowed disabled:opacity-45"
             onClick={() => emitAction("bunker:reveal_card", { category })}
           >
-            <img src={bunkerCardImages[category]} alt="" className="mb-2 h-24 w-full rounded-xl object-cover object-top" />
+            <img src={bunkerCardImages[category]} alt="" className="mb-2 h-24 w-full rounded-xl object-contain object-center" />
             {bunkerCategoryLabels[category]}
           </button>
         ))}
       </div>
-      {isHost ? <Button variant="secondary" className="mt-3" onClick={() => emitAction("bunker:next_phase")}>К обсуждению</Button> : null}
+      {isHost ? (
+        <Button variant="secondary" className="mt-3" disabled={!canAdvance} onClick={() => emitAction("bunker:next_phase")}>
+          {canAdvance ? "К обсуждению" : "Ждем раскрытия карт"}
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -746,7 +756,7 @@ function FeaturedProfessionCard({ character }: { character?: PublicBunkerRoomSta
   return (
     <article className="mt-2 grid shrink-0 overflow-hidden rounded-[0.95rem] border border-[#7f6b57]/55 bg-[#0c141c] shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:grid-cols-[9.5rem_minmax(0,1fr)]">
       <div className="relative flex h-32 items-center justify-center border-b border-[#7f6b57]/35 bg-[#0b1219] p-3 sm:border-b-0 sm:border-r">
-        <img src={bunkerCardImages.profession} alt="" className="h-full w-auto rounded-[1.05rem] border border-[#7f6b57]/50 object-contain opacity-95 shadow-[0_10px_24px_rgba(0,0,0,0.28)]" />
+        <img src={bunkerCardImages.profession} alt="" className="h-full w-auto scale-110 rounded-[1.05rem] border border-[#7f6b57]/50 object-contain opacity-95 shadow-[0_10px_24px_rgba(0,0,0,0.28)]" />
       </div>
       <div className="relative h-32 overflow-hidden p-4">
         <p className="text-[0.58rem] font-black uppercase tracking-[0.24em] text-coral">Профессия</p>
@@ -869,6 +879,13 @@ function cardTitle(card?: PublicBunkerCard) { return !card ? "-" : "hidden" in c
 function PlayersMini({ players }: { players: PublicBunkerRoomState["players"] }) { return <Panel title="Живые игроки" label="Состав"><div className="max-h-72 space-y-2 overflow-y-auto pr-1">{players.map((player) => <p key={player.id} className="rounded-2xl bg-slate-100/80 p-3 font-bold dark:bg-slate-950/45">{player.name}</p>)}</div></Panel>; }
 function Stats({ room }: { room: PublicBunkerRoomState }) { return <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl bg-slate-100/80 p-3 dark:bg-slate-950/45">Мест: {room.settings.bunkerSlots === "auto" ? "авто" : room.settings.bunkerSlots}</div><div className="rounded-2xl bg-slate-100/80 p-3 dark:bg-slate-950/45">Режим: {room.settings.gameMode === "classic" ? "классика" : "быстрый"}</div><div className="rounded-2xl bg-slate-100/80 p-3 dark:bg-slate-950/45">Спецкарты: {room.settings.useSpecialCards ? "вкл" : "выкл"}</div></div>; }
 function VoteList({ room }: { room: PublicBunkerRoomState }) { if (room.settings.votingMode === "anonymous") return <p className="mt-4 text-sm text-slate-500">Голосование было анонимным.</p>; return <div className="mt-4 space-y-2">{Object.entries(room.lastVotingResult?.votes ?? {}).map(([voterId, targetId]) => <p key={voterId} className="rounded-2xl bg-slate-100/80 p-3 text-sm dark:bg-slate-950/45">{room.players.find((p) => p.id === voterId)?.name} → {room.players.find((p) => p.id === targetId)?.name}</p>)}</div>; }
+function canAdvanceRevealRound(room: PublicBunkerRoomState) {
+  const revealed = new Set(room.revealedThisRoundPlayerIds);
+  return room.players
+    .filter((player) => player.status === "alive" && player.connected && !player.isBot)
+    .every((player) => revealed.has(player.id));
+}
+
 function getPhaseHint(room: PublicBunkerRoomState) { if (room.phase === "LOBBY") return "Настройте игру и пригласите друзей."; if (room.phase === "SCENARIO_REVEAL") return "Все игроки знакомятся со сценарием и нажимают готовность."; if (room.phase === "REVEAL_ROUND") return "Раскройте характеристику и готовьте аргументы."; if (room.phase === "DISCUSSION") return "Убедите остальных, что вы нужны группе."; if (room.phase === "VOTING" || room.phase === "REVOTE") return "Выберите, кого исключить из очереди в бункер."; if (room.phase === "GAME_OVER") return "Финальный состав выживших определен."; return "Следуйте текущему действию."; }
 function rememberCurrentRoom(room: PublicBunkerRoomState) { window.localStorage.setItem(LAST_LEFT_ROOM_KEY, JSON.stringify({ code: room.code, gameId: room.gameId, phase: room.phase, visibility: room.visibility, leftAt: Date.now() })); }
 function clearRememberedRoom(code: string) { const raw = window.localStorage.getItem(LAST_LEFT_ROOM_KEY); if (!raw) return; try { const remembered = JSON.parse(raw) as { code?: string }; if (remembered.code === code) window.localStorage.removeItem(LAST_LEFT_ROOM_KEY); } catch { window.localStorage.removeItem(LAST_LEFT_ROOM_KEY); } }

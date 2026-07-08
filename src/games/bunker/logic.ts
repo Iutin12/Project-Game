@@ -87,7 +87,17 @@ export function allAliveReady(room: BunkerRoomState) {
     .every((player) => ready.has(player.id) || player.isBot);
 }
 
+export function allActivePlayersRevealed(room: BunkerRoomState) {
+  const revealed = new Set(room.revealedThisRoundPlayerIds);
+  return room.players
+    .filter((player) => player.status === "alive" && player.connected && !player.isBot)
+    .every((player) => revealed.has(player.id));
+}
+
 export function advanceBunkerPhase(room: BunkerRoomState) {
+  if (room.phase === "REVEAL_ROUND" && !allActivePlayersRevealed(room)) {
+    return { ok: false, error: "Все игроки должны раскрыть характеристику" };
+  }
   room.readyPlayerIds = [];
   room.deadlineAt = undefined;
   if (room.phase === "SCENARIO_REVEAL") room.phase = "CHARACTER_PREVIEW";
