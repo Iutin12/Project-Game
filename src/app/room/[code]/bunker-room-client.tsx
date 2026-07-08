@@ -326,7 +326,7 @@ function BunkerBoard({
   const phaseAction = getBoardPhaseAction(room, isHost, emitAction);
 
   return (
-    <section className="mt-2 overflow-hidden rounded-[1.55rem] border border-[#2c3845] bg-[#070d13] p-2 text-[#ede8dd] shadow-[0_24px_90px_rgba(0,0,0,0.34)] xl:h-[calc(100vh-10.5rem)] xl:min-h-[38rem]">
+    <section className="mt-2 overflow-hidden rounded-[1.55rem] border border-[#2c3845] bg-[#070d13] p-2 text-[#ede8dd] shadow-[0_24px_90px_rgba(0,0,0,0.34)] xl:h-[calc(100vh-7rem)] xl:min-h-[44rem]">
       <div className="grid h-full gap-0 overflow-hidden rounded-[1.25rem] border border-white/10 bg-[radial-gradient(circle_at_10%_0%,rgba(255,99,92,0.16),transparent_32%),linear-gradient(135deg,#101923,#071018)] lg:grid-cols-[0.95fr_1.05fr]">
         <div className="min-h-0 overflow-hidden border-b border-white/10 p-4 sm:p-5 lg:border-b-0 lg:border-r">
           <p className="text-[0.65rem] font-black uppercase tracking-[0.28em] text-coral">Сценарий</p>
@@ -396,11 +396,11 @@ function BoardReadyFooter({
   const aliveCount = room.players.filter((player) => player.status === "alive").length;
   const isReady = room.readyPlayerIds.includes(room.ownPlayerId);
   return (
-    <div className="flex flex-wrap gap-4">
+    <div className="flex flex-wrap gap-3">
       <button
         type="button"
         disabled={isReady}
-        className="relative inline-flex h-16 min-w-80 items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-[#f4eee3] shadow-[0_0_30px_rgba(255,99,92,0.16)] transition hover:scale-[1.01] disabled:opacity-75"
+        className="relative inline-flex h-16 min-w-72 items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-[#f4eee3] shadow-[0_0_30px_rgba(255,99,92,0.16)] transition hover:scale-[1.01] disabled:opacity-75"
         onClick={onReady}
       >
         <img src="/bunker-cards/ready-button-red.png" alt="" className="absolute inset-0 h-full w-full object-fill" />
@@ -744,10 +744,10 @@ function SpecialCardPreview({ card }: { card: BunkerSpecialCard }) {
 function FeaturedProfessionCard({ character }: { character?: PublicBunkerRoomState["characters"][string] }) {
   const profession = character?.profession;
   return (
-    <article className="mt-2 grid shrink-0 overflow-hidden rounded-[0.95rem] border border-[#7f6b57]/55 bg-[#0c141c] shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:grid-cols-[8rem_minmax(0,1fr)]">
-      <div className="relative h-28 border-b border-[#7f6b57]/35 bg-[#eadfcb] sm:border-b-0 sm:border-r">
-        <img src={bunkerCardImages.profession} alt="" className="absolute inset-2 h-[calc(100%-1rem)] w-[calc(100%-1rem)] object-contain opacity-90" />
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0c141c]/12" />
+    <article className="mt-2 grid shrink-0 overflow-hidden rounded-[0.95rem] border border-[#7f6b57]/55 bg-[#0c141c] shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:grid-cols-[9rem_minmax(0,1fr)]">
+      <div className="relative h-28 border-b border-[#7f6b57]/35 bg-[#0b1219] sm:border-b-0 sm:border-r">
+        <img src={bunkerCardImages.profession} alt="" className="absolute inset-0 h-full w-full object-cover object-top opacity-82" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0c141c]/22" />
       </div>
       <div className="relative h-28 overflow-hidden p-4">
         <div className="absolute right-4 top-3 h-20 w-20 rounded-full border border-[#7f6b57]/28 opacity-45" />
@@ -764,7 +764,7 @@ function BoardCharacterCards({ character }: { character?: PublicBunkerRoomState[
   if (!character) return <p className="mt-5 text-white/45">Карты появятся после старта игры.</p>;
   const visibleCategories = bunkerCharacteristicCategories.filter((category) => category !== "profession");
   return (
-    <div className="mt-4 grid min-h-0 flex-1 grid-cols-2 content-start justify-between gap-x-3 gap-y-3 overflow-hidden sm:grid-cols-3 lg:grid-cols-[repeat(3,5.75rem)] xl:grid-cols-[repeat(3,6.35rem)] 2xl:grid-cols-[repeat(3,6.9rem)]">
+    <div className="mt-4 grid min-h-0 flex-1 grid-cols-2 content-start justify-between gap-x-3 gap-y-3 overflow-hidden sm:grid-cols-3 lg:grid-cols-[repeat(5,5.15rem)] xl:grid-cols-[repeat(5,5.65rem)] 2xl:grid-cols-[repeat(5,6.1rem)]">
       {visibleCategories.map((category) => (
         <BoardCharacterCard
           key={category}
