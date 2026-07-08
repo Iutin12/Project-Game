@@ -338,14 +338,14 @@ function BunkerBoard({
           </p>
 
           <article className="mt-5 overflow-hidden rounded-[1.15rem] border border-white/18 bg-[#0d151d] shadow-soft">
-            <div className="relative h-56 p-4 sm:p-5">
-              <img src="/bunker-cards/shelter-scene.png" alt="" className="absolute inset-0 h-full w-full object-cover opacity-65" />
-              <div className="absolute inset-0 bg-gradient-to-r from-[#0d151d] via-[#0d151d]/86 to-[#0d151d]/16" />
-              <div className="relative max-w-xl">
+            <div className="relative h-52 p-4 sm:p-5">
+              <img src="/bunker-cards/shelter-scene.png" alt="" className="absolute inset-0 h-full w-full object-cover opacity-52" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#0d151d]/96 via-[#0d151d]/78 to-[#0d151d]/18" />
+              <div className="relative max-w-[34rem]">
                 <h3 className="font-display text-2xl font-semibold text-[#f4eee3]">{room.shelter?.title ?? "Бункер"}</h3>
-                <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/70">{room.shelter?.description}</p>
-                <div className="mt-4 h-px bg-white/20" />
-                <div className="mt-4 space-y-2 text-sm leading-6 text-white/70">
+                <p className="mt-2 text-sm leading-6 text-white/70">{room.shelter?.description}</p>
+                <div className="mt-3 h-px bg-white/20" />
+                <div className="mt-3 space-y-1.5 text-sm leading-5 text-white/70">
                   <p><span className="mr-3 text-coral">▣</span>Мест: {room.bunkerSlots} · Запасов: {room.shelter?.durationMonths} мес.</p>
                   <p className="line-clamp-1"><span className="mr-3 text-coral">⌂</span>Комнаты: {room.shelter?.rooms.join(", ")}</p>
                   <p className="line-clamp-1"><span className="mr-3 text-coral">△</span>Проблемы: {room.shelter?.problems.join(", ")}</p>
@@ -772,7 +772,7 @@ function BoardCharacterCards({ character }: { character?: PublicBunkerRoomState[
   if (!character) return <p className="mt-5 text-white/45">Карты появятся после старта игры.</p>;
   const boardCategories = bunkerCharacteristicCategories.filter((category) => category !== "profession");
   return (
-    <div className="mt-4 grid min-h-0 flex-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="mt-3 grid min-h-0 flex-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
       {boardCategories.map((category, index) => (
         <BoardCharacterCard
           key={category}
@@ -800,21 +800,21 @@ function BoardCharacterCard({
   const isHidden = !card || "hidden" in card;
   if (showNextPlaceholder && isHidden) {
     return (
-      <article className="relative flex h-52 flex-col items-center justify-center overflow-hidden rounded-[1.05rem] border border-[#7f6b57]/45 bg-[#101923] p-4 text-center shadow-soft">
+      <article className="relative flex h-40 flex-col items-center justify-center overflow-hidden rounded-[1.05rem] border border-[#7f6b57]/45 bg-[#101923] p-3 text-center shadow-soft">
         <div className="absolute inset-3 rounded-[0.85rem] border border-[#7f6b57]/28" />
-        <div className="text-4xl text-[#7f6b57]/60">✦</div>
-        <p className="mt-4 text-[0.65rem] font-black uppercase tracking-[0.2em] text-coral">Следующая карта</p>
-        <p className="mt-2 text-xs text-white/45">Пока не раскрыта</p>
-        <p className="mt-4 text-2xl text-[#7f6b57]/55">▣</p>
+        <div className="text-3xl text-[#7f6b57]/60">✦</div>
+        <p className="mt-3 text-[0.58rem] font-black uppercase tracking-[0.2em] text-coral">Следующая карта</p>
+        <p className="mt-1.5 text-[0.68rem] text-white/45">Пока не раскрыта</p>
+        <p className="mt-2 text-xl text-[#7f6b57]/55">▣</p>
       </article>
     );
   }
   return (
-    <article className="relative h-52 overflow-hidden rounded-[1.05rem] border border-[#7f6b57]/55 bg-[#eadfcb] p-0 text-[#1d1713] shadow-[0_16px_35px_rgba(0,0,0,0.22)]">
-      <img src={bunkerCardImages[category]} alt="" className={`absolute inset-0 h-full w-full object-cover ${isHidden ? "opacity-70 grayscale" : ""}`} />
-      <div className="absolute inset-x-3 bottom-3 rounded-xl border border-[#7d6554]/50 bg-[#0d151d] px-3 py-2 text-center text-[#f4eee3] shadow-sm">
-        <p className="text-base font-black leading-5">{cardTitle(card)}</p>
-        <p className="mt-1 text-[0.58rem] font-black uppercase tracking-[0.16em] text-[#d9bfa6]">{revealed ? "раскрыто" : "скрыто"}</p>
+    <article className="relative h-40 overflow-hidden rounded-[1.05rem] border border-[#7f6b57]/55 bg-[#eadfcb] p-0 text-[#1d1713] shadow-[0_16px_35px_rgba(0,0,0,0.22)]">
+      <img src={bunkerCardImages[category]} alt="" className={`absolute inset-0 h-full w-full object-cover object-top ${isHidden ? "opacity-70 grayscale" : ""}`} />
+      <div className="absolute inset-x-2 bottom-2 rounded-xl border border-[#7d6554]/50 bg-[#0d151d] px-2 py-1.5 text-center text-[#f4eee3] shadow-sm">
+        <p className="text-sm font-black leading-4">{cardTitle(card)}</p>
+        <p className="mt-0.5 text-[0.52rem] font-black uppercase tracking-[0.16em] text-[#d9bfa6]">{revealed ? "раскрыто" : "скрыто"}</p>
       </div>
     </article>
   );
