@@ -142,8 +142,9 @@ export function registerBunkerRoomSockets(io: Server) {
 
     socket.on("bunker:ready", (_, ack) => {
       const result = withPlayerRoom(socket, (room, player) => {
-        markBunkerReady(room, player.id);
-        if (allAliveReady(room)) advanceBunkerPhase(room);
+        const readyResult = markBunkerReady(room, player.id);
+        if (!readyResult.ok) return readyResult;
+        if (allAliveReady(room)) return advanceBunkerPhase(room);
         return { ok: true };
       });
       ack?.(result);

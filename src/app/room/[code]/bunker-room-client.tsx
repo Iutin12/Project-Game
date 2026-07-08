@@ -284,29 +284,28 @@ function MainGamePanel({ room, ownCharacter, isHost, emitAction }: { room: Publi
 
   if (room.phase === "LOBBY") return <Panel title="Ожидаем игроков" label="Лобби"><p>Минимум 4 игрока. Хост может настроить режим, количество мест, таймеры, спецкарты и голосование.</p><Stats room={room} /></Panel>;
   if (room.phase === "SCENARIO_REVEAL") return <ScenarioPanel room={room} onReady={() => emitAction("bunker:ready")} />;
-  if (room.phase === "CHARACTER_PREVIEW") return <ReadyPanel room={room} title="Ваш персонаж" text="Посмотрите свои скрытые характеристики. Когда будете готовы, нажмите кнопку." onReady={() => emitAction("bunker:ready")} />;
   if (room.phase === "REVEAL_ROUND") return (
     <Panel title={`Раунд ${room.currentRound}`} label="Раскрытие">
       <p>Выберите одну характеристику, которую хотите раскрыть в этом раунде. Подсказка раунда: {currentCategory ? bunkerCategoryLabels[currentCategory] : "любая карта"}.</p>
       {alreadyRevealedThisRound ? <p className="mt-3 rounded-2xl bg-mint/10 p-3 text-sm font-bold text-mint">Вы уже раскрыли характеристику в этом раунде.</p> : null}
-      <div className="mt-4 grid max-h-80 gap-3 overflow-y-auto pr-2 sm:grid-cols-2 xl:grid-cols-3">
-        {revealOptions.map((category) => (
-          <button
-            key={category}
-            disabled={alreadyRevealedThisRound || ownRevealed.has(category)}
-            className="flex items-center gap-3 rounded-2xl border border-line bg-slate-100/80 p-3 text-left font-bold transition hover:border-coral disabled:cursor-not-allowed disabled:opacity-45 dark:border-white/10 dark:bg-slate-950/45"
-            onClick={() => emitAction("bunker:reveal_card", { category })}
-          >
-            <img src={bunkerCardImages[category]} alt="" className="h-20 w-10 rounded-md object-cover shadow-sm" />
-            <span>Раскрыть {bunkerCategoryLabels[category]}</span>
-          </button>
-        ))}
-      </div>
-      {isHost ? (
-        <Button variant="secondary" className="mt-3" disabled={!canAdvanceReveal} onClick={() => emitAction("bunker:next_phase")}>
-          {canAdvanceReveal ? "К обсуждению" : "Ждем раскрытия карт"}
-        </Button>
-      ) : null}
+      {!alreadyRevealedThisRound ? (
+        <div className="mt-4 grid max-h-80 gap-3 overflow-y-auto pr-2 sm:grid-cols-2 xl:grid-cols-3">
+          {revealOptions.map((category) => (
+            <button
+              key={category}
+              disabled={ownRevealed.has(category)}
+              className="flex items-center gap-3 rounded-2xl border border-line bg-slate-100/80 p-3 text-left font-bold transition hover:border-coral disabled:cursor-not-allowed disabled:opacity-45 dark:border-white/10 dark:bg-slate-950/45"
+              onClick={() => emitAction("bunker:reveal_card", { category })}
+            >
+              <img src={bunkerCardImages[category]} alt="" className="h-20 w-10 rounded-md object-cover shadow-sm" />
+              <span>Раскрыть {bunkerCategoryLabels[category]}</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <ReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Подтвердить выбор" readyLabel="Выбор подтвержден" />
+      )}
+      {isHost && !canAdvanceReveal ? <p className="mt-3 text-sm text-slate-500">Голосование начнется автоматически, когда все подтвердят раскрытую карту.</p> : null}
     </Panel>
   );
   if (room.phase === "DISCUSSION") return <Panel title="Обсуждение" label="Аргументы"><p>Обсудите, кто будет полезен при катастрофе и условиях бункера. Используйте раскрытые характеристики.</p>{room.settings.useTimer ? (isHost ? <Button className="mt-5" onClick={() => emitAction("bunker:next_phase")}>К голосованию</Button> : null) : <ReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Перейти к голосованию" readyLabel="Готов к голосованию" />}</Panel>;
@@ -375,7 +374,6 @@ function BunkerBoard({
 
 function getBoardPhaseAction(room: PublicBunkerRoomState, isHost: boolean, emitAction: (event: string, payload?: unknown) => void) {
   if (room.phase === "SCENARIO_REVEAL") return <BoardReadyFooter room={room} onReady={() => emitAction("bunker:ready")} />;
-  if (room.phase === "CHARACTER_PREVIEW") return <BoardReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Ознакомился" readyLabel="Ознакомление отмечено" />;
   if (room.phase === "REVEAL_ROUND") return <BoardRevealAction room={room} emitAction={emitAction} isHost={isHost} />;
   if (room.phase === "DISCUSSION") {
     if (room.settings.useTimer) return isHost ? <Button onClick={() => emitAction("bunker:next_phase")}>К голосованию</Button> : <p className="text-sm text-white/60">Идет обсуждение. Используйте раскрытые карты как аргументы.</p>;
@@ -433,24 +431,23 @@ function BoardRevealAction({ room, emitAction, isHost }: { room: PublicBunkerRoo
     <div>
       <p className="text-sm leading-6 text-white/65">Раунд {room.currentRound}: выберите одну характеристику, которую хотите раскрыть группе.</p>
       {alreadyRevealedThisRound ? <p className="mt-3 rounded-2xl border border-mint/30 bg-mint/10 p-3 text-sm font-bold text-mint">Вы уже раскрыли характеристику в этом раунде.</p> : null}
-      <div className="mt-4 grid max-h-72 gap-3 overflow-y-auto pr-2 sm:grid-cols-2 xl:grid-cols-3">
-        {revealOptions.map((category) => (
-          <button
-            key={category}
-            disabled={alreadyRevealedThisRound}
-            className="rounded-2xl border border-white/14 bg-white/5 p-3 text-left text-sm font-black text-white/80 transition hover:border-coral hover:bg-coral/10 disabled:cursor-not-allowed disabled:opacity-45"
-            onClick={() => emitAction("bunker:reveal_card", { category })}
-          >
-            <img src={bunkerCardImages[category]} alt="" className="mb-2 h-24 w-full rounded-xl object-contain object-center" />
-            {bunkerCategoryLabels[category]}
-          </button>
-        ))}
-      </div>
-      {isHost ? (
-        <Button variant="secondary" className="mt-3" disabled={!canAdvance} onClick={() => emitAction("bunker:next_phase")}>
-          {canAdvance ? "К обсуждению" : "Ждем раскрытия карт"}
-        </Button>
-      ) : null}
+      {!alreadyRevealedThisRound ? (
+        <div className="mt-4 grid max-h-72 gap-3 overflow-y-auto pr-2 sm:grid-cols-2 xl:grid-cols-3">
+          {revealOptions.map((category) => (
+            <button
+              key={category}
+              className="rounded-2xl border border-white/14 bg-white/5 p-3 text-left text-sm font-black text-white/80 transition hover:border-coral hover:bg-coral/10"
+              onClick={() => emitAction("bunker:reveal_card", { category })}
+            >
+              <img src={bunkerCardImages[category]} alt="" className="mb-2 h-24 w-full rounded-xl object-contain object-center" />
+              {bunkerCategoryLabels[category]}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <BoardReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Подтвердить выбор" readyLabel="Выбор подтвержден" />
+      )}
+      {isHost && !canAdvance ? <p className="mt-3 text-sm text-white/50">Голосование начнется автоматически, когда все подтвердят раскрытую карту.</p> : null}
     </div>
   );
 }
@@ -756,7 +753,9 @@ function FeaturedProfessionCard({ character }: { character?: PublicBunkerRoomSta
   return (
     <article className="mt-2 grid shrink-0 overflow-hidden rounded-[0.95rem] border border-[#7f6b57]/55 bg-[#0c141c] shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:grid-cols-[9.5rem_minmax(0,1fr)]">
       <div className="relative flex h-32 items-center justify-center border-b border-[#7f6b57]/35 bg-[#0b1219] p-3 sm:border-b-0 sm:border-r">
-        <img src={bunkerCardImages.profession} alt="" className="h-full w-auto scale-110 rounded-[1.05rem] border border-[#7f6b57]/50 object-contain opacity-95 shadow-[0_10px_24px_rgba(0,0,0,0.28)]" />
+        <div className="h-24 w-24 overflow-hidden rounded-full border border-[#7f6b57]/55 bg-[#eadfcb] shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
+          <img src={bunkerCardImages.profession} alt="" className="h-full w-full scale-[1.85] object-cover object-center opacity-95" />
+        </div>
       </div>
       <div className="relative h-32 overflow-hidden p-4">
         <p className="text-[0.58rem] font-black uppercase tracking-[0.24em] text-coral">Профессия</p>

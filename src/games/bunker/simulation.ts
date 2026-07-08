@@ -1,4 +1,4 @@
-import { createEmptyBunkerRoom, advanceBunkerPhase, castBunkerVote, revealBunkerCard, resolveVoting, startBunkerGame } from "./logic";
+import { createEmptyBunkerRoom, advanceBunkerPhase, castBunkerVote, markBunkerReady, revealBunkerCard, resolveVoting, startBunkerGame } from "./logic";
 import { bunkerCharacteristicCategories } from "./settings";
 import type { BunkerRoomState } from "./types";
 
@@ -44,6 +44,9 @@ export function simulateBunkerNextStep(room: BunkerRoomState): BunkerRoomState {
   else if (room.phase === "SCENARIO_REVEAL" || room.phase === "CHARACTER_PREVIEW") advanceBunkerPhase(room);
   else if (room.phase === "REVEAL_ROUND") {
     simulateBunkerRevealRound(room);
+    for (const player of room.players.filter((item) => item.status === "alive" && !item.isBot)) {
+      markBunkerReady(room, player.id);
+    }
     advanceBunkerPhase(room);
   } else if (room.phase === "DISCUSSION" || room.phase === "SPECIAL_ACTIONS") advanceBunkerPhase(room);
   else if (room.phase === "VOTING" || room.phase === "REVOTE") simulateBunkerVoting(room);

@@ -76,6 +76,9 @@ export function revealBunkerCard(room: BunkerRoomState, playerId: string, catego
 }
 
 export function markBunkerReady(room: BunkerRoomState, playerId: string) {
+  if (room.phase === "REVEAL_ROUND" && !room.revealedThisRoundPlayerIds.includes(playerId)) {
+    return { ok: false, error: "Сначала раскройте характеристику" };
+  }
   if (!room.readyPlayerIds.includes(playerId)) room.readyPlayerIds = [...room.readyPlayerIds, playerId];
   return { ok: true };
 }
@@ -98,11 +101,14 @@ export function advanceBunkerPhase(room: BunkerRoomState) {
   if (room.phase === "REVEAL_ROUND" && !allActivePlayersRevealed(room)) {
     return { ok: false, error: "Все игроки должны раскрыть характеристику" };
   }
+  if (room.phase === "REVEAL_ROUND" && !allAliveReady(room)) {
+    return { ok: false, error: "Все игроки должны подтвердить выбор" };
+  }
   room.readyPlayerIds = [];
   room.deadlineAt = undefined;
-  if (room.phase === "SCENARIO_REVEAL") room.phase = "CHARACTER_PREVIEW";
+  if (room.phase === "SCENARIO_REVEAL") room.phase = "REVEAL_ROUND";
   else if (room.phase === "CHARACTER_PREVIEW") room.phase = "REVEAL_ROUND";
-  else if (room.phase === "REVEAL_ROUND") setTimedPhase(room, "DISCUSSION", room.settings.discussionTimeSec);
+  else if (room.phase === "REVEAL_ROUND") setTimedPhase(room, "VOTING", room.settings.votingTimeSec);
   else if (room.phase === "DISCUSSION") setTimedPhase(room, "VOTING", room.settings.votingTimeSec);
   else if (room.phase === "SPECIAL_ACTIONS") setTimedPhase(room, "VOTING", room.settings.votingTimeSec);
   else if (room.phase === "VOTING" || room.phase === "REVOTE") resolveVoting(room);
