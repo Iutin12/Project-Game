@@ -326,7 +326,7 @@ function BunkerBoard({
   const phaseAction = getBoardPhaseAction(room, isHost, emitAction);
 
   return (
-    <section className="mt-2 overflow-hidden rounded-[1.55rem] border border-[#2c3845] bg-[#070d13] p-2 text-[#ede8dd] shadow-[0_24px_90px_rgba(0,0,0,0.34)] xl:h-[calc(100vh-7rem)] xl:min-h-[44rem]">
+    <section className="mt-2 overflow-hidden rounded-[1.55rem] border border-[#2c3845] bg-[#070d13] p-2 text-[#ede8dd] shadow-[0_24px_90px_rgba(0,0,0,0.34)] xl:min-h-[50rem]">
       <div className="grid h-full gap-0 overflow-hidden rounded-[1.25rem] border border-white/10 bg-[radial-gradient(circle_at_10%_0%,rgba(255,99,92,0.16),transparent_32%),linear-gradient(135deg,#101923,#071018)] lg:grid-cols-[0.95fr_1.05fr]">
         <div className="min-h-0 overflow-hidden border-b border-white/10 p-4 sm:p-5 lg:border-b-0 lg:border-r">
           <p className="text-[0.65rem] font-black uppercase tracking-[0.28em] text-coral">Сценарий</p>
@@ -338,7 +338,7 @@ function BunkerBoard({
           </p>
 
           <article className="mt-5 overflow-hidden rounded-[1.15rem] border border-white/18 bg-[#0d151d] shadow-soft">
-            <div className="relative min-h-[20rem] p-4 pb-6 sm:p-5 sm:pb-6">
+            <div className="relative min-h-[22rem] p-4 pb-6 sm:p-5 sm:pb-6">
               <img src="/bunker-cards/shelter-scene.png" alt="" className="absolute inset-0 h-full w-full object-cover opacity-52" />
               <div className="absolute inset-0 bg-gradient-to-r from-[#0d151d]/96 via-[#0d151d]/78 to-[#0d151d]/18" />
               <div className="relative max-w-[34rem]">
@@ -396,7 +396,7 @@ function BoardReadyFooter({
   const aliveCount = room.players.filter((player) => player.status === "alive").length;
   const isReady = room.readyPlayerIds.includes(room.ownPlayerId);
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-nowrap items-center gap-3 overflow-x-auto pb-1">
       <button
         type="button"
         disabled={isReady}
@@ -745,13 +745,10 @@ function FeaturedProfessionCard({ character }: { character?: PublicBunkerRoomSta
   const profession = character?.profession;
   return (
     <article className="mt-2 grid shrink-0 overflow-hidden rounded-[0.95rem] border border-[#7f6b57]/55 bg-[#0c141c] shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:grid-cols-[9.5rem_minmax(0,1fr)]">
-      <div className="relative h-32 border-b border-[#7f6b57]/35 bg-[#0b1219] sm:border-b-0 sm:border-r">
-        <img src={bunkerCardImages.profession} alt="" className="absolute inset-2 h-[calc(100%-1rem)] w-[calc(100%-1rem)] object-contain opacity-90" />
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0c141c]/16" />
+      <div className="relative flex h-32 items-center justify-center border-b border-[#7f6b57]/35 bg-[#0b1219] p-3 sm:border-b-0 sm:border-r">
+        <img src={bunkerCardImages.profession} alt="" className="h-full w-auto rounded-[1.05rem] border border-[#7f6b57]/50 object-contain opacity-95 shadow-[0_10px_24px_rgba(0,0,0,0.28)]" />
       </div>
       <div className="relative h-32 overflow-hidden p-4">
-        <div className="absolute right-4 top-3 h-20 w-20 rounded-full border border-[#7f6b57]/28 opacity-45" />
-        <div className="absolute right-8 top-7 h-12 w-12 rounded-full border border-[#7f6b57]/28 opacity-45" />
         <p className="text-[0.58rem] font-black uppercase tracking-[0.24em] text-coral">Профессия</p>
         <h3 className="mt-2 font-display text-xl font-semibold leading-tight text-[#f4eee3]">{cardTitle(profession)}</h3>
         <p className="mt-2 line-clamp-2 max-w-lg text-[0.7rem] leading-4 text-white/58">{profession && !("hidden" in profession) ? profession.description : "Главная карта персонажа будет видна после выдачи ролей."}</p>
