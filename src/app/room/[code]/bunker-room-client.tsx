@@ -78,6 +78,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
   const alivePlayers = useMemo(() => room?.players.filter((player) => player.status === "alive") ?? [], [room?.players]);
   const connectedCount = room?.players.filter((player) => player.connected).length ?? 0;
   const unreadChatCount = Math.max(0, (room?.chatMessages.length ?? 0) - seenChatCount);
+  const useBunkerBoard = tab === "game" && room && room.phase !== "LOBBY" && room.phase !== "GAME_OVER";
 
   useEffect(() => {
     const nextSocket = io({ path: "/socket.io" });
@@ -254,7 +255,10 @@ export function BunkerRoomClient({ code }: { code: string }) {
           {tab === "settings" ? <SettingsPanel room={room} isHost={isHost} updateSettings={(patch) => emitAction("bunker:update_settings", patch)} /> : null}
           {tab === "chat" ? <ChatPanel room={room} message={message} setMessage={setMessage} sendMessage={sendMessage} chatScrollRef={chatScrollRef} unreadAnchorId={unreadAnchorId} /> : null}
           {tab === "players" ? <PlayersPanel room={room} /> : null}
-          {tab === "game" ? (
+          {tab === "game" && useBunkerBoard ? (
+            <BunkerBoard room={room} ownCharacter={ownCharacter} isHost={isHost} emitAction={emitAction} />
+          ) : null}
+          {tab === "game" && !useBunkerBoard ? (
             <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.55fr)]">
               <MainGamePanel room={room} ownCharacter={ownCharacter} isHost={isHost} emitAction={emitAction} />
               <aside className="space-y-5">
@@ -306,6 +310,143 @@ function MainGamePanel({ room, ownCharacter, isHost, emitAction }: { room: Publi
   if (room.phase === "VOTING_RESULT") return <VotingResultPanel room={room} isHost={isHost} emitAction={emitAction} />;
   if (room.phase === "GAME_OVER") return <GameOverPanel room={room} isHost={isHost} emitAction={emitAction} />;
   return <Panel title="Игра" label={phaseLabels[room.phase]}><p>Фаза в процессе.</p></Panel>;
+}
+
+function BunkerBoard({
+  room,
+  ownCharacter,
+  isHost,
+  emitAction
+}: {
+  room: PublicBunkerRoomState;
+  ownCharacter: PublicBunkerRoomState["characters"][string] | undefined;
+  isHost: boolean;
+  emitAction: (event: string, payload?: unknown) => void;
+}) {
+  const phaseAction = getBoardPhaseAction(room, isHost, emitAction);
+
+  return (
+    <section className="mt-5 overflow-hidden rounded-[1.75rem] border border-[#2c3845] bg-[#070d13] p-3 text-[#ede8dd] shadow-[0_24px_90px_rgba(0,0,0,0.34)]">
+      <div className="grid gap-0 overflow-hidden rounded-[1.35rem] border border-white/10 bg-[radial-gradient(circle_at_10%_0%,rgba(255,99,92,0.16),transparent_32%),linear-gradient(135deg,#101923,#071018)] lg:grid-cols-[0.95fr_1.05fr]">
+        <div className="border-b border-white/10 p-5 sm:p-8 lg:border-b-0 lg:border-r">
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-coral">Сценарий</p>
+          <h2 className="mt-3 font-display text-4xl font-semibold leading-none text-[#f4eee3] sm:text-5xl">{room.catastrophe?.title ?? "Катастрофа"}</h2>
+          <p className="mt-5 max-w-2xl text-base leading-8 text-white/68">{room.catastrophe?.fullDescription}</p>
+          <p className="mt-6 flex items-start gap-3 text-lg font-bold text-[#f4eee3]">
+            <span className="mt-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-coral text-coral">⌖</span>
+            <span>Цель: <span className="font-medium text-white/72">{room.catastrophe?.survivalGoal}</span></span>
+          </p>
+
+          <article className="mt-8 overflow-hidden rounded-[1.25rem] border border-white/18 bg-[#0d151d] shadow-soft">
+            <div className="relative min-h-[18rem] p-5 sm:p-7">
+              <img src="/bunker-cards/shelter-scene.png" alt="" className="absolute inset-0 h-full w-full object-cover opacity-65" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#0d151d] via-[#0d151d]/86 to-[#0d151d]/16" />
+              <div className="relative max-w-xl">
+                <h3 className="font-display text-3xl font-semibold text-[#f4eee3]">{room.shelter?.title ?? "Бункер"}</h3>
+                <p className="mt-3 text-sm leading-7 text-white/70">{room.shelter?.description}</p>
+                <div className="mt-5 h-px bg-white/20" />
+                <div className="mt-5 space-y-4 text-sm leading-6 text-white/70">
+                  <p><span className="mr-3 text-coral">▣</span>Мест: {room.bunkerSlots} · Запасов: {room.shelter?.durationMonths} мес.</p>
+                  <p><span className="mr-3 text-coral">⌂</span>Комнаты: {room.shelter?.rooms.join(", ")}</p>
+                  <p><span className="mr-3 text-coral">△</span>Проблемы: {room.shelter?.problems.join(", ")}</p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <div className="mt-6">{phaseAction}</div>
+        </div>
+
+        <div className="p-5 sm:p-8">
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-coral">Карты</p>
+          <h2 className="mt-2 font-display text-3xl font-semibold text-[#f4eee3]">Ваш персонаж</h2>
+          <FeaturedProfessionCard character={ownCharacter} />
+          <BoardCharacterCards character={ownCharacter} />
+          {ownCharacter?.specialCards.length ? (
+            <div className="mt-5">
+              <p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-coral">Спецкарты</p>
+              <div className="flex gap-3 overflow-x-auto pb-2">
+                {ownCharacter.specialCards.map((card) => <SpecialCardPreview key={card.id} card={card} />)}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function getBoardPhaseAction(room: PublicBunkerRoomState, isHost: boolean, emitAction: (event: string, payload?: unknown) => void) {
+  if (room.phase === "SCENARIO_REVEAL") return <BoardReadyFooter room={room} onReady={() => emitAction("bunker:ready")} />;
+  if (room.phase === "CHARACTER_PREVIEW") return <BoardReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Ознакомился" readyLabel="Ознакомление отмечено" />;
+  if (room.phase === "REVEAL_ROUND") return <BoardRevealAction room={room} emitAction={emitAction} isHost={isHost} />;
+  if (room.phase === "DISCUSSION") {
+    if (room.settings.useTimer) return isHost ? <Button onClick={() => emitAction("bunker:next_phase")}>К голосованию</Button> : <p className="text-sm text-white/60">Идет обсуждение. Используйте раскрытые карты как аргументы.</p>;
+    return <BoardReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Перейти к голосованию" readyLabel="Готов к голосованию" />;
+  }
+  if (room.phase === "VOTING" || room.phase === "REVOTE") return <VotingPanel room={room} emitAction={emitAction} isHost={isHost} />;
+  if (room.phase === "VOTING_RESULT") return <VotingResultPanel room={room} isHost={isHost} emitAction={emitAction} />;
+  if (room.phase === "SPECIAL_ACTIONS") return <SpecialPanel room={room} ownCharacter={room.characters[room.ownPlayerId]} emitAction={emitAction} />;
+  return <p className="text-sm text-white/60">{getPhaseHint(room)}</p>;
+}
+
+function BoardReadyFooter({
+  room,
+  onReady,
+  actionLabel = "Я готов",
+  readyLabel = "Готовность отмечена"
+}: {
+  room: PublicBunkerRoomState;
+  onReady: () => void;
+  actionLabel?: string;
+  readyLabel?: string;
+}) {
+  const aliveCount = room.players.filter((player) => player.status === "alive").length;
+  const isReady = room.readyPlayerIds.includes(room.ownPlayerId);
+  return (
+    <div className="flex flex-wrap gap-4">
+      <button
+        type="button"
+        disabled={isReady}
+        className="inline-flex min-w-56 items-center justify-center gap-3 rounded-2xl border border-coral/50 bg-coral/25 px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-[#f4eee3] shadow-[0_0_30px_rgba(255,99,92,0.16)] transition hover:bg-coral/35 disabled:opacity-70"
+        onClick={onReady}
+      >
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/45">✓</span>
+        {isReady ? readyLabel : actionLabel}
+      </button>
+      <div className="inline-flex min-w-48 items-center justify-center gap-3 rounded-2xl border border-white/14 bg-white/5 px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-white/70">
+        <span className="text-xl">♙</span>
+        Готовы: {room.readyPlayerIds.length} / {aliveCount}
+      </div>
+    </div>
+  );
+}
+
+function BoardRevealAction({ room, emitAction, isHost }: { room: PublicBunkerRoomState; emitAction: (event: string, payload?: unknown) => void; isHost: boolean }) {
+  const ownCharacter = room.characters[room.ownPlayerId];
+  const ownRevealed = new Set(ownCharacter?.revealedCategories ?? []);
+  const alreadyRevealedThisRound = room.revealedThisRoundPlayerIds.includes(room.ownPlayerId);
+  const revealOptions = bunkerCharacteristicCategories.filter((category) => !ownRevealed.has(category) && room.settings.enabledCardCategories.includes(category));
+  return (
+    <div>
+      <p className="text-sm leading-6 text-white/65">Раунд {room.currentRound}: выберите одну характеристику, которую хотите раскрыть группе.</p>
+      {alreadyRevealedThisRound ? <p className="mt-3 rounded-2xl border border-mint/30 bg-mint/10 p-3 text-sm font-bold text-mint">Вы уже раскрыли характеристику в этом раунде.</p> : null}
+      <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+        {revealOptions.map((category) => (
+          <button
+            key={category}
+            disabled={alreadyRevealedThisRound}
+            className="min-w-36 rounded-2xl border border-white/14 bg-white/5 p-3 text-left text-sm font-black text-white/80 transition hover:border-coral hover:bg-coral/10 disabled:cursor-not-allowed disabled:opacity-45"
+            onClick={() => emitAction("bunker:reveal_card", { category })}
+          >
+            <img src={bunkerCardImages[category]} alt="" className="mb-2 h-24 w-full rounded-xl object-cover object-top" />
+            {bunkerCategoryLabels[category]}
+          </button>
+        ))}
+      </div>
+      {isHost ? <Button variant="secondary" className="mt-3" onClick={() => emitAction("bunker:next_phase")}>К обсуждению</Button> : null}
+    </div>
+  );
 }
 
 function ScenarioPanel({ room, onReady }: { room: PublicBunkerRoomState; onReady: () => void }) {
@@ -601,6 +742,77 @@ function SpecialCardPreview({ card }: { card: BunkerSpecialCard }) {
         <p className="mt-1 text-[0.58rem] text-white/70">{card.used ? "использована" : "доступна"}</p>
       </div>
     </div>
+  );
+}
+
+function FeaturedProfessionCard({ character }: { character?: PublicBunkerRoomState["characters"][string] }) {
+  const profession = character?.profession;
+  return (
+    <article className="mt-3 grid overflow-hidden rounded-[1.05rem] border border-[#7f6b57]/55 bg-[#0c141c] shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:grid-cols-[14rem_minmax(0,1fr)]">
+      <div className="relative min-h-44 border-b border-[#7f6b57]/35 sm:border-b-0 sm:border-r">
+        <img src={bunkerCardImages.profession} alt="" className="absolute inset-0 h-full w-full object-cover object-top opacity-80" />
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0c141c]/20" />
+      </div>
+      <div className="relative min-h-44 overflow-hidden p-5">
+        <div className="absolute right-4 top-4 h-28 w-28 rounded-full border border-[#7f6b57]/28 opacity-45" />
+        <div className="absolute right-10 top-10 h-16 w-16 rounded-full border border-[#7f6b57]/28 opacity-45" />
+        <p className="text-xs font-black uppercase tracking-[0.24em] text-coral">Профессия</p>
+        <h3 className="mt-4 font-display text-3xl font-semibold leading-tight text-[#f4eee3]">{cardTitle(profession)}</h3>
+        <p className="mt-4 max-w-lg text-sm leading-6 text-white/58">{profession && !("hidden" in profession) ? profession.description : "Главная карта персонажа будет видна после выдачи ролей."}</p>
+      </div>
+    </article>
+  );
+}
+
+function BoardCharacterCards({ character }: { character?: PublicBunkerRoomState["characters"][string] }) {
+  if (!character) return <p className="mt-5 text-white/45">Карты появятся после старта игры.</p>;
+  const boardCategories = bunkerCharacteristicCategories.filter((category) => category !== "profession");
+  return (
+    <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {boardCategories.map((category, index) => (
+        <BoardCharacterCard
+          key={category}
+          category={category}
+          card={character[category]}
+          revealed={character.revealedCategories.includes(category)}
+          showNextPlaceholder={index === 4}
+        />
+      ))}
+    </div>
+  );
+}
+
+function BoardCharacterCard({
+  category,
+  card,
+  revealed,
+  showNextPlaceholder
+}: {
+  category: Exclude<BunkerCardCategory, "special">;
+  card?: PublicBunkerCard;
+  revealed?: boolean;
+  showNextPlaceholder?: boolean;
+}) {
+  const isHidden = !card || "hidden" in card;
+  if (showNextPlaceholder && isHidden) {
+    return (
+      <article className="relative flex min-h-72 flex-col items-center justify-center overflow-hidden rounded-[1.05rem] border border-[#7f6b57]/45 bg-[#101923] p-4 text-center shadow-soft">
+        <div className="absolute inset-3 rounded-[0.85rem] border border-[#7f6b57]/28" />
+        <div className="text-5xl text-[#7f6b57]/60">✦</div>
+        <p className="mt-6 text-xs font-black uppercase tracking-[0.2em] text-coral">Следующая карта</p>
+        <p className="mt-3 text-sm text-white/45">Пока не раскрыта</p>
+        <p className="mt-5 text-3xl text-[#7f6b57]/55">▣</p>
+      </article>
+    );
+  }
+  return (
+    <article className="relative min-h-72 overflow-hidden rounded-[1.05rem] border border-[#7f6b57]/55 bg-[#eadfcb] p-0 text-[#1d1713] shadow-[0_16px_35px_rgba(0,0,0,0.22)]">
+      <img src={bunkerCardImages[category]} alt="" className={`absolute inset-0 h-full w-full object-cover ${isHidden ? "opacity-70 grayscale" : ""}`} />
+      <div className="absolute inset-x-3 bottom-3 rounded-xl border border-[#7d6554]/50 bg-[#0d151d] px-3 py-3 text-center text-[#f4eee3] shadow-sm">
+        <p className="text-lg font-black leading-5">{cardTitle(card)}</p>
+        <p className="mt-2 text-[0.64rem] font-black uppercase tracking-[0.16em] text-[#d9bfa6]">{revealed ? "раскрыто" : "скрыто"}</p>
+      </div>
+    </article>
   );
 }
 
