@@ -375,7 +375,19 @@ function GameOverPanel({ room, isHost, emitAction }: { room: PublicBunkerRoomSta
 
 function OwnCharacterPanel({ room, character }: { room: PublicBunkerRoomState; character?: PublicBunkerRoomState["characters"][string] }) {
   if (!character) return <Panel title="Ваш персонаж" label="Скрыт"><p>Персонаж появится после старта игры.</p></Panel>;
-  return <Panel title="Ваш персонаж" label="Карты"><div className="grid gap-2">{bunkerCharacteristicCategories.map((category) => <CardLine key={category} label={bunkerCategoryLabels[category]} card={character[category]} own revealed={character.revealedCategories.includes(category)} />)}</div>{character.specialCards.length ? <div className="mt-3 grid gap-2">{character.specialCards.map((card) => <SpecialCardPreview key={card.id} card={card} />)}</div> : null}</Panel>;
+  return (
+    <Panel title="Ваш персонаж" label="Колода">
+      <CharacterDeck character={character} own />
+      {character.specialCards.length ? (
+        <div className="mt-5">
+          <p className="mb-3 text-sm font-black uppercase tracking-[0.18em] text-coral">Спецкарты</p>
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {character.specialCards.map((card) => <SpecialCardPreview key={card.id} card={card} />)}
+          </div>
+        </div>
+      ) : null}
+    </Panel>
+  );
 }
 
 function QuickSpecialCardsPanel({
@@ -460,9 +472,7 @@ function PlayersPanel({ room }: { room: PublicBunkerRoomState }) {
           <h3 className="font-display text-3xl font-semibold">{activePlayer.name}{activePlayer.isHost ? " · хост" : ""}</h3>
           <span className={activePlayer.connected ? "text-sm font-bold text-mint" : "text-sm font-bold text-coral"}>{activePlayer.connected ? "online" : "offline"}</span>
         </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {bunkerCharacteristicCategories.map((category) => <CardLine key={category} label={bunkerCategoryLabels[category]} card={room.characters[activePlayer.id]?.[category]} compact />)}
-        </div>
+        <CharacterDeck character={room.characters[activePlayer.id]} className="mt-4" />
       </article>
     </section>
   );
@@ -584,13 +594,67 @@ function SpecialCardAction({ card, onUse, compact }: { card: BunkerSpecialCard; 
 
 function SpecialCardPreview({ card }: { card: BunkerSpecialCard }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-coral/10 p-3 text-sm">
-      <img src={specialCardImage(card)} alt="" className="h-20 w-12 rounded-md object-cover shadow-sm" />
-      <div>
-        <p className="font-black text-ink dark:text-white">{card.title}</p>
-        <p className="text-xs text-slate-500 dark:text-white/60">{card.used ? "Уже использована" : "Доступна"}</p>
+    <div className="relative h-48 w-28 shrink-0 overflow-hidden rounded-2xl border border-line bg-slate-950 shadow-soft dark:border-white/10">
+      <img src={specialCardImage(card)} alt="" className="h-full w-full object-cover" />
+      <div className="absolute inset-x-2 bottom-2 rounded-xl bg-black/70 p-2 text-center text-white backdrop-blur-sm">
+        <p className="text-[0.62rem] font-black uppercase leading-3">{card.title}</p>
+        <p className="mt-1 text-[0.58rem] text-white/70">{card.used ? "использована" : "доступна"}</p>
       </div>
     </div>
+  );
+}
+
+function CharacterDeck({
+  character,
+  own,
+  className = ""
+}: {
+  character?: PublicBunkerRoomState["characters"][string];
+  own?: boolean;
+  className?: string;
+}) {
+  if (!character) return <p className={`text-slate-400 ${className}`}>Карты появятся после старта игры.</p>;
+  return (
+    <div className={`-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-3 ${className}`}>
+      {bunkerCharacteristicCategories.map((category) => (
+        <CharacterCardTile
+          key={category}
+          category={category}
+          card={character[category]}
+          own={own}
+          revealed={character.revealedCategories.includes(category)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CharacterCardTile({
+  category,
+  card,
+  revealed,
+  own
+}: {
+  category: Exclude<BunkerCardCategory, "special">;
+  card?: PublicBunkerCard;
+  revealed?: boolean;
+  own?: boolean;
+}) {
+  const isHidden = !card || "hidden" in card;
+  const title = cardTitle(card);
+  return (
+    <article className={`group relative h-72 w-36 shrink-0 snap-start overflow-hidden rounded-[1.15rem] border shadow-soft transition hover:-translate-y-1 hover:border-coral ${isHidden ? "border-line bg-slate-200 dark:border-white/10 dark:bg-slate-950" : "border-line bg-stone-100 dark:border-white/10 dark:bg-slate-950"}`}>
+      <img src={bunkerCardImages[category]} alt="" className={`h-full w-full object-cover ${isHidden ? "opacity-35 grayscale" : ""}`} />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/65" />
+      <div className="absolute left-2 right-2 top-2 rounded-xl bg-white/80 px-2 py-1 text-center text-[0.62rem] font-black uppercase tracking-[0.12em] text-slate-700 shadow-sm backdrop-blur-sm dark:bg-slate-950/75 dark:text-white/80">
+        {bunkerCategoryLabels[category]}
+      </div>
+      <div className="absolute inset-x-2 bottom-2 rounded-2xl border border-white/35 bg-white/88 p-2 text-center shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-950/82">
+        <p className="text-[0.72rem] font-black leading-4 text-ink dark:text-white">{title}</p>
+        {own && !revealed ? <p className="mt-1 text-[0.58rem] font-bold uppercase tracking-[0.12em] text-coral">закрыто для других</p> : null}
+        {isHidden ? <p className="mt-1 text-[0.58rem] font-bold uppercase tracking-[0.12em] text-slate-400">не раскрыто</p> : null}
+      </div>
+    </article>
   );
 }
 
