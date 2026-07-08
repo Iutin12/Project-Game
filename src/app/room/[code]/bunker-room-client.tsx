@@ -8,9 +8,33 @@ import { Button } from "@/components/ui/Button";
 import { bunkerCatastrophes } from "@/games/bunker/catastrophes";
 import { bunkerShelters } from "@/games/bunker/shelters";
 import { bunkerCategoryLabels, bunkerCharacteristicCategories } from "@/games/bunker/settings";
-import type { BunkerCardCategory, BunkerSettings, PublicBunkerCard, PublicBunkerRoomState } from "@/games/bunker/types";
+import type { BunkerCardCategory, BunkerSettings, BunkerSpecialCard, PublicBunkerCard, PublicBunkerRoomState } from "@/games/bunker/types";
 
 const LAST_LEFT_ROOM_KEY = "project-game:last-left-room";
+const bunkerCardImages: Record<BunkerCardCategory, string> = {
+  profession: "/bunker-cards/profession.png",
+  age: "/bunker-cards/age.png",
+  gender: "/bunker-cards/gender.png",
+  health: "/bunker-cards/health.png",
+  biology: "/bunker-cards/biology.png",
+  hobby: "/bunker-cards/hobby.png",
+  phobia: "/bunker-cards/phobia.png",
+  baggage: "/bunker-cards/baggage.png",
+  skill: "/bunker-cards/skill.png",
+  character: "/bunker-cards/character.png",
+  fact: "/bunker-cards/fact.png",
+  special: "/bunker-cards/special_reveal_extra.png"
+};
+
+const bunkerSpecialCardImages: Record<string, string> = {
+  special_reveal_extra: "/bunker-cards/special_reveal_extra.png",
+  special_hide_card: "/bunker-cards/special_hide_card.png",
+  special_force_reveal: "/bunker-cards/special_force_reveal.png",
+  special_swap_card: "/bunker-cards/special_swap_card.png",
+  special_protect_vote: "/bunker-cards/special_protect_vote.png",
+  special_revote: "/bunker-cards/special_revote.png",
+  special_cancel_special: "/bunker-cards/special_cancel_special.png"
+};
 
 type Ack = { ok: boolean; error?: string; playerId?: string };
 type Tab = "game" | "players" | "chat" | "settings";
@@ -43,6 +67,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
   const [tab, setTab] = useState<Tab>("game");
   const [seenChatCount, setSeenChatCount] = useState(0);
   const [unreadAnchorId, setUnreadAnchorId] = useState<string | null>(null);
+  const [keepUnreadDivider, setKeepUnreadDivider] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const previousChatCountRef = useRef(0);
 
@@ -52,7 +77,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
   const isHost = Boolean(ownPlayer?.isHost);
   const alivePlayers = useMemo(() => room?.players.filter((player) => player.status === "alive") ?? [], [room?.players]);
   const connectedCount = room?.players.filter((player) => player.connected).length ?? 0;
-  const unreadChatCount = tab === "chat" ? 0 : Math.max(0, (room?.chatMessages.length ?? 0) - seenChatCount);
+  const unreadChatCount = Math.max(0, (room?.chatMessages.length ?? 0) - seenChatCount);
 
   useEffect(() => {
     const nextSocket = io({ path: "/socket.io" });
@@ -85,14 +110,17 @@ export function BunkerRoomClient({ code }: { code: string }) {
     const chatCount = room?.chatMessages.length ?? 0;
     const previousCount = previousChatCountRef.current;
 
-    if (chatCount > previousCount && tab !== "chat" && !unreadAnchorId) {
+    if (chatCount > previousCount && !unreadAnchorId) {
       setUnreadAnchorId(room?.chatMessages[previousCount]?.id ?? null);
+      setKeepUnreadDivider(true);
     }
 
     if (tab === "chat") {
       requestAnimationFrame(() => {
         const chatScroll = chatScrollRef.current;
-        if (chatScroll) chatScroll.scrollTo({ top: chatScroll.scrollHeight, behavior: "smooth" });
+        if (!chatScroll) return;
+        const isNearBottom = chatScroll.scrollHeight - chatScroll.scrollTop - chatScroll.clientHeight < 120;
+        if (isNearBottom || chatCount > previousCount) chatScroll.scrollTo({ top: chatScroll.scrollHeight, behavior: "smooth" });
       });
     }
 
@@ -100,13 +128,24 @@ export function BunkerRoomClient({ code }: { code: string }) {
   }, [room?.chatMessages, tab, unreadAnchorId]);
 
   useEffect(() => {
-    if (tab !== "chat") return undefined;
-    const timer = window.setTimeout(() => {
+    if (tab !== "chat" || !room) return undefined;
+    const chatScroll = chatScrollRef.current;
+    const markSeenIfBottom = () => {
+      const current = chatScrollRef.current;
+      if (!current) return;
+      const isAtBottom = current.scrollHeight - current.scrollTop - current.clientHeight < 8;
+      if (!isAtBottom) return;
       setSeenChatCount(room?.chatMessages.length ?? 0);
       setUnreadAnchorId(null);
-    }, unreadAnchorId ? 1600 : 0);
-    return () => window.clearTimeout(timer);
-  }, [room?.chatMessages.length, tab, unreadAnchorId]);
+      setKeepUnreadDivider(false);
+    };
+    chatScroll?.addEventListener("scroll", markSeenIfBottom);
+    const timer = window.setTimeout(markSeenIfBottom, keepUnreadDivider ? 1800 : 0);
+    return () => {
+      chatScroll?.removeEventListener("scroll", markSeenIfBottom);
+      window.clearTimeout(timer);
+    };
+  }, [room, tab, keepUnreadDivider]);
 
   useEffect(() => {
     if (!room || room.phase === "GAME_OVER") return undefined;
@@ -220,6 +259,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
               <MainGamePanel room={room} ownCharacter={ownCharacter} isHost={isHost} emitAction={emitAction} />
               <aside className="space-y-5">
                 <OwnCharacterPanel room={room} character={ownCharacter} />
+                {room.catastrophe && room.shelter ? <ScenarioSummaryPanel room={room} /> : null}
                 {room.phase !== "LOBBY" && room.phase !== "GAME_OVER" ? <QuickSpecialCardsPanel character={ownCharacter} emitAction={emitAction} /> : null}
                 <PlayersMini players={alivePlayers} />
               </aside>
@@ -235,11 +275,31 @@ function MainGamePanel({ room, ownCharacter, isHost, emitAction }: { room: Publi
   const ownRevealed = new Set(ownCharacter?.revealedCategories ?? []);
   const currentCategory = room.currentRevealCategory;
   const revealOptions = bunkerCharacteristicCategories.filter((category) => !ownRevealed.has(category) && room.settings.enabledCardCategories.includes(category));
+  const alreadyRevealedThisRound = room.revealedThisRoundPlayerIds.includes(room.ownPlayerId);
 
   if (room.phase === "LOBBY") return <Panel title="Ожидаем игроков" label="Лобби"><p>Минимум 4 игрока. Хост может настроить режим, количество мест, таймеры, спецкарты и голосование.</p><Stats room={room} /></Panel>;
   if (room.phase === "SCENARIO_REVEAL") return <ScenarioPanel room={room} onReady={() => emitAction("bunker:ready")} />;
   if (room.phase === "CHARACTER_PREVIEW") return <ReadyPanel room={room} title="Ваш персонаж" text="Посмотрите свои скрытые характеристики. Когда будете готовы, нажмите кнопку." onReady={() => emitAction("bunker:ready")} />;
-  if (room.phase === "REVEAL_ROUND") return <Panel title={`Раунд ${room.currentRound}`} label="Раскрытие"><p>Выберите любую удобную характеристику, которую хотите раскрыть сейчас. Подсказка раунда: {currentCategory ? bunkerCategoryLabels[currentCategory] : "любая карта"}.</p><div className="mt-4 flex flex-wrap gap-2">{revealOptions.map((category) => <Button key={category} disabled={ownRevealed.has(category)} onClick={() => emitAction("bunker:reveal_card", { category })}>Раскрыть {bunkerCategoryLabels[category]}</Button>)}</div>{isHost ? <Button variant="secondary" className="mt-3" onClick={() => emitAction("bunker:next_phase")}>К обсуждению</Button> : null}</Panel>;
+  if (room.phase === "REVEAL_ROUND") return (
+    <Panel title={`Раунд ${room.currentRound}`} label="Раскрытие">
+      <p>Выберите одну характеристику, которую хотите раскрыть в этом раунде. Подсказка раунда: {currentCategory ? bunkerCategoryLabels[currentCategory] : "любая карта"}.</p>
+      {alreadyRevealedThisRound ? <p className="mt-3 rounded-2xl bg-mint/10 p-3 text-sm font-bold text-mint">Вы уже раскрыли характеристику в этом раунде.</p> : null}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {revealOptions.map((category) => (
+          <button
+            key={category}
+            disabled={alreadyRevealedThisRound || ownRevealed.has(category)}
+            className="flex items-center gap-3 rounded-2xl border border-line bg-slate-100/80 p-3 text-left font-bold transition hover:border-coral disabled:cursor-not-allowed disabled:opacity-45 dark:border-white/10 dark:bg-slate-950/45"
+            onClick={() => emitAction("bunker:reveal_card", { category })}
+          >
+            <img src={bunkerCardImages[category]} alt="" className="h-20 w-10 rounded-md object-cover shadow-sm" />
+            <span>Раскрыть {bunkerCategoryLabels[category]}</span>
+          </button>
+        ))}
+      </div>
+      {isHost ? <Button variant="secondary" className="mt-3" onClick={() => emitAction("bunker:next_phase")}>К обсуждению</Button> : null}
+    </Panel>
+  );
   if (room.phase === "DISCUSSION") return <Panel title="Обсуждение" label="Аргументы"><p>Обсудите, кто будет полезен при катастрофе и условиях бункера. Используйте раскрытые характеристики.</p>{room.settings.useTimer ? (isHost ? <Button className="mt-5" onClick={() => emitAction("bunker:next_phase")}>К голосованию</Button> : null) : <ReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Перейти к голосованию" readyLabel="Готов к голосованию" />}</Panel>;
   if (room.phase === "SPECIAL_ACTIONS") return <SpecialPanel room={room} ownCharacter={ownCharacter} emitAction={emitAction} />;
   if (room.phase === "VOTING" || room.phase === "REVOTE") return <VotingPanel room={room} emitAction={emitAction} isHost={isHost} />;
@@ -294,7 +354,7 @@ function ReadyFooter({
 
 function SpecialPanel({ room, ownCharacter, emitAction }: { room: PublicBunkerRoomState; ownCharacter: PublicBunkerRoomState["characters"][string] | undefined; emitAction: (event: string, payload?: unknown) => void }) {
   const cards = ownCharacter?.specialCards.filter((card) => !card.used) ?? [];
-  return <Panel title="Специальные действия" label="Спецкарты">{cards.length === 0 ? <p>У вас нет доступных спецкарт.</p> : <div className="grid gap-3">{cards.map((card) => <article key={card.id} className="rounded-2xl border border-line bg-slate-100/80 p-3 dark:border-white/10 dark:bg-slate-950/50"><h3 className="font-bold">{card.title}</h3><p className="mt-1 text-sm text-slate-500 dark:text-white/60">{card.description}</p><Button className="mt-3" onClick={() => emitAction("bunker:use_special_card", { cardId: card.id })}>Использовать</Button></article>)}</div>}<Button variant="secondary" className="mt-4" onClick={() => emitAction("bunker:next_phase")}>Пропустить и голосовать</Button></Panel>;
+  return <Panel title="Специальные действия" label="Спецкарты">{cards.length === 0 ? <p>У вас нет доступных спецкарт.</p> : <div className="grid gap-3">{cards.map((card) => <SpecialCardAction key={card.id} card={card} onUse={() => emitAction("bunker:use_special_card", { cardId: card.id })} />)}</div>}<Button variant="secondary" className="mt-4" onClick={() => emitAction("bunker:next_phase")}>Пропустить и голосовать</Button></Panel>;
 }
 
 function VotingPanel({ room, isHost, emitAction }: { room: PublicBunkerRoomState; isHost: boolean; emitAction: (event: string, payload?: unknown) => void }) {
@@ -315,7 +375,7 @@ function GameOverPanel({ room, isHost, emitAction }: { room: PublicBunkerRoomSta
 
 function OwnCharacterPanel({ room, character }: { room: PublicBunkerRoomState; character?: PublicBunkerRoomState["characters"][string] }) {
   if (!character) return <Panel title="Ваш персонаж" label="Скрыт"><p>Персонаж появится после старта игры.</p></Panel>;
-  return <Panel title="Ваш персонаж" label="Карты"><div className="grid gap-2">{bunkerCharacteristicCategories.map((category) => <CardLine key={category} label={bunkerCategoryLabels[category]} card={character[category]} own revealed={character.revealedCategories.includes(category)} />)}</div>{character.specialCards.length ? <div className="mt-3 rounded-2xl bg-coral/10 p-3 text-sm"><b>Спецкарта:</b> {character.specialCards.map((card) => card.title).join(", ")}</div> : null}</Panel>;
+  return <Panel title="Ваш персонаж" label="Карты"><div className="grid gap-2">{bunkerCharacteristicCategories.map((category) => <CardLine key={category} label={bunkerCategoryLabels[category]} card={character[category]} own revealed={character.revealedCategories.includes(category)} />)}</div>{character.specialCards.length ? <div className="mt-3 grid gap-2">{character.specialCards.map((card) => <SpecialCardPreview key={card.id} card={card} />)}</div> : null}</Panel>;
 }
 
 function QuickSpecialCardsPanel({
@@ -333,15 +393,30 @@ function QuickSpecialCardsPanel({
       <p className="text-sm">Можно применить в подходящий момент игры отдельной кнопкой.</p>
       <div className="mt-3 space-y-2">
         {cards.map((card) => (
-          <article key={card.id} className="rounded-2xl border border-line bg-slate-100/80 p-3 dark:border-white/10 dark:bg-slate-950/45">
-            <h3 className="font-bold text-ink dark:text-white">{card.title}</h3>
-            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-white/60">{card.description}</p>
-            <Button className="mt-3 w-full" onClick={() => emitAction("bunker:use_special_card", { cardId: card.id })}>
-              Применить спецкарту
-            </Button>
-          </article>
+          <SpecialCardAction key={card.id} card={card} compact onUse={() => emitAction("bunker:use_special_card", { cardId: card.id })} />
         ))}
       </div>
+    </Panel>
+  );
+}
+
+function ScenarioSummaryPanel({ room }: { room: PublicBunkerRoomState }) {
+  return (
+    <Panel title="Сценарий" label="Памятка">
+      <details className="rounded-2xl border border-line bg-slate-100/80 p-3 dark:border-white/10 dark:bg-slate-950/45" open>
+        <summary className="cursor-pointer font-bold text-ink dark:text-white">{room.catastrophe?.title}</summary>
+        <p className="mt-2 text-sm leading-6">{room.catastrophe?.fullDescription}</p>
+        <p className="mt-2 text-sm font-bold">Цель: {room.catastrophe?.survivalGoal}</p>
+      </details>
+      <details className="mt-3 rounded-2xl border border-line bg-slate-100/80 p-3 dark:border-white/10 dark:bg-slate-950/45">
+        <summary className="cursor-pointer font-bold text-ink dark:text-white">{room.shelter?.title}</summary>
+        <p className="mt-2 text-sm leading-6">{room.shelter?.description}</p>
+        <p className="mt-2 text-sm">Мест: {room.bunkerSlots} · Запасов: {room.shelter?.durationMonths} мес.</p>
+        <p className="mt-2 text-sm">Комнаты: {room.shelter?.rooms.join(", ")}</p>
+        <p className="mt-2 text-sm">Ресурсы: {room.shelter?.resources.join(", ")}</p>
+        <p className="mt-2 text-sm">Проблемы: {room.shelter?.problems.join(", ")}</p>
+        <p className="mt-2 text-sm">Плюсы: {room.shelter?.bonuses.join(", ")}</p>
+      </details>
     </Panel>
   );
 }
@@ -494,7 +569,44 @@ function Setting({ title, hint, children }: { title: string; hint: string; child
 function Hint({ text }: { text: string }) { return <span className="group relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-coral/15 text-xs font-black text-coral">?<span className="pointer-events-none absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-2xl border border-line bg-white p-3 text-xs font-semibold leading-5 text-slate-600 opacity-0 shadow-soft transition group-hover:opacity-100 dark:border-white/10 dark:bg-slate-900 dark:text-white/75">{text}</span></span>; }
 function CustomSelect({ value, options, disabled, onChange }: { value: string; options: SelectOption[]; disabled: boolean; onChange: (value: string) => void }) { const [open, setOpen] = useState(false); const selected = options.find((option) => option.value === value) ?? options[0]; return <div className="relative"><button type="button" disabled={disabled} className="flex w-full items-center justify-between rounded-2xl border border-line bg-white px-4 py-3 text-left font-bold text-ink shadow-sm disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-white" onClick={() => setOpen((current) => !current)}><span>{selected?.label}</span><span className="text-coral">⌄</span></button>{open && !disabled ? <div className="absolute z-30 mt-2 max-h-60 w-full overflow-y-auto rounded-2xl border border-line bg-white p-2 shadow-soft dark:border-white/10 dark:bg-slate-900">{options.map((option) => <button key={option.value} type="button" className={`w-full rounded-xl px-3 py-2 text-left text-sm font-bold ${option.value === value ? "bg-coral text-white" : "text-slate-600 hover:bg-slate-100 dark:text-white/70 dark:hover:bg-white/10"}`} onClick={() => { onChange(option.value); setOpen(false); }}>{option.label}</button>)}</div> : null}</div>; }
 function Toggle({ checked, disabled, onChange, children }: { checked: boolean; disabled: boolean; onChange: (value: boolean) => void; children: React.ReactNode }) { return <button type="button" disabled={disabled} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-white p-3 text-left font-bold disabled:opacity-50 dark:border-white/10 dark:bg-slate-900" onClick={() => onChange(!checked)}><span>{children}</span><span className={`relative h-7 w-12 rounded-full transition ${checked ? "bg-coral" : "bg-slate-300 dark:bg-slate-700"}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${checked ? "left-6" : "left-1"}`} /></span></button>; }
-function CardLine({ label, card, revealed, own, compact }: { label: string; card?: PublicBunkerCard; revealed?: boolean; own?: boolean; compact?: boolean }) { return <div className={`flex justify-between gap-3 rounded-2xl bg-slate-100/80 text-sm dark:bg-slate-950/45 ${compact ? "p-2" : "p-3"}`}><span className="font-bold text-slate-500">{label}</span><span className="text-right font-semibold">{cardTitle(card)}{own && !revealed ? " · закрыто" : ""}</span></div>; }
+function SpecialCardAction({ card, onUse, compact }: { card: BunkerSpecialCard; onUse: () => void; compact?: boolean }) {
+  return (
+    <article className={`grid grid-cols-[4.25rem_minmax(0,1fr)] gap-3 rounded-2xl border border-line bg-slate-100/80 p-3 dark:border-white/10 dark:bg-slate-950/45 ${compact ? "items-center" : ""}`}>
+      <img src={specialCardImage(card)} alt="" className="h-28 w-16 rounded-lg object-cover shadow-sm" />
+      <div>
+        <h3 className="font-bold text-ink dark:text-white">{card.title}</h3>
+        <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-white/60">{card.description}</p>
+        <Button className="mt-3 w-full" onClick={onUse}>Применить спецкарту</Button>
+      </div>
+    </article>
+  );
+}
+
+function SpecialCardPreview({ card }: { card: BunkerSpecialCard }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-coral/10 p-3 text-sm">
+      <img src={specialCardImage(card)} alt="" className="h-20 w-12 rounded-md object-cover shadow-sm" />
+      <div>
+        <p className="font-black text-ink dark:text-white">{card.title}</p>
+        <p className="text-xs text-slate-500 dark:text-white/60">{card.used ? "Уже использована" : "Доступна"}</p>
+      </div>
+    </div>
+  );
+}
+
+function CardLine({ label, card, revealed, own, compact }: { label: string; card?: PublicBunkerCard; revealed?: boolean; own?: boolean; compact?: boolean }) {
+  const category = card?.category ?? "special";
+  return (
+    <div className={`flex items-center justify-between gap-3 rounded-2xl bg-slate-100/80 text-sm dark:bg-slate-950/45 ${compact ? "p-2" : "p-3"}`}>
+      <div className="flex min-w-0 items-center gap-3">
+        <img src={bunkerCardImages[category]} alt="" className={`${compact ? "h-14 w-7" : "h-20 w-10"} shrink-0 rounded-md object-cover shadow-sm`} />
+        <span className="font-bold text-slate-500">{label}</span>
+      </div>
+      <span className="text-right font-semibold">{cardTitle(card)}{own && !revealed ? " · закрыто" : ""}</span>
+    </div>
+  );
+}
+function specialCardImage(card: BunkerSpecialCard) { return bunkerSpecialCardImages[card.id.split("_").slice(0, 3).join("_")] ?? bunkerSpecialCardImages[card.id.replace(/_[a-z0-9]+$/i, "")] ?? bunkerCardImages.special; }
 function cardTitle(card?: PublicBunkerCard) { return !card ? "-" : "hidden" in card ? "Скрыто" : card.title; }
 function PlayersMini({ players }: { players: PublicBunkerRoomState["players"] }) { return <Panel title="Живые игроки" label="Состав"><div className="max-h-72 space-y-2 overflow-y-auto pr-1">{players.map((player) => <p key={player.id} className="rounded-2xl bg-slate-100/80 p-3 font-bold dark:bg-slate-950/45">{player.name}</p>)}</div></Panel>; }
 function Stats({ room }: { room: PublicBunkerRoomState }) { return <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl bg-slate-100/80 p-3 dark:bg-slate-950/45">Мест: {room.settings.bunkerSlots === "auto" ? "авто" : room.settings.bunkerSlots}</div><div className="rounded-2xl bg-slate-100/80 p-3 dark:bg-slate-950/45">Режим: {room.settings.gameMode === "classic" ? "классика" : "быстрый"}</div><div className="rounded-2xl bg-slate-100/80 p-3 dark:bg-slate-950/45">Спецкарты: {room.settings.useSpecialCards ? "вкл" : "выкл"}</div></div>; }

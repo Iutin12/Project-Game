@@ -169,6 +169,7 @@ export type BunkerRoomState = {
   currentRound: number;
   revealOrder: BunkerCardCategory[];
   currentRevealCategory?: BunkerCardCategory;
+  revealedThisRoundPlayerIds: string[];
   readyPlayerIds: string[];
   votes: BunkerVote;
   revoteCandidateIds?: string[];

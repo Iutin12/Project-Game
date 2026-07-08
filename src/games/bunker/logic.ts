@@ -21,6 +21,7 @@ export function createEmptyBunkerRoom(code: string, hostKey: string, visibility:
     characters: {},
     currentRound: 0,
     revealOrder: [],
+    revealedThisRoundPlayerIds: [],
     readyPlayerIds: [],
     votes: {},
     protectedPlayerIds: [],
@@ -49,6 +50,7 @@ export function startBunkerGame(room: BunkerRoomState) {
   room.currentRound = 1;
   room.revealOrder = buildRevealOrder(settings);
   room.currentRevealCategory = room.revealOrder[0];
+  room.revealedThisRoundPlayerIds = [];
   room.readyPlayerIds = [];
   room.votes = {};
   room.protectedPlayerIds = [];
@@ -64,7 +66,11 @@ export function revealBunkerCard(room: BunkerRoomState, playerId: string, catego
   if (category === "special") return { ok: false, error: "Спецкарты раскрываются через действие" };
   if (!room.settings.enabledCardCategories.includes(category)) return { ok: false, error: "Категория выключена" };
   if (character.revealedCategories.includes(category)) return { ok: false, error: "Эта характеристика уже раскрыта" };
+  if (room.phase === "REVEAL_ROUND" && room.revealedThisRoundPlayerIds.includes(playerId)) {
+    return { ok: false, error: "В этом раунде можно раскрыть только одну характеристику" };
+  }
   character.revealedCategories = [...character.revealedCategories, category];
+  if (room.phase === "REVEAL_ROUND") room.revealedThisRoundPlayerIds = [...new Set([...room.revealedThisRoundPlayerIds, playerId])];
   addEvent(room, `${player.name} раскрыл(а): ${category}`);
   return { ok: true };
 }
@@ -131,7 +137,9 @@ export function useBunkerSpecialCard(room: BunkerRoomState, playerId: string, ca
       category && category !== "special"
         ? category
         : bunkerCharacteristicCategories.find((item) => targetCharacter && !targetCharacter.revealedCategories.includes(item));
-    if (targetId && revealCategory) revealBunkerCard(room, targetId, revealCategory);
+    if (targetId && targetCharacter && revealCategory && !targetCharacter.revealedCategories.includes(revealCategory)) {
+      targetCharacter.revealedCategories = [...targetCharacter.revealedCategories, revealCategory];
+    }
   }
   if (card.type === "swap_card") {
     const fresh = bunkerCards.fact[Math.floor(Math.random() * bunkerCards.fact.length)];
@@ -201,6 +209,7 @@ export function restartBunkerGame(room: BunkerRoomState) {
   room.characters = {};
   room.currentRound = 0;
   room.currentRevealCategory = undefined;
+  room.revealedThisRoundPlayerIds = [];
   room.readyPlayerIds = [];
   room.votes = {};
   room.revoteCandidateIds = undefined;
@@ -219,6 +228,7 @@ function nextRoundOrFinish(room: BunkerRoomState) {
   }
   room.currentRound += 1;
   room.currentRevealCategory = room.settings.revealMode === "fixed_order" ? room.revealOrder[(room.currentRound - 1) % room.revealOrder.length] : undefined;
+  room.revealedThisRoundPlayerIds = [];
   room.phase = "REVEAL_ROUND";
 }
 
