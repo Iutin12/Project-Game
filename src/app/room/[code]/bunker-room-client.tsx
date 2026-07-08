@@ -42,7 +42,9 @@ export function BunkerRoomClient({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState<Tab>("game");
   const [seenChatCount, setSeenChatCount] = useState(0);
-  const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const [unreadAnchorId, setUnreadAnchorId] = useState<string | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const previousChatCountRef = useRef(0);
 
   const inviteUrl = typeof window === "undefined" ? "" : `${window.location.origin}/room/${code}`;
   const ownPlayer = room?.players.find((player) => player.id === room.ownPlayerId);
@@ -80,10 +82,31 @@ export function BunkerRoomClient({ code }: { code: string }) {
   }, [code]);
 
   useEffect(() => {
-    if (tab !== "chat") return;
-    setSeenChatCount(room?.chatMessages.length ?? 0);
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [room?.chatMessages.length, tab]);
+    const chatCount = room?.chatMessages.length ?? 0;
+    const previousCount = previousChatCountRef.current;
+
+    if (chatCount > previousCount && tab !== "chat" && !unreadAnchorId) {
+      setUnreadAnchorId(room?.chatMessages[previousCount]?.id ?? null);
+    }
+
+    if (tab === "chat") {
+      requestAnimationFrame(() => {
+        const chatScroll = chatScrollRef.current;
+        if (chatScroll) chatScroll.scrollTo({ top: chatScroll.scrollHeight, behavior: "smooth" });
+      });
+    }
+
+    previousChatCountRef.current = chatCount;
+  }, [room?.chatMessages, tab, unreadAnchorId]);
+
+  useEffect(() => {
+    if (tab !== "chat") return undefined;
+    const timer = window.setTimeout(() => {
+      setSeenChatCount(room?.chatMessages.length ?? 0);
+      setUnreadAnchorId(null);
+    }, unreadAnchorId ? 1600 : 0);
+    return () => window.clearTimeout(timer);
+  }, [room?.chatMessages.length, tab, unreadAnchorId]);
 
   useEffect(() => {
     if (!room || room.phase === "GAME_OVER") return undefined;
@@ -190,13 +213,14 @@ export function BunkerRoomClient({ code }: { code: string }) {
           {error ? <p className="mt-4 rounded-2xl border border-coral/30 bg-coral/10 p-3 text-sm text-coral">{error}</p> : null}
 
           {tab === "settings" ? <SettingsPanel room={room} isHost={isHost} updateSettings={(patch) => emitAction("bunker:update_settings", patch)} /> : null}
-          {tab === "chat" ? <ChatPanel room={room} message={message} setMessage={setMessage} sendMessage={sendMessage} chatEndRef={chatEndRef} /> : null}
+          {tab === "chat" ? <ChatPanel room={room} message={message} setMessage={setMessage} sendMessage={sendMessage} chatScrollRef={chatScrollRef} unreadAnchorId={unreadAnchorId} /> : null}
           {tab === "players" ? <PlayersPanel room={room} /> : null}
           {tab === "game" ? (
             <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.55fr)]">
               <MainGamePanel room={room} ownCharacter={ownCharacter} isHost={isHost} emitAction={emitAction} />
               <aside className="space-y-5">
                 <OwnCharacterPanel room={room} character={ownCharacter} />
+                {room.phase !== "LOBBY" && room.phase !== "GAME_OVER" ? <QuickSpecialCardsPanel character={ownCharacter} emitAction={emitAction} /> : null}
                 <PlayersMini players={alivePlayers} />
               </aside>
             </div>
@@ -210,13 +234,13 @@ export function BunkerRoomClient({ code }: { code: string }) {
 function MainGamePanel({ room, ownCharacter, isHost, emitAction }: { room: PublicBunkerRoomState; ownCharacter: PublicBunkerRoomState["characters"][string] | undefined; isHost: boolean; emitAction: (event: string, payload?: unknown) => void }) {
   const ownRevealed = new Set(ownCharacter?.revealedCategories ?? []);
   const currentCategory = room.currentRevealCategory;
-  const revealOptions = room.settings.revealMode === "free_choice" ? bunkerCharacteristicCategories.filter((category) => !ownRevealed.has(category)) : currentCategory ? [currentCategory] : [];
+  const revealOptions = bunkerCharacteristicCategories.filter((category) => !ownRevealed.has(category) && room.settings.enabledCardCategories.includes(category));
 
   if (room.phase === "LOBBY") return <Panel title="Ожидаем игроков" label="Лобби"><p>Минимум 4 игрока. Хост может настроить режим, количество мест, таймеры, спецкарты и голосование.</p><Stats room={room} /></Panel>;
   if (room.phase === "SCENARIO_REVEAL") return <ScenarioPanel room={room} onReady={() => emitAction("bunker:ready")} />;
   if (room.phase === "CHARACTER_PREVIEW") return <ReadyPanel room={room} title="Ваш персонаж" text="Посмотрите свои скрытые характеристики. Когда будете готовы, нажмите кнопку." onReady={() => emitAction("bunker:ready")} />;
-  if (room.phase === "REVEAL_ROUND") return <Panel title={`Раунд ${room.currentRound}`} label="Раскрытие"><p>{room.settings.revealMode === "fixed_order" ? `Раскрывается категория: ${currentCategory ? bunkerCategoryLabels[currentCategory] : "любая"}.` : "Выберите характеристику, которую хотите раскрыть."}</p><div className="mt-4 flex flex-wrap gap-2">{revealOptions.map((category) => <Button key={category} disabled={ownRevealed.has(category)} onClick={() => emitAction("bunker:reveal_card", { category })}>Раскрыть {bunkerCategoryLabels[category]}</Button>)}</div>{isHost ? <Button variant="secondary" className="mt-3" onClick={() => emitAction("bunker:next_phase")}>К обсуждению</Button> : null}</Panel>;
-  if (room.phase === "DISCUSSION") return <Panel title="Обсуждение" label="Аргументы"><p>Обсудите, кто будет полезен при катастрофе и условиях бункера. Используйте раскрытые характеристики.</p>{isHost ? <Button className="mt-5" onClick={() => emitAction("bunker:next_phase")}>{room.settings.useSpecialCards ? "К спецкартам" : "К голосованию"}</Button> : null}</Panel>;
+  if (room.phase === "REVEAL_ROUND") return <Panel title={`Раунд ${room.currentRound}`} label="Раскрытие"><p>Выберите любую удобную характеристику, которую хотите раскрыть сейчас. Подсказка раунда: {currentCategory ? bunkerCategoryLabels[currentCategory] : "любая карта"}.</p><div className="mt-4 flex flex-wrap gap-2">{revealOptions.map((category) => <Button key={category} disabled={ownRevealed.has(category)} onClick={() => emitAction("bunker:reveal_card", { category })}>Раскрыть {bunkerCategoryLabels[category]}</Button>)}</div>{isHost ? <Button variant="secondary" className="mt-3" onClick={() => emitAction("bunker:next_phase")}>К обсуждению</Button> : null}</Panel>;
+  if (room.phase === "DISCUSSION") return <Panel title="Обсуждение" label="Аргументы"><p>Обсудите, кто будет полезен при катастрофе и условиях бункера. Используйте раскрытые характеристики.</p>{room.settings.useTimer ? (isHost ? <Button className="mt-5" onClick={() => emitAction("bunker:next_phase")}>К голосованию</Button> : null) : <ReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Перейти к голосованию" readyLabel="Готов к голосованию" />}</Panel>;
   if (room.phase === "SPECIAL_ACTIONS") return <SpecialPanel room={room} ownCharacter={ownCharacter} emitAction={emitAction} />;
   if (room.phase === "VOTING" || room.phase === "REVOTE") return <VotingPanel room={room} emitAction={emitAction} isHost={isHost} />;
   if (room.phase === "VOTING_RESULT") return <VotingResultPanel room={room} isHost={isHost} emitAction={emitAction} />;
@@ -245,12 +269,22 @@ function ReadyPanel({ room, title, text, onReady }: { room: PublicBunkerRoomStat
   return <Panel title={title} label="Готовность"><p>{text}</p><ReadyFooter room={room} onReady={onReady} /></Panel>;
 }
 
-function ReadyFooter({ room, onReady }: { room: PublicBunkerRoomState; onReady: () => void }) {
+function ReadyFooter({
+  room,
+  onReady,
+  actionLabel = "Я готов",
+  readyLabel = "Готовность отмечена"
+}: {
+  room: PublicBunkerRoomState;
+  onReady: () => void;
+  actionLabel?: string;
+  readyLabel?: string;
+}) {
   const aliveCount = room.players.filter((player) => player.status === "alive").length;
   const isReady = room.readyPlayerIds.includes(room.ownPlayerId);
   return (
     <div className="mt-5 flex flex-wrap items-center gap-3">
-      <Button onClick={onReady} disabled={isReady}>{isReady ? "Готовность отмечена" : "Я готов"}</Button>
+      <Button onClick={onReady} disabled={isReady}>{isReady ? readyLabel : actionLabel}</Button>
       <span className="rounded-full bg-slate-100 px-3 py-2 text-sm font-bold text-slate-500 dark:bg-slate-950/50 dark:text-white/60">
         Готовы: {room.readyPlayerIds.length} / {aliveCount}
       </span>
@@ -282,6 +316,34 @@ function GameOverPanel({ room, isHost, emitAction }: { room: PublicBunkerRoomSta
 function OwnCharacterPanel({ room, character }: { room: PublicBunkerRoomState; character?: PublicBunkerRoomState["characters"][string] }) {
   if (!character) return <Panel title="Ваш персонаж" label="Скрыт"><p>Персонаж появится после старта игры.</p></Panel>;
   return <Panel title="Ваш персонаж" label="Карты"><div className="grid gap-2">{bunkerCharacteristicCategories.map((category) => <CardLine key={category} label={bunkerCategoryLabels[category]} card={character[category]} own revealed={character.revealedCategories.includes(category)} />)}</div>{character.specialCards.length ? <div className="mt-3 rounded-2xl bg-coral/10 p-3 text-sm"><b>Спецкарта:</b> {character.specialCards.map((card) => card.title).join(", ")}</div> : null}</Panel>;
+}
+
+function QuickSpecialCardsPanel({
+  character,
+  emitAction
+}: {
+  character?: PublicBunkerRoomState["characters"][string];
+  emitAction: (event: string, payload?: unknown) => void;
+}) {
+  const cards = character?.specialCards.filter((card) => !card.used) ?? [];
+  if (cards.length === 0) return null;
+
+  return (
+    <Panel title="Спецкарты" label="Быстрое действие">
+      <p className="text-sm">Можно применить в подходящий момент игры отдельной кнопкой.</p>
+      <div className="mt-3 space-y-2">
+        {cards.map((card) => (
+          <article key={card.id} className="rounded-2xl border border-line bg-slate-100/80 p-3 dark:border-white/10 dark:bg-slate-950/45">
+            <h3 className="font-bold text-ink dark:text-white">{card.title}</h3>
+            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-white/60">{card.description}</p>
+            <Button className="mt-3 w-full" onClick={() => emitAction("bunker:use_special_card", { cardId: card.id })}>
+              Применить спецкарту
+            </Button>
+          </article>
+        ))}
+      </div>
+    </Panel>
+  );
 }
 
 function PlayersPanel({ room }: { room: PublicBunkerRoomState }) {
@@ -331,8 +393,59 @@ function PlayersPanel({ room }: { room: PublicBunkerRoomState }) {
   );
 }
 
-function ChatPanel({ room, message, setMessage, sendMessage, chatEndRef }: { room: PublicBunkerRoomState; message: string; setMessage: (value: string) => void; sendMessage: () => void; chatEndRef: React.RefObject<HTMLDivElement> }) {
-  return <section className="mt-5 flex min-h-[34rem] flex-col rounded-[1.5rem] border border-line bg-white/85 p-5 shadow-soft dark:border-white/10 dark:bg-slate-900/70"><div className="flex items-center justify-between"><h2 className="font-display text-3xl font-semibold">Чат комнаты</h2><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-500 dark:bg-slate-950/50 dark:text-white/60">{room.chatMessages.length}</span></div><div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto rounded-[1.25rem] bg-slate-100/80 p-4 dark:bg-slate-950/45">{room.chatMessages.length === 0 ? <p className="text-slate-400">Пока нет сообщений.</p> : null}{room.chatMessages.map((item) => <article key={item.id} className="rounded-2xl bg-white p-3 text-slate-700 dark:bg-slate-900 dark:text-white/80"><p className="text-sm font-bold text-coral">{item.playerName}</p><p>{item.text}</p></article>)}<div ref={chatEndRef} /></div><div className="mt-4 flex gap-2"><input className="min-w-0 flex-1 rounded-2xl border border-line bg-slate-100/80 px-4 py-3 outline-none focus:border-coral dark:border-white/10 dark:bg-slate-950/70" placeholder="Написать сообщение..." value={message} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => event.key === "Enter" && sendMessage()} /><Button onClick={sendMessage} disabled={!message.trim()}>Отправить</Button></div></section>;
+function ChatPanel({
+  room,
+  message,
+  setMessage,
+  sendMessage,
+  chatScrollRef,
+  unreadAnchorId
+}: {
+  room: PublicBunkerRoomState;
+  message: string;
+  setMessage: (value: string) => void;
+  sendMessage: () => void;
+  chatScrollRef: React.RefObject<HTMLDivElement>;
+  unreadAnchorId: string | null;
+}) {
+  return (
+    <section className="mt-5 flex h-[34rem] min-h-0 flex-col rounded-[1.5rem] border border-line bg-white/85 p-5 shadow-soft dark:border-white/10 dark:bg-slate-900/70">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-3xl font-semibold">Чат комнаты</h2>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-500 dark:bg-slate-950/50 dark:text-white/60">
+          {room.chatMessages.length}
+        </span>
+      </div>
+      <div ref={chatScrollRef} className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto rounded-[1.25rem] bg-slate-100/80 p-4 dark:bg-slate-950/45">
+        {room.chatMessages.length === 0 ? <p className="text-slate-400">Пока нет сообщений.</p> : null}
+        {room.chatMessages.map((item) => (
+          <div key={item.id}>
+            {unreadAnchorId === item.id ? (
+              <div className="my-3 flex items-center gap-3 text-xs font-black uppercase tracking-[0.18em] text-coral">
+                <span className="h-px flex-1 bg-coral/30" />
+                Новые сообщения
+                <span className="h-px flex-1 bg-coral/30" />
+              </div>
+            ) : null}
+            <article className="rounded-2xl bg-white p-3 text-slate-700 dark:bg-slate-900 dark:text-white/80">
+              <p className="text-sm font-bold text-coral">{item.playerName}</p>
+              <p>{item.text}</p>
+            </article>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex gap-2">
+        <input
+          className="min-w-0 flex-1 rounded-2xl border border-line bg-slate-100/80 px-4 py-3 outline-none focus:border-coral dark:border-white/10 dark:bg-slate-950/70"
+          placeholder="Написать сообщение..."
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          onKeyDown={(event) => event.key === "Enter" && sendMessage()}
+        />
+        <Button onClick={sendMessage} disabled={!message.trim()}>Отправить</Button>
+      </div>
+    </section>
+  );
 }
 
 function SettingsPanel({ room, isHost, updateSettings }: { room: PublicBunkerRoomState; isHost: boolean; updateSettings: (patch: Partial<BunkerSettings>) => void }) {

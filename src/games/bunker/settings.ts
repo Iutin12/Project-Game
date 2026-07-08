@@ -35,7 +35,7 @@ export const defaultBunkerSettings: BunkerSettings = {
   maxPlayers: 12,
   bunkerSlots: "auto",
   characteristicsPerPlayer: 9,
-  revealMode: "fixed_order",
+  revealMode: "free_choice",
   discussionTimeSec: 120,
   votingTimeSec: 60,
   useTimer: true,

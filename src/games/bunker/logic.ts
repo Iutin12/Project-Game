@@ -87,7 +87,7 @@ export function advanceBunkerPhase(room: BunkerRoomState) {
   if (room.phase === "SCENARIO_REVEAL") room.phase = "CHARACTER_PREVIEW";
   else if (room.phase === "CHARACTER_PREVIEW") room.phase = "REVEAL_ROUND";
   else if (room.phase === "REVEAL_ROUND") setTimedPhase(room, "DISCUSSION", room.settings.discussionTimeSec);
-  else if (room.phase === "DISCUSSION") room.phase = room.settings.useSpecialCards ? "SPECIAL_ACTIONS" : "VOTING";
+  else if (room.phase === "DISCUSSION") setTimedPhase(room, "VOTING", room.settings.votingTimeSec);
   else if (room.phase === "SPECIAL_ACTIONS") setTimedPhase(room, "VOTING", room.settings.votingTimeSec);
   else if (room.phase === "VOTING" || room.phase === "REVOTE") resolveVoting(room);
   else if (room.phase === "VOTING_RESULT" || room.phase === "ELIMINATION") nextRoundOrFinish(room);
@@ -120,13 +120,28 @@ export function useBunkerSpecialCard(room: BunkerRoomState, playerId: string, ca
     const hidden = bunkerCharacteristicCategories.find((item) => !character.revealedCategories.includes(item));
     if (hidden) character.revealedCategories = [...character.revealedCategories, hidden];
   }
-  if (card.type === "force_reveal" && targetPlayerId && category && category !== "special") {
-    revealBunkerCard(room, targetPlayerId, category);
+  if (card.type === "hide_card") {
+    const hideable = character.revealedCategories.find((item) => item !== "profession");
+    if (hideable) character.revealedCategories = character.revealedCategories.filter((item) => item !== hideable);
+  }
+  if (card.type === "force_reveal") {
+    const targetId = targetPlayerId ?? room.players.find((item) => item.status === "alive" && item.id !== playerId)?.id;
+    const targetCharacter = targetId ? room.characters[targetId] : undefined;
+    const revealCategory =
+      category && category !== "special"
+        ? category
+        : bunkerCharacteristicCategories.find((item) => targetCharacter && !targetCharacter.revealedCategories.includes(item));
+    if (targetId && revealCategory) revealBunkerCard(room, targetId, revealCategory);
   }
   if (card.type === "swap_card") {
     const fresh = bunkerCards.fact[Math.floor(Math.random() * bunkerCards.fact.length)];
     character.fact = fresh;
     character.revealedCategories = character.revealedCategories.filter((item) => item !== "fact");
+  }
+  if (card.type === "revote" && room.lastVotingResult?.tiedPlayerIds?.length) {
+    room.revoteCandidateIds = room.lastVotingResult.tiedPlayerIds;
+    room.phase = "REVOTE";
+    room.votes = {};
   }
   addEvent(room, `${player.name} использовал(а) спецкарту: ${card.title}`);
   return { ok: true };
