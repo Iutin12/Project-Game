@@ -362,14 +362,6 @@ function BunkerBoard({
           <h2 className="mt-1 font-display text-2xl font-semibold text-[#f4eee3]">Ваш персонаж</h2>
           <FeaturedProfessionCard character={ownCharacter} />
           <BoardCharacterCards character={ownCharacter} />
-          {ownCharacter?.specialCards.length ? (
-            <div className="mt-3 shrink-0">
-              <p className="mb-3 text-xs font-black uppercase tracking-[0.22em] text-coral">Спецкарты</p>
-              <div className="flex gap-2 pb-1">
-                {ownCharacter.specialCards.map((card) => <SpecialCardPreview key={card.id} card={card} />)}
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
     </section>
@@ -752,17 +744,17 @@ function SpecialCardPreview({ card }: { card: BunkerSpecialCard }) {
 function FeaturedProfessionCard({ character }: { character?: PublicBunkerRoomState["characters"][string] }) {
   const profession = character?.profession;
   return (
-    <article className="mt-2 grid shrink-0 overflow-hidden rounded-[0.95rem] border border-[#7f6b57]/55 bg-[#0c141c] shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:grid-cols-[8rem_minmax(0,1fr)]">
-      <div className="relative h-24 border-b border-[#7f6b57]/35 sm:border-b-0 sm:border-r">
+    <article className="mt-2 grid shrink-0 overflow-hidden rounded-[0.95rem] border border-[#7f6b57]/55 bg-[#0c141c] shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:grid-cols-[12rem_minmax(0,1fr)]">
+      <div className="relative h-32 border-b border-[#7f6b57]/35 sm:border-b-0 sm:border-r">
         <img src={bunkerCardImages.profession} alt="" className="absolute inset-0 h-full w-full object-cover object-top opacity-80" />
         <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0c141c]/20" />
       </div>
-      <div className="relative h-24 overflow-hidden p-3">
-        <div className="absolute right-3 top-2 h-20 w-20 rounded-full border border-[#7f6b57]/28 opacity-45" />
-        <div className="absolute right-7 top-6 h-12 w-12 rounded-full border border-[#7f6b57]/28 opacity-45" />
-        <p className="text-[0.56rem] font-black uppercase tracking-[0.24em] text-coral">Профессия</p>
-        <h3 className="mt-2 font-display text-xl font-semibold leading-tight text-[#f4eee3]">{cardTitle(profession)}</h3>
-        <p className="mt-2 line-clamp-1 max-w-lg text-[0.68rem] leading-4 text-white/58">{profession && !("hidden" in profession) ? profession.description : "Главная карта персонажа будет видна после выдачи ролей."}</p>
+      <div className="relative h-32 overflow-hidden p-4">
+        <div className="absolute right-4 top-3 h-24 w-24 rounded-full border border-[#7f6b57]/28 opacity-45" />
+        <div className="absolute right-9 top-8 h-14 w-14 rounded-full border border-[#7f6b57]/28 opacity-45" />
+        <p className="text-[0.62rem] font-black uppercase tracking-[0.24em] text-coral">Профессия</p>
+        <h3 className="mt-3 font-display text-2xl font-semibold leading-tight text-[#f4eee3]">{cardTitle(profession)}</h3>
+        <p className="mt-3 line-clamp-2 max-w-lg text-xs leading-5 text-white/58">{profession && !("hidden" in profession) ? profession.description : "Главная карта персонажа будет видна после выдачи ролей."}</p>
       </div>
     </article>
   );
@@ -770,18 +762,21 @@ function FeaturedProfessionCard({ character }: { character?: PublicBunkerRoomSta
 
 function BoardCharacterCards({ character }: { character?: PublicBunkerRoomState["characters"][string] }) {
   if (!character) return <p className="mt-5 text-white/45">Карты появятся после старта игры.</p>;
-  const boardCategories = bunkerCharacteristicCategories.filter((category) => category !== "profession");
+  const visibleCategories = bunkerCharacteristicCategories.filter((category) => category !== "profession").slice(0, 5);
   return (
-    <div className="mt-3 grid min-h-0 flex-1 grid-cols-3 justify-between gap-x-2 gap-y-2">
-      {boardCategories.map((category, index) => (
+    <div className="mt-4 grid min-h-0 flex-1 grid-cols-3 gap-4">
+      {visibleCategories.map((category) => (
         <BoardCharacterCard
           key={category}
           category={category}
           card={character[category]}
           revealed={character.revealedCategories.includes(category)}
-          showNextPlaceholder={index === 4}
         />
       ))}
+      <BoardNextCard />
+      <p className="sr-only">
+        Остальные характеристики доступны в полной колоде персонажа и раскрываются по правилам раунда.
+      </p>
     </div>
   );
 }
@@ -789,31 +784,34 @@ function BoardCharacterCards({ character }: { character?: PublicBunkerRoomState[
 function BoardCharacterCard({
   category,
   card,
-  revealed,
-  showNextPlaceholder
+  revealed
 }: {
   category: Exclude<BunkerCardCategory, "special">;
   card?: PublicBunkerCard;
   revealed?: boolean;
-  showNextPlaceholder?: boolean;
 }) {
   const isHidden = !card || "hidden" in card;
-  if (showNextPlaceholder && isHidden) {
-    return (
-      <article className="relative h-24 w-20 justify-self-center overflow-hidden rounded-[0.85rem] border border-[#7f6b57]/45 bg-[#101923] p-2 text-center shadow-soft">
-        <div className="absolute inset-2 rounded-[0.65rem] border border-[#7f6b57]/28" />
-        <div className="relative mt-3 text-xl text-[#7f6b57]/60">✦</div>
-        <p className="relative mt-2 text-[0.42rem] font-black uppercase tracking-[0.16em] text-coral">Следующая</p>
-        <p className="relative mt-1 text-[0.5rem] text-white/45">Не раскрыта</p>
-      </article>
-    );
-  }
   return (
-    <article className="relative h-24 w-20 justify-self-center overflow-hidden rounded-[0.85rem] border border-[#7f6b57]/55 bg-[#eadfcb] p-0 text-[#1d1713] shadow-[0_16px_35px_rgba(0,0,0,0.22)]">
+    <article className="relative aspect-[0.72] w-full overflow-hidden rounded-[1.05rem] border border-[#7f6b57]/55 bg-[#eadfcb] p-0 text-[#1d1713] shadow-[0_16px_35px_rgba(0,0,0,0.22)]">
       <img src={bunkerCardImages[category]} alt="" className={`absolute inset-0 h-full w-full object-cover object-top ${isHidden ? "opacity-70 grayscale" : ""}`} />
-      <div className="absolute inset-x-1 bottom-1 rounded-lg border border-[#7d6554]/50 bg-[#0d151d] px-1 py-1 text-center text-[#f4eee3] shadow-sm">
-        <p className="text-[0.6rem] font-black leading-3">{cardTitle(card)}</p>
-        <p className="mt-0.5 text-[0.42rem] font-black uppercase tracking-[0.12em] text-[#d9bfa6]">{revealed ? "открыто" : "скрыто"}</p>
+      <div className="absolute inset-x-3 bottom-3 rounded-xl border border-[#7d6554]/50 bg-[#0d151d] px-2 py-2 text-center text-[#f4eee3] shadow-sm">
+        <p className="text-base font-black leading-5">{cardTitle(card)}</p>
+        <p className="mt-1 text-[0.58rem] font-black uppercase tracking-[0.16em] text-[#d9bfa6]">{revealed ? "открыто" : "скрыто"}</p>
+      </div>
+    </article>
+  );
+}
+
+function BoardNextCard() {
+  return (
+    <article className="relative aspect-[0.72] w-full overflow-hidden rounded-[1.05rem] border border-[#7f6b57]/45 bg-[#101923] p-4 text-center shadow-soft">
+      <div className="absolute inset-3 rounded-[0.85rem] border border-[#7f6b57]/28" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,rgba(217,191,166,0.14),transparent_32%)]" />
+      <div className="relative flex h-full flex-col items-center justify-center">
+        <div className="text-5xl text-[#7f6b57]/60">✦</div>
+        <p className="mt-6 text-xs font-black uppercase tracking-[0.2em] text-coral">Следующая карта</p>
+        <p className="mt-3 text-sm text-white/45">Пока не раскрыта</p>
+        <p className="mt-5 text-3xl text-[#7f6b57]/55">▣</p>
       </div>
     </article>
   );
