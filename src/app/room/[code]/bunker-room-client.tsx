@@ -764,7 +764,7 @@ function BoardCharacterCards({ character }: { character?: PublicBunkerRoomState[
   if (!character) return <p className="mt-5 text-white/45">Карты появятся после старта игры.</p>;
   const visibleCategories = bunkerCharacteristicCategories.filter((category) => category !== "profession").slice(0, 5);
   return (
-    <div className="mt-4 grid min-h-0 flex-1 grid-cols-3 gap-4">
+    <div className="mt-4 grid min-h-0 flex-1 grid-cols-2 content-start justify-between gap-x-4 gap-y-4 overflow-hidden sm:grid-cols-3 lg:grid-cols-[repeat(3,minmax(0,10rem))] xl:grid-cols-[repeat(3,minmax(0,12rem))]">
       {visibleCategories.map((category) => (
         <BoardCharacterCard
           key={category}
@@ -795,7 +795,7 @@ function BoardCharacterCard({
     <article className="relative aspect-[0.72] w-full overflow-hidden rounded-[1.05rem] border border-[#7f6b57]/55 bg-[#eadfcb] p-0 text-[#1d1713] shadow-[0_16px_35px_rgba(0,0,0,0.22)]">
       <img src={bunkerCardImages[category]} alt="" className={`absolute inset-0 h-full w-full object-cover object-top ${isHidden ? "opacity-70 grayscale" : ""}`} />
       <div className="absolute inset-x-3 bottom-3 rounded-xl border border-[#7d6554]/50 bg-[#0d151d] px-2 py-2 text-center text-[#f4eee3] shadow-sm">
-        <p className="text-base font-black leading-5">{cardTitle(card)}</p>
+        <p className="text-sm font-black leading-4">{cardTitle(card)}</p>
         <p className="mt-1 text-[0.58rem] font-black uppercase tracking-[0.16em] text-[#d9bfa6]">{revealed ? "открыто" : "скрыто"}</p>
       </div>
     </article>
@@ -809,8 +809,8 @@ function BoardNextCard() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,rgba(217,191,166,0.14),transparent_32%)]" />
       <div className="relative flex h-full flex-col items-center justify-center">
         <div className="text-5xl text-[#7f6b57]/60">✦</div>
-        <p className="mt-6 text-xs font-black uppercase tracking-[0.2em] text-coral">Следующая карта</p>
-        <p className="mt-3 text-sm text-white/45">Пока не раскрыта</p>
+        <p className="mt-6 text-[0.68rem] font-black uppercase tracking-[0.18em] text-coral">Следующая карта</p>
+        <p className="mt-3 text-xs text-white/45">Пока не раскрыта</p>
         <p className="mt-5 text-3xl text-[#7f6b57]/55">▣</p>
       </div>
     </article>
