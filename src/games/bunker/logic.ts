@@ -79,6 +79,9 @@ export function markBunkerReady(room: BunkerRoomState, playerId: string) {
   if (room.phase === "REVEAL_ROUND" && !room.revealedThisRoundPlayerIds.includes(playerId)) {
     return { ok: false, error: "Сначала раскройте характеристику" };
   }
+  if ((room.phase === "VOTING" || room.phase === "REVOTE") && !room.votes[playerId]) {
+    return { ok: false, error: "Сначала выберите игрока" };
+  }
   if (!room.readyPlayerIds.includes(playerId)) room.readyPlayerIds = [...room.readyPlayerIds, playerId];
   return { ok: true };
 }
@@ -103,6 +106,9 @@ export function advanceBunkerPhase(room: BunkerRoomState) {
   }
   if (room.phase === "REVEAL_ROUND" && !allAliveReady(room)) {
     return { ok: false, error: "Все игроки должны подтвердить выбор" };
+  }
+  if ((room.phase === "VOTING" || room.phase === "REVOTE") && !allAliveReady(room)) {
+    return { ok: false, error: "Все игроки должны подтвердить голос" };
   }
   room.readyPlayerIds = [];
   room.deadlineAt = undefined;
@@ -152,6 +158,7 @@ export function castBunkerVote(room: BunkerRoomState, voterId: string, targetId:
   const voter = room.players.find((player) => player.id === voterId);
   const target = room.players.find((player) => player.id === targetId);
   if (!voter || voter.status !== "alive") return { ok: false, error: "Вы не можете голосовать" };
+  if (room.readyPlayerIds.includes(voterId)) return { ok: false, error: "Вы уже подтвердили голос" };
   if (!target || target.status !== "alive") return { ok: false, error: "Игрок недоступен" };
   if (!room.settings.allowSelfVote && voterId === targetId) return { ok: false, error: "Нельзя голосовать за себя" };
   if (room.protectedPlayerIds.includes(targetId)) return { ok: false, error: "Игрок защищен спецкартой" };
@@ -205,6 +212,7 @@ export function useBunkerSpecialCard(room: BunkerRoomState, playerId: string, ca
 
 export function resolveVoting(room: BunkerRoomState) {
   room.deadlineAt = undefined;
+  room.readyPlayerIds = [];
   const result = resolveBunkerVotes({
     players: room.players,
     votes: room.votes,

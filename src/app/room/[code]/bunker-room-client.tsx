@@ -69,6 +69,8 @@ export function BunkerRoomClient({ code }: { code: string }) {
   const [unreadAnchorId, setUnreadAnchorId] = useState<string | null>(null);
   const [keepUnreadDivider, setKeepUnreadDivider] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const chatSectionRef = useRef<HTMLElement | null>(null);
+  const chatInputRef = useRef<HTMLInputElement | null>(null);
   const previousChatCountRef = useRef(0);
 
   const inviteUrl = typeof window === "undefined" ? "" : `${window.location.origin}/room/${code}`;
@@ -244,7 +246,19 @@ export function BunkerRoomClient({ code }: { code: string }) {
 
           <nav className={useBunkerBoard ? "flex flex-wrap gap-2 rounded-[1.1rem] border border-line bg-white/85 p-1.5 dark:border-white/10 dark:bg-slate-900/70" : "mt-5 flex flex-wrap gap-2 rounded-[1.35rem] border border-line bg-white/85 p-2 dark:border-white/10 dark:bg-slate-900/70"}>
             {(["game", "players", "chat", "settings"] as Tab[]).map((item) => (
-              <button key={item} className={`relative rounded-2xl font-bold ${useBunkerBoard ? "px-4 py-2 text-sm" : "px-5 py-3"} ${tab === item ? "bg-coral text-white" : "text-slate-500 dark:text-white/60"}`} onClick={() => setTab(item)}>
+              <button
+                key={item}
+                className={`relative rounded-2xl font-bold ${useBunkerBoard ? "px-4 py-2 text-sm" : "px-5 py-3"} ${tab === item ? "bg-coral text-white" : "text-slate-500 dark:text-white/60"}`}
+                onClick={() => {
+                  setTab(item);
+                  if (item === "chat") {
+                    window.setTimeout(() => {
+                      chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      chatInputRef.current?.focus({ preventScroll: true });
+                    }, 0);
+                  }
+                }}
+              >
                 {item === "game" ? "Игра" : item === "players" ? "Игроки" : item === "chat" ? "Чат" : "Настройки"}
                 {item === "chat" && unreadChatCount > 0 ? <span className="ml-2 rounded-full bg-ocean px-2 py-0.5 text-xs text-white">{unreadChatCount}</span> : null}
               </button>
@@ -254,7 +268,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
           {room.deadlineAt ? <BunkerPhaseCountdown deadlineAt={room.deadlineAt} phase={room.phase} /> : null}
 
           {tab === "settings" ? <SettingsPanel room={room} isHost={isHost} updateSettings={(patch) => emitAction("bunker:update_settings", patch)} /> : null}
-          {tab === "chat" ? <ChatPanel room={room} message={message} setMessage={setMessage} sendMessage={sendMessage} chatScrollRef={chatScrollRef} unreadAnchorId={unreadAnchorId} /> : null}
+          {tab === "chat" ? <ChatPanel room={room} message={message} setMessage={setMessage} sendMessage={sendMessage} chatScrollRef={chatScrollRef} chatSectionRef={chatSectionRef} chatInputRef={chatInputRef} unreadAnchorId={unreadAnchorId} /> : null}
           {tab === "players" ? <PlayersPanel room={room} /> : null}
           {tab === "game" && useBunkerBoard ? (
             <BunkerBoard room={room} ownCharacter={ownCharacter} isHost={isHost} emitAction={emitAction} />
@@ -376,9 +390,9 @@ function BunkerBoard({
               <div className="absolute inset-0 bg-gradient-to-r from-[#0d151d]/96 via-[#0d151d]/78 to-[#0d151d]/18" />
               <div className="relative max-w-[33rem] px-2 py-2">
                 <h3 className="font-display text-3xl font-semibold text-[#f4eee3]">{room.shelter?.title ?? "Бункер"}</h3>
-                <p className="mt-3 text-base leading-7 text-white/72">{room.shelter?.description}</p>
+                <p className="mt-3 text-base leading-7 text-[#d8e0e7]">{room.shelter?.description}</p>
                 <div className="mt-4 h-px bg-white/20" />
-                <div className="mt-4 space-y-2 text-base leading-6 text-white/72">
+                <div className="mt-4 space-y-2 text-base leading-6 text-[#d8e0e7]">
                   <p><span className="mr-3 text-coral">▣</span>Мест: {room.bunkerSlots} · Запасов: {room.shelter?.durationMonths} мес.</p>
                   <p className="line-clamp-1"><span className="mr-3 text-coral">⌂</span>Комнаты: {room.shelter?.rooms.join(", ")}</p>
                   <p className="line-clamp-1"><span className="mr-3 text-coral">△</span>Проблемы: {room.shelter?.problems.join(", ")}</p>
@@ -391,10 +405,16 @@ function BunkerBoard({
         </div>
 
         <div className="flex min-h-0 flex-col overflow-hidden p-4 sm:p-5">
-          <p className="text-[0.65rem] font-black uppercase tracking-[0.28em] text-coral">Карты</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[0.65rem] font-black uppercase tracking-[0.28em] text-coral">Карты</p>
+            <span className="rounded-full border border-coral/30 bg-coral/10 px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.12em] text-coral">
+              {room.settings.gameMode === "quick" ? "Быстрый · 6 карт · 60 сек" : "Классический · 9 карт · 120 сек"}
+            </span>
+          </div>
           <h2 className="mt-1 font-display text-2xl font-semibold text-ink dark:text-[#f4eee3]">Ваш персонаж</h2>
           <FeaturedProfessionCard character={ownCharacter} />
           <BoardCharacterCards character={ownCharacter} />
+          <BoardSpecialCards character={ownCharacter} emitAction={emitAction} />
         </div>
       </div>
     </section>
@@ -530,9 +550,11 @@ function SpecialPanel({ room, ownCharacter, emitAction }: { room: PublicBunkerRo
   return <Panel title="Специальные действия" label="Спецкарты">{cards.length === 0 ? <p>У вас нет доступных спецкарт.</p> : <div className="grid gap-3">{cards.map((card) => <SpecialCardAction key={card.id} card={card} onUse={() => emitAction("bunker:use_special_card", { cardId: card.id })} />)}</div>}<Button variant="secondary" className="mt-4" onClick={() => emitAction("bunker:next_phase")}>Пропустить и голосовать</Button></Panel>;
 }
 
-function VotingPanel({ room, isHost, emitAction }: { room: PublicBunkerRoomState; isHost: boolean; emitAction: (event: string, payload?: unknown) => void }) {
+function VotingPanel({ room, isHost: _isHost, emitAction }: { room: PublicBunkerRoomState; isHost: boolean; emitAction: (event: string, payload?: unknown) => void }) {
   const candidates = room.phase === "REVOTE" && room.revoteCandidateIds?.length ? room.players.filter((player) => room.revoteCandidateIds?.includes(player.id)) : room.players.filter((player) => player.status === "alive");
-  return <Panel title={room.phase === "REVOTE" ? "Переголосование" : "Голосование"} label="Выбор"><div className="grid gap-2 sm:grid-cols-2">{candidates.map((player) => <button key={player.id} className={`rounded-2xl border p-3 text-left font-bold transition hover:border-coral ${room.votes[room.ownPlayerId] === player.id ? "border-coral bg-coral/15" : "border-line bg-slate-100/80 dark:border-white/10 dark:bg-slate-950/50"}`} onClick={() => emitAction("bunker:cast_vote", { targetId: player.id })}>{player.name}<span className="block text-xs text-slate-400">{room.settings.votingMode === "open" ? `${Object.values(room.votes).filter((id) => id === player.id).length} голосов` : "анонимно"}</span></button>)}</div><p className="mt-3 text-sm text-slate-500">Ваш голос можно изменить до подсчета.</p>{isHost ? <Button className="mt-4" onClick={() => emitAction("bunker:next_phase")}>Подсчитать голоса</Button> : null}</Panel>;
+  const confirmed = room.readyPlayerIds.includes(room.ownPlayerId);
+  const hasVote = Boolean(room.votes[room.ownPlayerId]);
+  return <Panel title={room.phase === "REVOTE" ? "Переголосование" : "Голосование"} label="Выбор"><div className="grid gap-2 sm:grid-cols-2">{candidates.map((player) => <button key={player.id} disabled={confirmed} className={`rounded-2xl border p-3 text-left font-bold transition hover:border-coral disabled:cursor-not-allowed disabled:opacity-70 ${room.votes[room.ownPlayerId] === player.id ? "border-coral bg-coral/15" : "border-line bg-slate-100/80 dark:border-white/10 dark:bg-slate-950/50"}`} onClick={() => emitAction("bunker:cast_vote", { targetId: player.id })}>{player.name}<span className="block text-xs text-slate-400">{room.settings.votingMode === "open" ? `${Object.values(room.votes).filter((id) => id === player.id).length} голосов` : "анонимно"}</span></button>)}</div><p className="mt-3 text-sm text-slate-500">{confirmed ? "Голос подтвержден. Ожидаем остальных игроков." : "Вы можете изменить выбор до подтверждения."}</p>{hasVote ? <ReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Подтвердить голос" readyLabel="Голос подтвержден" /> : null}</Panel>;
 }
 
 function VotingResultPanel({ room, isHost, emitAction }: { room: PublicBunkerRoomState; isHost: boolean; emitAction: (event: string, payload?: unknown) => void }) {
@@ -657,6 +679,8 @@ function ChatPanel({
   setMessage,
   sendMessage,
   chatScrollRef,
+  chatSectionRef,
+  chatInputRef,
   unreadAnchorId
 }: {
   room: PublicBunkerRoomState;
@@ -664,10 +688,12 @@ function ChatPanel({
   setMessage: (value: string) => void;
   sendMessage: () => void;
   chatScrollRef: React.RefObject<HTMLDivElement>;
+  chatSectionRef: React.RefObject<HTMLElement>;
+  chatInputRef: React.RefObject<HTMLInputElement>;
   unreadAnchorId: string | null;
 }) {
   return (
-    <section className="mt-5 flex h-[34rem] min-h-0 flex-col rounded-[1.5rem] border border-line bg-white/85 p-5 shadow-soft dark:border-white/10 dark:bg-slate-900/70">
+    <section ref={chatSectionRef} className="mt-5 flex h-[34rem] min-h-0 scroll-mt-4 flex-col rounded-[1.5rem] border border-line bg-white/85 p-5 shadow-soft dark:border-white/10 dark:bg-slate-900/70">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-3xl font-semibold">Чат комнаты</h2>
         <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-500 dark:bg-slate-950/50 dark:text-white/60">
@@ -694,6 +720,7 @@ function ChatPanel({
       </div>
       <div className="mt-4 flex gap-2">
         <input
+          ref={chatInputRef}
           className="min-w-0 flex-1 rounded-2xl border border-line bg-slate-100/80 px-4 py-3 outline-none focus:border-coral dark:border-white/10 dark:bg-slate-950/70"
           placeholder="Написать сообщение..."
           value={message}
@@ -718,6 +745,11 @@ function SettingsPanel({ room, isHost, updateSettings }: { room: PublicBunkerRoo
         <Setting title="Режим" hint="Классический режим раскрывает больше характеристик. Быстрый режим делает партии короче.">
           <CustomSelect disabled={disabled} value={s.gameMode} options={[{ value: "classic", label: "Классический" }, { value: "quick", label: "Быстрый" }]} onChange={(value) => updateSettings({ gameMode: value as BunkerSettings["gameMode"] })} />
           <CustomSelect disabled={disabled} value={s.hostMode} options={[{ value: "auto", label: "Без ведущего" }, { value: "manual_host", label: "Ведущий" }]} onChange={(value) => updateSettings({ hostMode: value as BunkerSettings["hostMode"] })} />
+          <p className="rounded-xl bg-coral/10 p-3 text-xs font-semibold leading-5 text-slate-600 dark:text-white/65">
+            {s.gameMode === "quick"
+              ? "Быстрый: 6 характеристик, 60 секунд на выбор и 45 секунд на голосование."
+              : "Классический: 9 характеристик, 120 секунд на выбор и 60 секунд на голосование."}
+          </p>
         </Setting>
         <Setting title="Места и раунды" hint="Авто-режим берет примерно половину игроков. Режим раскрытия определяет, что игроки открывают в раунде.">
           <CustomSelect disabled={disabled} value={s.bunkerSlots === "auto" ? "auto" : String(s.bunkerSlots)} options={[{ value: "auto", label: "Места авто" }, ...[1, 2, 3, 4, 5, 6, 7, 8].map((value) => ({ value: String(value), label: `${value} мест` }))]} onChange={(value) => updateSettings({ bunkerSlots: value === "auto" ? "auto" : Number(value) })} />
@@ -812,6 +844,42 @@ function BoardCharacterCards({ character }: { character?: PublicBunkerRoomState[
         Все характеристики персонажа доступны в этой сетке и раскрываются по правилам раунда.
       </p>
     </div>
+  );
+}
+
+function BoardSpecialCards({
+  character,
+  emitAction
+}: {
+  character?: PublicBunkerRoomState["characters"][string];
+  emitAction: (event: string, payload?: unknown) => void;
+}) {
+  const cards = character?.specialCards.filter((card) => !card.used) ?? [];
+  if (cards.length === 0) return null;
+
+  return (
+    <section className="mt-3 shrink-0 rounded-xl border border-[#b8a58d]/60 bg-white/45 p-2.5 dark:border-white/10 dark:bg-white/5">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-coral">Ваши спецкарты</p>
+        <span className="text-[0.65rem] font-semibold text-slate-500 dark:text-white/50">Можно применить в любой момент</span>
+      </div>
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {cards.map((card) => (
+          <button
+            key={card.id}
+            type="button"
+            className="flex min-w-52 items-center gap-2 rounded-xl border border-[#b8a58d]/55 bg-[#fffaf3] p-2 text-left transition hover:border-coral hover:bg-coral/10 dark:border-white/10 dark:bg-[#111b24]"
+            onClick={() => emitAction("bunker:use_special_card", { cardId: card.id })}
+          >
+            <img src={specialCardImage(card)} alt="" className="h-16 w-11 shrink-0 rounded-md object-cover shadow-sm" />
+            <span>
+              <strong className="block text-xs text-ink dark:text-white">{card.title}</strong>
+              <span className="mt-1 block text-[0.65rem] font-black uppercase tracking-[0.1em] text-coral">Применить</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
