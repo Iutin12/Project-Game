@@ -32,8 +32,7 @@ const bunkerSpecialCardImages: Record<string, string> = {
   special_force_reveal: "/bunker-cards/special_force_reveal.png",
   special_swap_card: "/bunker-cards/special_swap_card.png",
   special_protect_vote: "/bunker-cards/special_protect_vote.png",
-  special_revote: "/bunker-cards/special_revote.png",
-  special_cancel_special: "/bunker-cards/special_cancel_special.png"
+  special_revote: "/bunker-cards/special_revote.png"
 };
 
 type Ack = { ok: boolean; error?: string; playerId?: string };
@@ -572,9 +571,9 @@ function VotingPanel({ room, isHost: _isHost, emitAction }: { room: PublicBunker
   return <Panel title={room.phase === "REVOTE" ? "Переголосование" : "Голосование"} label="Выбор"><div className="grid gap-2 sm:grid-cols-2">{candidates.map((player) => <button key={player.id} disabled={confirmed} className={`rounded-2xl border p-3 text-left font-bold transition hover:border-coral disabled:cursor-not-allowed disabled:opacity-70 ${room.votes[room.ownPlayerId] === player.id ? "border-coral bg-coral/15" : "border-line bg-slate-100/80 dark:border-white/10 dark:bg-slate-950/50"}`} onClick={() => emitAction("bunker:cast_vote", { targetId: player.id })}>{player.name}<span className="block text-xs text-slate-400">{room.settings.votingMode === "open" ? `${Object.values(room.votes).filter((id) => id === player.id).length} голосов` : "анонимно"}</span></button>)}</div><p className="mt-3 text-sm text-slate-500">{confirmed ? "Голос подтвержден. Ожидаем остальных игроков." : "Вы можете изменить выбор до подтверждения."}</p>{hasVote ? <ReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Подтвердить голос" readyLabel="Голос подтвержден" /> : null}</Panel>;
 }
 
-function VotingResultPanel({ room, isHost, emitAction }: { room: PublicBunkerRoomState; isHost: boolean; emitAction: (event: string, payload?: unknown) => void }) {
+function VotingResultPanel({ room, isHost: _isHost, emitAction }: { room: PublicBunkerRoomState; isHost: boolean; emitAction: (event: string, payload?: unknown) => void }) {
   const eliminated = room.players.find((player) => player.id === room.lastVotingResult?.eliminatedPlayerId);
-  return <Panel title="Результаты голосования" label="Итоги"><p>{eliminated ? `Исключен: ${eliminated.name}` : "Никто не исключен."}</p>{room.lastVotingResult?.tiedPlayerIds?.length ? <p className="mt-2">Была ничья: {room.lastVotingResult.tiedPlayerIds.map((id) => room.players.find((player) => player.id === id)?.name).join(", ")}</p> : null}<VoteList room={room} />{isHost ? <Button className="mt-5" onClick={() => emitAction("bunker:next_phase")}>Следующий раунд</Button> : null}</Panel>;
+  return <Panel title="Результаты голосования" label="Итоги"><p>{eliminated ? `Исключен: ${eliminated.name}` : "Никто не исключен."}</p>{room.lastVotingResult?.tiedPlayerIds?.length ? <p className="mt-2">Была ничья: {room.lastVotingResult.tiedPlayerIds.map((id) => room.players.find((player) => player.id === id)?.name).join(", ")}</p> : null}<VoteList room={room} /><ReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Продолжить" readyLabel="Готов продолжить" /></Panel>;
 }
 
 function GameOverPanel({ room, isHost, emitAction }: { room: PublicBunkerRoomState; isHost: boolean; emitAction: (event: string, payload?: unknown) => void }) {

@@ -50,6 +50,5 @@ export const bunkerSpecialCards: BunkerSpecialCard[] = [
   { id: "special_force_reveal", category: "special", type: "force_reveal", title: "Принудительное раскрытие", description: "Заставьте выбранного игрока раскрыть одну характеристику." },
   { id: "special_swap_card", category: "special", type: "swap_card", title: "Обмен фактами", description: "Поменяйте свою дополнительную карту факта на случайную новую." },
   { id: "special_protect_vote", category: "special", type: "protect_vote", title: "Защита от голосования", description: "До конца текущего голосования против вас нельзя голосовать." },
-  { id: "special_revote", category: "special", type: "revote", title: "Требование переголосования", description: "После результатов запустите повторное голосование." },
-  { id: "special_cancel_special", category: "special", type: "cancel_special", title: "Отмена спецкарты", description: "Отменяет эффект последней использованной специальной карты." }
+  { id: "special_revote", category: "special", type: "revote", title: "Требование переголосования", description: "После результатов запустите повторное голосование." }
 ];

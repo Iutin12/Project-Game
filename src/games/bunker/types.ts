@@ -92,8 +92,7 @@ export type BunkerSpecialCardType =
   | "force_reveal"
   | "swap_card"
   | "protect_vote"
-  | "revote"
-  | "cancel_special";
+  | "revote";
 
 export type BunkerSpecialCard = BunkerCard & {
   category: "special";
