@@ -413,7 +413,7 @@ function BunkerBoard({
           </div>
           <h2 className="mt-1 font-display text-2xl font-semibold text-ink dark:text-[#f4eee3]">Ваш персонаж</h2>
           <FeaturedProfessionCard character={ownCharacter} />
-          <BoardCharacterCards character={ownCharacter} />
+          <BoardCharacterCards room={room} character={ownCharacter} />
           <BoardSpecialCards character={ownCharacter} emitAction={emitAction} />
         </div>
       </div>
@@ -784,9 +784,25 @@ function Setting({ title, hint, children }: { title: string; hint: string; child
 function Hint({ text }: { text: string }) { return <span className="group relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-coral/15 text-xs font-black text-coral">?<span className="pointer-events-none absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-2xl border border-line bg-white p-3 text-xs font-semibold leading-5 text-slate-600 opacity-0 shadow-soft transition group-hover:opacity-100 dark:border-white/10 dark:bg-slate-900 dark:text-white/75">{text}</span></span>; }
 function CustomSelect({ value, options, disabled, onChange }: { value: string; options: SelectOption[]; disabled: boolean; onChange: (value: string) => void }) {
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const selected = options.find((option) => option.value === value) ?? options[0];
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutside = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
   return (
-    <div className={`relative ${open ? "z-50" : "z-0"}`}>
+    <div ref={containerRef} className={`relative ${open ? "z-50" : "z-0"}`}>
       <button type="button" disabled={disabled} className="flex w-full items-center justify-between rounded-2xl border border-line bg-white px-4 py-3 text-left font-bold text-ink shadow-sm disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-white" onClick={() => setOpen((current) => !current)}>
         <span>{selected?.label}</span>
         <span className="text-coral">⌄</span>
@@ -847,9 +863,10 @@ function FeaturedProfessionCard({ character }: { character?: PublicBunkerRoomSta
   );
 }
 
-function BoardCharacterCards({ character }: { character?: PublicBunkerRoomState["characters"][string] }) {
+function BoardCharacterCards({ room, character }: { room: PublicBunkerRoomState; character?: PublicBunkerRoomState["characters"][string] }) {
   if (!character) return <p className="mt-5 text-slate-500 dark:text-white/45">Карты появятся после старта игры.</p>;
-  const visibleCategories = bunkerCharacteristicCategories.filter((category) => category !== "profession");
+  const visibleCategories = (room.revealOrder.length > 0 ? room.revealOrder : bunkerCharacteristicCategories)
+    .filter((category): category is Exclude<BunkerCardCategory, "profession" | "special"> => category !== "profession" && category !== "special");
   return (
     <div className="mt-4 grid min-h-0 flex-1 grid-cols-2 content-start justify-between gap-x-3 gap-y-3 overflow-hidden sm:grid-cols-3 lg:grid-cols-[repeat(4,6.25rem)] xl:grid-cols-[repeat(4,6.85rem)] 2xl:grid-cols-[repeat(4,7.25rem)]">
       {visibleCategories.map((category) => (
@@ -904,9 +921,9 @@ function BoardSpecialCards({
       </section>
       {selectedCard ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={selectedCard.title} onClick={() => setSelectedCard(null)}>
-          <article className="relative grid w-full max-w-xl gap-5 rounded-[1.5rem] border border-white/15 bg-[#111a23] p-5 text-white shadow-2xl sm:grid-cols-[11rem_minmax(0,1fr)]" onClick={(event) => event.stopPropagation()}>
+          <article className="relative grid w-full max-w-4xl gap-6 rounded-[1.5rem] border border-white/15 bg-[#111a23] p-5 text-white shadow-2xl sm:grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)]" onClick={(event) => event.stopPropagation()}>
             <button type="button" className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-xl" aria-label="Закрыть" onClick={() => setSelectedCard(null)}>×</button>
-            <img src={specialCardImage(selectedCard)} alt="" className="mx-auto w-40 rounded-xl object-contain shadow-[0_18px_45px_rgba(0,0,0,0.45)]" />
+            <img src={specialCardImage(selectedCard)} alt="" className="mx-auto max-h-[72vh] w-full max-w-[18rem] rounded-xl object-contain shadow-[0_18px_45px_rgba(0,0,0,0.45)]" />
             <div className="flex flex-col justify-center pr-5">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-coral">Спецкарта</p>
               <h3 className="mt-2 font-display text-3xl font-semibold">{selectedCard.title}</h3>
