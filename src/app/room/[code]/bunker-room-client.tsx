@@ -461,10 +461,10 @@ function BoardReadyFooter({
         </span>
         <span className="relative whitespace-nowrap">{isReady ? readyLabel : actionLabel}</span>
       </button>
-      <div className="relative inline-flex h-16 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-white/76 sm:w-auto sm:min-w-56">
+      <div className="relative inline-flex h-16 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-[#eef8ff] [text-shadow:0_1px_4px_rgba(0,0,0,0.95)] sm:w-auto sm:min-w-56">
         <img src="/bunker-cards/ready-counter-blue.png" alt="" className="absolute inset-0 h-full w-full object-fill" />
         <img src="/bunker-cards/ready-players.png" alt="" className="relative h-9 w-12 object-cover object-center mix-blend-screen" />
-        <span className="relative">Готовы: {room.readyPlayerIds.length} / {aliveCount}</span>
+        <span className="relative whitespace-nowrap">Готовы: {room.readyPlayerIds.length} / {aliveCount}</span>
       </div>
     </div>
   );
@@ -782,7 +782,27 @@ function SettingsPanel({ room, isHost, updateSettings }: { room: PublicBunkerRoo
 function Panel({ title, label, children }: { title: string; label: string; children: React.ReactNode }) { return <section className="rounded-[1.5rem] border border-line bg-white/85 p-5 shadow-soft dark:border-white/10 dark:bg-slate-900/70"><p className="text-sm font-bold uppercase tracking-[0.22em] text-coral">{label}</p><h2 className="mt-2 font-display text-3xl font-semibold">{title}</h2><div className="mt-4 text-slate-600 dark:text-white/65">{children}</div></section>; }
 function Setting({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) { return <div className="rounded-[1.25rem] border border-line bg-slate-100/80 p-4 dark:border-white/10 dark:bg-slate-950/45"><h3 className="mb-3 flex items-center gap-2 text-lg font-black">{title}<Hint text={hint} /></h3><div className="space-y-3">{children}</div></div>; }
 function Hint({ text }: { text: string }) { return <span className="group relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-coral/15 text-xs font-black text-coral">?<span className="pointer-events-none absolute left-1/2 top-7 z-20 w-64 -translate-x-1/2 rounded-2xl border border-line bg-white p-3 text-xs font-semibold leading-5 text-slate-600 opacity-0 shadow-soft transition group-hover:opacity-100 dark:border-white/10 dark:bg-slate-900 dark:text-white/75">{text}</span></span>; }
-function CustomSelect({ value, options, disabled, onChange }: { value: string; options: SelectOption[]; disabled: boolean; onChange: (value: string) => void }) { const [open, setOpen] = useState(false); const selected = options.find((option) => option.value === value) ?? options[0]; return <div className="relative"><button type="button" disabled={disabled} className="flex w-full items-center justify-between rounded-2xl border border-line bg-white px-4 py-3 text-left font-bold text-ink shadow-sm disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-white" onClick={() => setOpen((current) => !current)}><span>{selected?.label}</span><span className="text-coral">⌄</span></button>{open && !disabled ? <div className="absolute z-30 mt-2 max-h-60 w-full overflow-y-auto rounded-2xl border border-line bg-white p-2 shadow-soft dark:border-white/10 dark:bg-slate-900">{options.map((option) => <button key={option.value} type="button" className={`w-full rounded-xl px-3 py-2 text-left text-sm font-bold ${option.value === value ? "bg-coral text-white" : "text-slate-600 hover:bg-slate-100 dark:text-white/70 dark:hover:bg-white/10"}`} onClick={() => { onChange(option.value); setOpen(false); }}>{option.label}</button>)}</div> : null}</div>; }
+function CustomSelect({ value, options, disabled, onChange }: { value: string; options: SelectOption[]; disabled: boolean; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((option) => option.value === value) ?? options[0];
+  return (
+    <div className={`relative ${open ? "z-50" : "z-0"}`}>
+      <button type="button" disabled={disabled} className="flex w-full items-center justify-between rounded-2xl border border-line bg-white px-4 py-3 text-left font-bold text-ink shadow-sm disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-white" onClick={() => setOpen((current) => !current)}>
+        <span>{selected?.label}</span>
+        <span className="text-coral">⌄</span>
+      </button>
+      {open && !disabled ? (
+        <div className="absolute left-0 top-full z-[60] mt-2 max-h-60 w-full overflow-y-auto rounded-2xl border border-line bg-white p-2 shadow-[0_18px_50px_rgba(15,23,42,0.28)] dark:border-white/10 dark:bg-slate-900">
+          {options.map((option) => (
+            <button key={option.value} type="button" className={`w-full rounded-xl px-3 py-2 text-left text-sm font-bold ${option.value === value ? "bg-coral text-white" : "text-slate-600 hover:bg-slate-100 dark:text-white/70 dark:hover:bg-white/10"}`} onClick={() => { onChange(option.value); setOpen(false); }}>
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 function Toggle({ checked, disabled, onChange, children }: { checked: boolean; disabled: boolean; onChange: (value: boolean) => void; children: React.ReactNode }) { return <button type="button" disabled={disabled} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-white p-3 text-left font-bold disabled:opacity-50 dark:border-white/10 dark:bg-slate-900" onClick={() => onChange(!checked)}><span>{children}</span><span className={`relative h-7 w-12 rounded-full transition ${checked ? "bg-coral" : "bg-slate-300 dark:bg-slate-700"}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${checked ? "left-6" : "left-1"}`} /></span></button>; }
 function SpecialCardAction({ card, onUse, compact }: { card: BunkerSpecialCard; onUse: () => void; compact?: boolean }) {
   return (
@@ -854,32 +874,51 @@ function BoardSpecialCards({
   character?: PublicBunkerRoomState["characters"][string];
   emitAction: (event: string, payload?: unknown) => void;
 }) {
+  const [selectedCard, setSelectedCard] = useState<BunkerSpecialCard | null>(null);
   const cards = character?.specialCards.filter((card) => !card.used) ?? [];
   if (cards.length === 0) return null;
 
   return (
-    <section className="mt-3 shrink-0 rounded-xl border border-[#b8a58d]/60 bg-white/45 p-2.5 dark:border-white/10 dark:bg-white/5">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-coral">Ваши спецкарты</p>
-        <span className="text-[0.65rem] font-semibold text-slate-500 dark:text-white/50">Можно применить в любой момент</span>
-      </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {cards.map((card) => (
-          <button
-            key={card.id}
-            type="button"
-            className="flex min-w-52 items-center gap-2 rounded-xl border border-[#b8a58d]/55 bg-[#fffaf3] p-2 text-left transition hover:border-coral hover:bg-coral/10 dark:border-white/10 dark:bg-[#111b24]"
-            onClick={() => emitAction("bunker:use_special_card", { cardId: card.id })}
-          >
-            <img src={specialCardImage(card)} alt="" className="h-16 w-11 shrink-0 rounded-md object-cover shadow-sm" />
-            <span>
-              <strong className="block text-xs text-ink dark:text-white">{card.title}</strong>
-              <span className="mt-1 block text-[0.65rem] font-black uppercase tracking-[0.1em] text-coral">Применить</span>
-            </span>
-          </button>
-        ))}
-      </div>
-    </section>
+    <>
+      <section className="mt-3 shrink-0 rounded-xl border border-[#b8a58d]/60 bg-white/45 p-2.5 dark:border-white/10 dark:bg-white/5">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <p className="text-[0.62rem] font-black uppercase tracking-[0.2em] text-coral">Ваши спецкарты</p>
+          <span className="text-[0.65rem] font-semibold text-slate-500 dark:text-white/50">Нажмите, чтобы прочитать</span>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {cards.map((card) => (
+            <button
+              key={card.id}
+              type="button"
+              className="flex min-w-52 items-center gap-2 rounded-xl border border-[#b8a58d]/55 bg-[#fffaf3] p-2 text-left transition hover:border-coral hover:bg-coral/10 dark:border-white/10 dark:bg-[#111b24]"
+              onClick={() => setSelectedCard(card)}
+            >
+              <img src={specialCardImage(card)} alt="" className="h-16 w-11 shrink-0 rounded-md object-cover shadow-sm" />
+              <span>
+                <strong className="block text-xs text-ink dark:text-white">{card.title}</strong>
+                <span className="mt-1 block text-[0.65rem] font-black uppercase tracking-[0.1em] text-coral">Подробнее</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+      {selectedCard ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={selectedCard.title} onClick={() => setSelectedCard(null)}>
+          <article className="relative grid w-full max-w-xl gap-5 rounded-[1.5rem] border border-white/15 bg-[#111a23] p-5 text-white shadow-2xl sm:grid-cols-[11rem_minmax(0,1fr)]" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-xl" aria-label="Закрыть" onClick={() => setSelectedCard(null)}>×</button>
+            <img src={specialCardImage(selectedCard)} alt="" className="mx-auto w-40 rounded-xl object-contain shadow-[0_18px_45px_rgba(0,0,0,0.45)]" />
+            <div className="flex flex-col justify-center pr-5">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-coral">Спецкарта</p>
+              <h3 className="mt-2 font-display text-3xl font-semibold">{selectedCard.title}</h3>
+              <p className="mt-3 text-sm leading-6 text-white/70">{selectedCard.description}</p>
+              <Button className="mt-5" onClick={() => { emitAction("bunker:use_special_card", { cardId: selectedCard.id }); setSelectedCard(null); }}>
+                Применить спецкарту
+              </Button>
+            </div>
+          </article>
+        </div>
+      ) : null}
+    </>
   );
 }
 
