@@ -82,6 +82,20 @@ export function BunkerRoomClient({ code }: { code: string }) {
   const unreadChatCount = Math.max(0, (room?.chatMessages.length ?? 0) - seenChatCount);
   const useBunkerBoard = tab === "game" && room && room.phase !== "LOBBY" && room.phase !== "GAME_OVER";
 
+  function scrollChatToRelevantMessage(behavior: ScrollBehavior = "smooth") {
+    requestAnimationFrame(() => {
+      const chatScroll = chatScrollRef.current;
+      if (!chatScroll) return;
+      const target = unreadAnchorId
+        ? Array.from(chatScroll.querySelectorAll<HTMLElement>("[data-chat-message-id]")).find((item) => item.dataset.chatMessageId === unreadAnchorId)
+        : null;
+      chatScroll.scrollTo({
+        top: target ? Math.max(target.offsetTop - 18, 0) : chatScroll.scrollHeight,
+        behavior
+      });
+    });
+  }
+
   useEffect(() => {
     const nextSocket = io({ path: "/socket.io" });
     setSocket(nextSocket);
@@ -254,6 +268,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
                   if (item === "chat") {
                     window.setTimeout(() => {
                       chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      scrollChatToRelevantMessage("smooth");
                       chatInputRef.current?.focus({ preventScroll: true });
                     }, 0);
                   }
@@ -321,7 +336,7 @@ function BunkerPhaseCountdown({
 function MainGamePanel({ room, ownCharacter, isHost, emitAction }: { room: PublicBunkerRoomState; ownCharacter: PublicBunkerRoomState["characters"][string] | undefined; isHost: boolean; emitAction: (event: string, payload?: unknown) => void }) {
   const ownRevealed = new Set(ownCharacter?.revealedCategories ?? []);
   const currentCategory = room.currentRevealCategory;
-  const revealOptions = bunkerCharacteristicCategories.filter((category) => !ownRevealed.has(category) && room.settings.enabledCardCategories.includes(category));
+  const revealOptions = getPlayableCharacterCategories(room, false).filter((category) => !ownRevealed.has(category) && room.settings.enabledCardCategories.includes(category));
   const alreadyRevealedThisRound = room.revealedThisRoundPlayerIds.includes(room.ownPlayerId);
   const canAdvanceReveal = canAdvanceRevealRound(room);
 
@@ -474,7 +489,7 @@ function BoardRevealAction({ room, emitAction, isHost }: { room: PublicBunkerRoo
   const ownCharacter = room.characters[room.ownPlayerId];
   const ownRevealed = new Set(ownCharacter?.revealedCategories ?? []);
   const alreadyRevealedThisRound = room.revealedThisRoundPlayerIds.includes(room.ownPlayerId);
-  const revealOptions = bunkerCharacteristicCategories.filter((category) => !ownRevealed.has(category) && room.settings.enabledCardCategories.includes(category));
+  const revealOptions = getPlayableCharacterCategories(room, false).filter((category) => !ownRevealed.has(category) && room.settings.enabledCardCategories.includes(category));
   const canAdvance = canAdvanceRevealRound(room);
   return (
     <div>
@@ -572,7 +587,7 @@ function OwnCharacterPanel({ room, character }: { room: PublicBunkerRoomState; c
   if (!character) return <Panel title="Ваш персонаж" label="Скрыт"><p>Персонаж появится после старта игры.</p></Panel>;
   return (
     <Panel title="Ваш персонаж" label="Колода">
-      <CharacterDeck character={character} own />
+      <CharacterDeck room={room} character={character} own />
       {character.specialCards.length ? (
         <div className="mt-5">
           <p className="mb-3 text-sm font-black uppercase tracking-[0.18em] text-coral">Спецкарты</p>
@@ -667,7 +682,7 @@ function PlayersPanel({ room }: { room: PublicBunkerRoomState }) {
           <h3 className="font-display text-3xl font-semibold">{activePlayer.name}{activePlayer.isHost ? " · хост" : ""}</h3>
           <span className={activePlayer.connected ? "text-sm font-bold text-mint" : "text-sm font-bold text-coral"}>{activePlayer.connected ? "online" : "offline"}</span>
         </div>
-        <CharacterDeck character={room.characters[activePlayer.id]} className="mt-4" />
+        <CharacterDeck room={room} character={room.characters[activePlayer.id]} className="mt-4" />
       </article>
     </section>
   );
@@ -703,7 +718,7 @@ function ChatPanel({
       <div ref={chatScrollRef} className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto rounded-[1.25rem] bg-slate-100/80 p-4 dark:bg-slate-950/45">
         {room.chatMessages.length === 0 ? <p className="text-slate-400">Пока нет сообщений.</p> : null}
         {room.chatMessages.map((item) => (
-          <div key={item.id}>
+          <div key={item.id} data-chat-message-id={item.id}>
             {unreadAnchorId === item.id ? (
               <div className="my-3 flex items-center gap-3 text-xs font-black uppercase tracking-[0.18em] text-coral">
                 <span className="h-px flex-1 bg-coral/30" />
@@ -865,8 +880,7 @@ function FeaturedProfessionCard({ character }: { character?: PublicBunkerRoomSta
 
 function BoardCharacterCards({ room, character }: { room: PublicBunkerRoomState; character?: PublicBunkerRoomState["characters"][string] }) {
   if (!character) return <p className="mt-5 text-slate-500 dark:text-white/45">Карты появятся после старта игры.</p>;
-  const visibleCategories = (room.revealOrder.length > 0 ? room.revealOrder : bunkerCharacteristicCategories)
-    .filter((category): category is Exclude<BunkerCardCategory, "profession" | "special"> => category !== "profession" && category !== "special");
+  const visibleCategories = getPlayableCharacterCategories(room, false);
   return (
     <div className="mt-4 grid min-h-0 flex-1 grid-cols-2 content-start justify-between gap-x-3 gap-y-3 overflow-hidden sm:grid-cols-3 lg:grid-cols-[repeat(4,6.25rem)] xl:grid-cols-[repeat(4,6.85rem)] 2xl:grid-cols-[repeat(4,7.25rem)]">
       {visibleCategories.map((category) => (
@@ -961,18 +975,21 @@ function BoardCharacterCard({
 }
 
 function CharacterDeck({
+  room,
   character,
   own,
   className = ""
 }: {
+  room: PublicBunkerRoomState;
   character?: PublicBunkerRoomState["characters"][string];
   own?: boolean;
   className?: string;
 }) {
   if (!character) return <p className={`text-slate-400 ${className}`}>Карты появятся после старта игры.</p>;
+  const categories = getPlayableCharacterCategories(room, true);
   return (
     <div className={`-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-3 ${className}`}>
-      {bunkerCharacteristicCategories.map((category) => (
+      {categories.map((category) => (
         <CharacterCardTile
           key={category}
           category={category}
@@ -1028,6 +1045,13 @@ function CardLine({ label, card, revealed, own, compact }: { label: string; card
 }
 function specialCardImage(card: BunkerSpecialCard) { return bunkerSpecialCardImages[card.id.split("_").slice(0, 3).join("_")] ?? bunkerSpecialCardImages[card.id.replace(/_[a-z0-9]+$/i, "")] ?? bunkerCardImages.special; }
 function cardTitle(card?: PublicBunkerCard) { return !card ? "-" : "hidden" in card ? "Скрыто" : card.title; }
+function getPlayableCharacterCategories(room: PublicBunkerRoomState, includeProfession: boolean): Exclude<BunkerCardCategory, "special">[] {
+  const categories = (room.revealOrder.length > 0 ? room.revealOrder : bunkerCharacteristicCategories)
+    .filter((category): category is Exclude<BunkerCardCategory, "special"> => category !== "special");
+  if (!includeProfession) return categories.filter((category) => category !== "profession");
+  if (room.settings.revealProfessionAtStart && !categories.includes("profession")) return ["profession", ...categories];
+  return categories;
+}
 function PlayersMini({ players }: { players: PublicBunkerRoomState["players"] }) { return <Panel title="Живые игроки" label="Состав"><div className="max-h-72 space-y-2 overflow-y-auto pr-1">{players.map((player) => <p key={player.id} className="rounded-2xl bg-slate-100/80 p-3 font-bold dark:bg-slate-950/45">{player.name}</p>)}</div></Panel>; }
 function Stats({ room }: { room: PublicBunkerRoomState }) { return <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl bg-slate-100/80 p-3 dark:bg-slate-950/45">Мест: {room.settings.bunkerSlots === "auto" ? "авто" : room.settings.bunkerSlots}</div><div className="rounded-2xl bg-slate-100/80 p-3 dark:bg-slate-950/45">Режим: {room.settings.gameMode === "classic" ? "классика" : "быстрый"}</div><div className="rounded-2xl bg-slate-100/80 p-3 dark:bg-slate-950/45">Спецкарты: {room.settings.useSpecialCards ? "вкл" : "выкл"}</div></div>; }
 function VoteList({ room }: { room: PublicBunkerRoomState }) { if (room.settings.votingMode === "anonymous") return <p className="mt-4 text-sm text-slate-500">Голосование было анонимным.</p>; return <div className="mt-4 space-y-2">{Object.entries(room.lastVotingResult?.votes ?? {}).map(([voterId, targetId]) => <p key={voterId} className="rounded-2xl bg-slate-100/80 p-3 text-sm dark:bg-slate-950/45">{room.players.find((p) => p.id === voterId)?.name} → {room.players.find((p) => p.id === targetId)?.name}</p>)}</div>; }

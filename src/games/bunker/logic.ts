@@ -65,6 +65,7 @@ export function revealBunkerCard(room: BunkerRoomState, playerId: string, catego
   if (!player || player.status !== "alive" || !character) return { ok: false, error: "Игрок не найден" };
   if (category === "special") return { ok: false, error: "Спецкарты раскрываются через действие" };
   if (!room.settings.enabledCardCategories.includes(category)) return { ok: false, error: "Категория выключена" };
+  if (!getPlayableRevealCategories(room).includes(category)) return { ok: false, error: "Эта характеристика недоступна в выбранном режиме" };
   if (character.revealedCategories.includes(category)) return { ok: false, error: "Эта характеристика уже раскрыта" };
   if (room.phase === "REVEAL_ROUND" && room.revealedThisRoundPlayerIds.includes(playerId)) {
     return { ok: false, error: "В этом раунде можно раскрыть только одну характеристику" };
@@ -129,7 +130,7 @@ export function expireBunkerRevealRound(room: BunkerRoomState) {
   for (const player of room.players.filter((item) => item.status === "alive")) {
     if (!revealed.has(player.id)) {
       const character = room.characters[player.id];
-      const available = bunkerCharacteristicCategories.filter(
+      const available = getPlayableRevealCategories(room).filter(
         (category) =>
           room.settings.enabledCardCategories.includes(category) &&
           !character?.revealedCategories.includes(category)
@@ -178,7 +179,7 @@ export function useBunkerSpecialCard(room: BunkerRoomState, playerId: string, ca
 
   if (card.type === "protect_vote") room.protectedPlayerIds = [...new Set([...room.protectedPlayerIds, playerId])];
   if (card.type === "reveal_extra") {
-    const hidden = bunkerCharacteristicCategories.find((item) => !character.revealedCategories.includes(item));
+    const hidden = getPlayableRevealCategories(room).find((item) => !character.revealedCategories.includes(item));
     if (hidden) character.revealedCategories = [...character.revealedCategories, hidden];
   }
   if (card.type === "hide_card") {
@@ -191,8 +192,8 @@ export function useBunkerSpecialCard(room: BunkerRoomState, playerId: string, ca
     const revealCategory =
       category && category !== "special"
         ? category
-        : bunkerCharacteristicCategories.find((item) => targetCharacter && !targetCharacter.revealedCategories.includes(item));
-    if (targetId && targetCharacter && revealCategory && !targetCharacter.revealedCategories.includes(revealCategory)) {
+        : getPlayableRevealCategories(room).find((item) => targetCharacter && !targetCharacter.revealedCategories.includes(item));
+    if (targetId && targetCharacter && revealCategory && getPlayableRevealCategories(room).includes(revealCategory) && !targetCharacter.revealedCategories.includes(revealCategory)) {
       targetCharacter.revealedCategories = [...targetCharacter.revealedCategories, revealCategory];
     }
   }
@@ -242,7 +243,14 @@ export function eliminateBunkerPlayer(room: BunkerRoomState, playerId: string, r
   const character = room.characters[playerId];
   if (!player) return;
   player.status = "eliminated";
-  if (character && room.settings.showEliminatedCards) character.revealedCategories = [...bunkerCharacteristicCategories];
+  if (character && room.settings.showEliminatedCards) {
+    character.revealedCategories = [
+      ...new Set([
+        ...(room.settings.revealProfessionAtStart ? (["profession"] as BunkerCardCategory[]) : []),
+        ...getPlayableRevealCategories(room)
+      ])
+    ];
+  }
   addEvent(room, `${player.name} исключен(а). Причина: ${reason}.`);
 }
 
@@ -298,6 +306,10 @@ function buildRevealOrder(settings: BunkerSettings) {
   const enabled = bunkerCharacteristicCategories.filter((category) => settings.enabledCardCategories.includes(category));
   const order = settings.revealProfessionAtStart ? enabled.filter((category) => category !== "profession") : enabled;
   return order.slice(0, Math.max(1, settings.characteristicsPerPlayer));
+}
+
+function getPlayableRevealCategories(room: BunkerRoomState) {
+  return room.revealOrder.length > 0 ? room.revealOrder : buildRevealOrder(room.settings);
 }
 
 function pickScenario<T extends { id: string }>(id: string | undefined, mode: "random" | "select", items: T[]) {
