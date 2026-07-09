@@ -138,6 +138,16 @@ export function expireBunkerRevealRound(room: BunkerRoomState) {
   return true;
 }
 
+export function expireBunkerVoting(room: BunkerRoomState) {
+  if ((room.phase !== "VOTING" && room.phase !== "REVOTE") || !room.deadlineAt || room.deadlineAt > Date.now()) return false;
+
+  for (const player of room.players.filter((item) => item.status === "alive")) {
+    if (!room.votes[player.id]) room.votes[player.id] = player.id;
+  }
+  resolveVoting(room);
+  return true;
+}
+
 export function castBunkerVote(room: BunkerRoomState, voterId: string, targetId: string) {
   const voter = room.players.find((player) => player.id === voterId);
   const target = room.players.find((player) => player.id === targetId);
@@ -186,7 +196,7 @@ export function useBunkerSpecialCard(room: BunkerRoomState, playerId: string, ca
   }
   if (card.type === "revote" && room.lastVotingResult?.tiedPlayerIds?.length) {
     room.revoteCandidateIds = room.lastVotingResult.tiedPlayerIds;
-    room.phase = "REVOTE";
+    setTimedPhase(room, "REVOTE", room.settings.votingTimeSec);
     room.votes = {};
   }
   addEvent(room, `${player.name} использовал(а) спецкарту: ${card.title}`);
@@ -194,6 +204,7 @@ export function useBunkerSpecialCard(room: BunkerRoomState, playerId: string, ca
 }
 
 export function resolveVoting(room: BunkerRoomState) {
+  room.deadlineAt = undefined;
   const result = resolveBunkerVotes({
     players: room.players,
     votes: room.votes,
@@ -208,7 +219,7 @@ export function resolveVoting(room: BunkerRoomState) {
 
   if (result.tiedPlayerIds?.length && !result.eliminatedPlayerId && !result.noElimination) {
     room.revoteCandidateIds = result.tiedPlayerIds;
-    room.phase = "REVOTE";
+    setTimedPhase(room, "REVOTE", room.settings.votingTimeSec);
     addEvent(room, "Голоса разделились. Начинается переголосование.");
     return;
   }

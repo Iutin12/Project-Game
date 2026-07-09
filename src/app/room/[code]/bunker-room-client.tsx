@@ -359,15 +359,15 @@ function BunkerBoard({
   const phaseAction = getBoardPhaseAction(room, isHost, emitAction);
 
   return (
-    <section className="mt-2 overflow-hidden rounded-[1.55rem] border border-[#2c3845] bg-[#070d13] p-2 text-[#ede8dd] shadow-[0_24px_90px_rgba(0,0,0,0.34)] xl:min-h-[50rem]">
-      <div className="grid h-full gap-0 overflow-hidden rounded-[1.25rem] border border-white/10 bg-[radial-gradient(circle_at_10%_0%,rgba(255,99,92,0.16),transparent_32%),linear-gradient(135deg,#101923,#071018)] lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="min-h-0 overflow-hidden border-b border-white/10 p-4 sm:p-5 lg:border-b-0 lg:border-r">
+    <section className="mt-2 overflow-hidden rounded-[1.55rem] border border-[#d9cbbb] bg-[#f8f1e7] p-2 text-ink shadow-[0_24px_90px_rgba(84,62,42,0.14)] dark:border-[#2c3845] dark:bg-[#070d13] dark:text-[#ede8dd] dark:shadow-[0_24px_90px_rgba(0,0,0,0.34)] xl:min-h-[50rem]">
+      <div className="grid h-full gap-0 overflow-hidden rounded-[1.25rem] border border-[#dfd3c4] bg-[radial-gradient(circle_at_10%_0%,rgba(255,99,92,0.13),transparent_32%),linear-gradient(135deg,#fffaf3,#eee5d8)] dark:border-white/10 dark:bg-[radial-gradient(circle_at_10%_0%,rgba(255,99,92,0.16),transparent_32%),linear-gradient(135deg,#101923,#071018)] lg:grid-cols-[0.95fr_1.05fr]">
+        <div className="min-h-0 overflow-hidden border-b border-[#dfd3c4] p-4 dark:border-white/10 sm:p-5 lg:border-b-0 lg:border-r">
           <p className="text-[0.65rem] font-black uppercase tracking-[0.28em] text-coral">Сценарий</p>
-          <h2 className="mt-2 font-display text-3xl font-semibold leading-none text-[#f4eee3] sm:text-4xl">{room.catastrophe?.title ?? "Катастрофа"}</h2>
-          <p className="mt-4 max-h-28 max-w-2xl overflow-y-auto pr-2 text-sm leading-7 text-white/68">{room.catastrophe?.fullDescription}</p>
-          <p className="mt-4 flex items-start gap-3 text-base font-bold text-[#f4eee3]">
+          <h2 className="mt-2 font-display text-3xl font-semibold leading-none text-ink dark:text-[#f4eee3] sm:text-4xl">{room.catastrophe?.title ?? "Катастрофа"}</h2>
+          <p className="mt-4 max-h-28 max-w-2xl overflow-y-auto pr-2 text-sm leading-7 text-slate-600 dark:text-white/68">{room.catastrophe?.fullDescription}</p>
+          <p className="mt-4 flex items-start gap-3 text-base font-bold text-ink dark:text-[#f4eee3]">
             <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-coral text-coral">⌖</span>
-            <span>Цель: <span className="font-medium text-white/72">{room.catastrophe?.survivalGoal}</span></span>
+            <span>Цель: <span className="font-medium text-slate-600 dark:text-white/72">{room.catastrophe?.survivalGoal}</span></span>
           </p>
 
           <article className="mt-5 overflow-hidden rounded-[1.15rem] border border-white/18 bg-[#0d151d] shadow-soft">
@@ -392,7 +392,7 @@ function BunkerBoard({
 
         <div className="flex min-h-0 flex-col overflow-hidden p-4 sm:p-5">
           <p className="text-[0.65rem] font-black uppercase tracking-[0.28em] text-coral">Карты</p>
-          <h2 className="mt-1 font-display text-2xl font-semibold text-[#f4eee3]">Ваш персонаж</h2>
+          <h2 className="mt-1 font-display text-2xl font-semibold text-ink dark:text-[#f4eee3]">Ваш персонаж</h2>
           <FeaturedProfessionCard character={ownCharacter} />
           <BoardCharacterCards character={ownCharacter} />
         </div>
@@ -411,7 +411,7 @@ function getBoardPhaseAction(room: PublicBunkerRoomState, isHost: boolean, emitA
   if (room.phase === "VOTING" || room.phase === "REVOTE") return <VotingPanel room={room} emitAction={emitAction} isHost={isHost} />;
   if (room.phase === "VOTING_RESULT") return <VotingResultPanel room={room} isHost={isHost} emitAction={emitAction} />;
   if (room.phase === "SPECIAL_ACTIONS") return <SpecialPanel room={room} ownCharacter={room.characters[room.ownPlayerId]} emitAction={emitAction} />;
-  return <p className="text-sm text-white/60">{getPhaseHint(room)}</p>;
+  return <p className="text-sm text-slate-500 dark:text-white/60">{getPhaseHint(room)}</p>;
 }
 
 function BoardReadyFooter({
@@ -458,14 +458,14 @@ function BoardRevealAction({ room, emitAction, isHost }: { room: PublicBunkerRoo
   const canAdvance = canAdvanceRevealRound(room);
   return (
     <div>
-      <p className="text-sm leading-6 text-white/65">Раунд {room.currentRound}: выберите одну характеристику, которую хотите раскрыть группе.</p>
+      <p className="text-sm leading-6 text-slate-600 dark:text-white/65">Раунд {room.currentRound}: выберите одну характеристику, которую хотите раскрыть группе.</p>
       {alreadyRevealedThisRound ? <p className="mt-3 rounded-2xl border border-mint/30 bg-mint/10 p-3 text-sm font-bold text-mint">Вы уже раскрыли характеристику в этом раунде.</p> : null}
       {!alreadyRevealedThisRound ? (
         <div className="mt-4 grid max-h-72 gap-3 overflow-y-auto pr-2 sm:grid-cols-2 xl:grid-cols-3">
           {revealOptions.map((category) => (
             <button
               key={category}
-              className="rounded-2xl border border-white/14 bg-white/5 p-3 text-left text-sm font-black text-white/80 transition hover:border-coral hover:bg-coral/10"
+              className="rounded-2xl border border-[#d8cbbb] bg-white/55 p-3 text-left text-sm font-black text-ink transition hover:border-coral hover:bg-coral/10 dark:border-white/14 dark:bg-white/5 dark:text-white/80"
               onClick={() => emitAction("bunker:reveal_card", { category })}
             >
               <img src={bunkerCardImages[category]} alt="" className="mb-2 h-24 w-full rounded-xl object-contain object-center" />
@@ -476,7 +476,7 @@ function BoardRevealAction({ room, emitAction, isHost }: { room: PublicBunkerRoo
       ) : (
         <BoardReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Подтвердить выбор" readyLabel="Выбор подтвержден" />
       )}
-      {isHost && !canAdvance ? <p className="mt-3 text-sm text-white/50">Голосование начнется автоматически, когда все подтвердят раскрытую карту.</p> : null}
+      {isHost && !canAdvance ? <p className="mt-3 text-sm text-slate-500 dark:text-white/50">Голосование начнется автоматически, когда все подтвердят раскрытую карту.</p> : null}
     </div>
   );
 }
@@ -780,23 +780,23 @@ function SpecialCardPreview({ card }: { card: BunkerSpecialCard }) {
 function FeaturedProfessionCard({ character }: { character?: PublicBunkerRoomState["characters"][string] }) {
   const profession = character?.profession;
   return (
-    <article className="mt-2 grid shrink-0 overflow-hidden rounded-[0.95rem] border border-[#7f6b57]/55 bg-[#0c141c] shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:grid-cols-[9.5rem_minmax(0,1fr)]">
-      <div className="relative flex h-32 items-center justify-center border-b border-[#7f6b57]/35 bg-[#0b1219] p-3 sm:border-b-0 sm:border-r">
+    <article className="mt-2 grid shrink-0 overflow-hidden rounded-[0.95rem] border border-[#b8a58d]/70 bg-white/55 shadow-[0_16px_40px_rgba(91,67,44,0.14)] dark:border-[#7f6b57]/55 dark:bg-[#0c141c] dark:shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:grid-cols-[9.5rem_minmax(0,1fr)]">
+      <div className="relative flex h-32 items-center justify-center border-b border-[#b8a58d]/55 bg-[#eee2cf] p-3 dark:border-[#7f6b57]/35 dark:bg-[#0b1219] sm:border-b-0 sm:border-r">
         <div className="h-24 w-24 overflow-hidden rounded-full border border-[#7f6b57]/55 bg-[#eadfcb] shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
           <img src={bunkerCardImages.profession} alt="" className="h-full w-full scale-[1.85] object-cover object-center opacity-95" />
         </div>
       </div>
       <div className="relative h-32 overflow-hidden p-4">
         <p className="text-[0.58rem] font-black uppercase tracking-[0.24em] text-coral">Профессия</p>
-        <h3 className="mt-2 font-display text-xl font-semibold leading-tight text-[#f4eee3]">{cardTitle(profession)}</h3>
-        <p className="mt-2 line-clamp-2 max-w-lg text-[0.7rem] leading-4 text-white/58">{profession && !("hidden" in profession) ? profession.description : "Главная карта персонажа будет видна после выдачи ролей."}</p>
+        <h3 className="mt-2 font-display text-xl font-semibold leading-tight text-ink dark:text-[#f4eee3]">{cardTitle(profession)}</h3>
+        <p className="mt-2 line-clamp-2 max-w-lg text-[0.7rem] leading-4 text-slate-600 dark:text-white/58">{profession && !("hidden" in profession) ? profession.description : "Главная карта персонажа будет видна после выдачи ролей."}</p>
       </div>
     </article>
   );
 }
 
 function BoardCharacterCards({ character }: { character?: PublicBunkerRoomState["characters"][string] }) {
-  if (!character) return <p className="mt-5 text-white/45">Карты появятся после старта игры.</p>;
+  if (!character) return <p className="mt-5 text-slate-500 dark:text-white/45">Карты появятся после старта игры.</p>;
   const visibleCategories = bunkerCharacteristicCategories.filter((category) => category !== "profession");
   return (
     <div className="mt-4 grid min-h-0 flex-1 grid-cols-2 content-start justify-between gap-x-3 gap-y-3 overflow-hidden sm:grid-cols-3 lg:grid-cols-[repeat(4,6.25rem)] xl:grid-cols-[repeat(4,6.85rem)] 2xl:grid-cols-[repeat(4,7.25rem)]">

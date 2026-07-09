@@ -6,6 +6,7 @@ import {
   castBunkerVote,
   createEmptyBunkerRoom,
   expireBunkerRevealRound,
+  expireBunkerVoting,
   finishBunkerGame,
   markBunkerReady,
   restartBunkerGame,
@@ -90,7 +91,7 @@ export function registerBunkerRoomSockets(io: Server) {
   if (!phaseDeadlineWatcher) {
     phaseDeadlineWatcher = setInterval(() => {
       for (const room of rooms.values()) {
-        if (expireBunkerRevealRound(room)) emitRoom(io, room.code);
+        if (expireBunkerRevealRound(room) || expireBunkerVoting(room)) emitRoom(io, room.code);
       }
     }, 500);
     phaseDeadlineWatcher.unref();

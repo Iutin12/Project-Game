@@ -38,7 +38,7 @@ export const defaultBunkerSettings: BunkerSettings = {
   revealMode: "free_choice",
   discussionTimeSec: 120,
   votingTimeSec: 60,
-  useTimer: true,
+  useTimer: false,
   useSpecialCards: true,
   specialCardsPerPlayer: 1,
   votingMode: "open",
