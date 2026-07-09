@@ -343,8 +343,8 @@ function BunkerBoard({
 
           <article className="mt-5 overflow-hidden rounded-[1.15rem] border border-white/18 bg-[#0d151d] shadow-soft">
             <div className="relative min-h-[22rem] p-4 pb-6 sm:p-5 sm:pb-6">
-              <img src="/bunker-cards/shelter-scene.png" alt="" className="absolute inset-3 h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] rounded-[0.95rem] object-cover opacity-52" />
-              <div className="absolute inset-3 rounded-[0.95rem] bg-gradient-to-r from-[#0d151d]/96 via-[#0d151d]/78 to-[#0d151d]/18" />
+              <img src="/bunker-cards/shelter-scene.png" alt="" className="absolute inset-0 h-full w-full object-cover opacity-52" />
+              <div className="absolute inset-0 bg-gradient-to-r from-[#0d151d]/96 via-[#0d151d]/78 to-[#0d151d]/18" />
               <div className="relative max-w-[33rem] px-2 py-2">
                 <h3 className="font-display text-3xl font-semibold text-[#f4eee3]">{room.shelter?.title ?? "Бункер"}</h3>
                 <p className="mt-3 text-base leading-7 text-white/72">{room.shelter?.description}</p>

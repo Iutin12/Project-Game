@@ -86,15 +86,15 @@ export function markBunkerReady(room: BunkerRoomState, playerId: string) {
 export function allAliveReady(room: BunkerRoomState) {
   const ready = new Set(room.readyPlayerIds);
   return room.players
-    .filter((player) => player.status === "alive" && (player.connected || player.isBot))
+    .filter((player) => player.status === "alive")
     .every((player) => ready.has(player.id) || player.isBot);
 }
 
 export function allActivePlayersRevealed(room: BunkerRoomState) {
   const revealed = new Set(room.revealedThisRoundPlayerIds);
   return room.players
-    .filter((player) => player.status === "alive" && player.connected && !player.isBot)
-    .every((player) => revealed.has(player.id));
+    .filter((player) => player.status === "alive")
+    .every((player) => revealed.has(player.id) || player.isBot);
 }
 
 export function advanceBunkerPhase(room: BunkerRoomState) {
