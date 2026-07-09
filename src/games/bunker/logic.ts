@@ -106,14 +106,36 @@ export function advanceBunkerPhase(room: BunkerRoomState) {
   }
   room.readyPlayerIds = [];
   room.deadlineAt = undefined;
-  if (room.phase === "SCENARIO_REVEAL") room.phase = "REVEAL_ROUND";
-  else if (room.phase === "CHARACTER_PREVIEW") room.phase = "REVEAL_ROUND";
+  if (room.phase === "SCENARIO_REVEAL") setTimedPhase(room, "REVEAL_ROUND", room.settings.discussionTimeSec);
+  else if (room.phase === "CHARACTER_PREVIEW") setTimedPhase(room, "REVEAL_ROUND", room.settings.discussionTimeSec);
   else if (room.phase === "REVEAL_ROUND") setTimedPhase(room, "VOTING", room.settings.votingTimeSec);
   else if (room.phase === "DISCUSSION") setTimedPhase(room, "VOTING", room.settings.votingTimeSec);
   else if (room.phase === "SPECIAL_ACTIONS") setTimedPhase(room, "VOTING", room.settings.votingTimeSec);
   else if (room.phase === "VOTING" || room.phase === "REVOTE") resolveVoting(room);
   else if (room.phase === "VOTING_RESULT" || room.phase === "ELIMINATION") nextRoundOrFinish(room);
   return { ok: true };
+}
+
+export function expireBunkerRevealRound(room: BunkerRoomState) {
+  if (room.phase !== "REVEAL_ROUND" || !room.deadlineAt || room.deadlineAt > Date.now()) return false;
+
+  const revealed = new Set(room.revealedThisRoundPlayerIds);
+  for (const player of room.players.filter((item) => item.status === "alive")) {
+    if (!revealed.has(player.id)) {
+      const character = room.characters[player.id];
+      const available = bunkerCharacteristicCategories.filter(
+        (category) =>
+          room.settings.enabledCardCategories.includes(category) &&
+          !character?.revealedCategories.includes(category)
+      );
+      const category = available[Math.floor(Math.random() * available.length)];
+      if (category) revealBunkerCard(room, player.id, category);
+    }
+    markBunkerReady(room, player.id);
+  }
+
+  advanceBunkerPhase(room);
+  return true;
 }
 
 export function castBunkerVote(room: BunkerRoomState, voterId: string, targetId: string) {
@@ -245,7 +267,7 @@ function nextRoundOrFinish(room: BunkerRoomState) {
   room.currentRound += 1;
   room.currentRevealCategory = room.settings.revealMode === "fixed_order" ? room.revealOrder[(room.currentRound - 1) % room.revealOrder.length] : undefined;
   room.revealedThisRoundPlayerIds = [];
-  room.phase = "REVEAL_ROUND";
+  setTimedPhase(room, "REVEAL_ROUND", room.settings.discussionTimeSec);
 }
 
 function setTimedPhase(room: BunkerRoomState, phase: BunkerRoomState["phase"], seconds: number) {

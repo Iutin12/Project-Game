@@ -251,6 +251,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
             ))}
           </nav>
           {error ? <p className="mt-4 rounded-2xl border border-coral/30 bg-coral/10 p-3 text-sm text-coral">{error}</p> : null}
+          {room.deadlineAt ? <BunkerPhaseCountdown deadlineAt={room.deadlineAt} phase={room.phase} /> : null}
 
           {tab === "settings" ? <SettingsPanel room={room} isHost={isHost} updateSettings={(patch) => emitAction("bunker:update_settings", patch)} /> : null}
           {tab === "chat" ? <ChatPanel room={room} message={message} setMessage={setMessage} sendMessage={sendMessage} chatScrollRef={chatScrollRef} unreadAnchorId={unreadAnchorId} /> : null}
@@ -272,6 +273,34 @@ export function BunkerRoomClient({ code }: { code: string }) {
         </div>
       </section>
     </AppShell>
+  );
+}
+
+function BunkerPhaseCountdown({
+  deadlineAt,
+  phase
+}: {
+  deadlineAt: number;
+  phase: PublicBunkerRoomState["phase"];
+}) {
+  const [secondsLeft, setSecondsLeft] = useState(() => Math.max(0, Math.ceil((deadlineAt - Date.now()) / 1000)));
+
+  useEffect(() => {
+    const update = () => setSecondsLeft(Math.max(0, Math.ceil((deadlineAt - Date.now()) / 1000)));
+    update();
+    const timer = window.setInterval(update, 250);
+    return () => window.clearInterval(timer);
+  }, [deadlineAt]);
+
+  const label = phase === "REVEAL_ROUND" ? "До случайного выбора" : phase === "VOTING" || phase === "REVOTE" ? "До конца голосования" : "До конца этапа";
+  return (
+    <div className="mt-3 flex items-center justify-center gap-3 rounded-2xl border border-coral/30 bg-coral/10 px-4 py-3 text-coral shadow-sm">
+      <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-coral" />
+      <span className="text-sm font-black uppercase tracking-[0.12em]">{label}</span>
+      <span className="min-w-16 rounded-xl bg-coral px-3 py-1 text-center text-base font-black text-white">
+        {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
+      </span>
+    </div>
   );
 }
 
@@ -694,9 +723,9 @@ function SettingsPanel({ room, isHost, updateSettings }: { room: PublicBunkerRoo
           <CustomSelect disabled={disabled} value={s.bunkerSlots === "auto" ? "auto" : String(s.bunkerSlots)} options={[{ value: "auto", label: "Места авто" }, ...[1, 2, 3, 4, 5, 6, 7, 8].map((value) => ({ value: String(value), label: `${value} мест` }))]} onChange={(value) => updateSettings({ bunkerSlots: value === "auto" ? "auto" : Number(value) })} />
           <CustomSelect disabled={disabled} value={s.revealMode} options={[{ value: "fixed_order", label: "По порядку" }, { value: "free_choice", label: "Свободный выбор" }]} onChange={(value) => updateSettings({ revealMode: value as BunkerSettings["revealMode"] })} />
         </Setting>
-        <Setting title="Таймеры" hint="Если таймер включен, обсуждение и голосование ограничены временем. Хост все равно может перевести фазу вручную.">
+        <Setting title="Таймеры" hint="Если таймер включен, выбор характеристики, обсуждение и голосование ограничены временем. Не выбранная вовремя характеристика откроется случайно.">
           <Toggle disabled={disabled} checked={s.useTimer} onChange={(value) => updateSettings({ useTimer: value })}>Использовать таймер</Toggle>
-          <CustomSelect disabled={disabled} value={String(s.discussionTimeSec)} options={[60, 120, 180, 300].map((value) => ({ value: String(value), label: `Обсуждение ${value} сек` }))} onChange={(value) => updateSettings({ discussionTimeSec: Number(value) })} />
+          <CustomSelect disabled={disabled} value={String(s.discussionTimeSec)} options={[60, 120, 180, 300].map((value) => ({ value: String(value), label: `Выбор / обсуждение ${value} сек` }))} onChange={(value) => updateSettings({ discussionTimeSec: Number(value) })} />
           <CustomSelect disabled={disabled} value={String(s.votingTimeSec)} options={[30, 45, 60, 90, 120].map((value) => ({ value: String(value), label: `Голосование ${value} сек` }))} onChange={(value) => updateSettings({ votingTimeSec: Number(value) })} />
         </Setting>
         <Setting title="Голосование" hint="Публичное голосование показывает, кто за кого голосует. При ничьей можно запустить переголосование, оставить всех или выбрать случайного кандидата.">

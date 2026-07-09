@@ -5,6 +5,7 @@ import {
   allAliveReady,
   castBunkerVote,
   createEmptyBunkerRoom,
+  expireBunkerRevealRound,
   finishBunkerGame,
   markBunkerReady,
   restartBunkerGame,
@@ -32,6 +33,7 @@ const rooms = new Map<string, BunkerRoomState>();
 const socketPlayers = new Map<string, { roomCode: string; playerId: string }>();
 let totalRoomsCreatedToday = 0;
 let statsDay = new Date().toDateString();
+let phaseDeadlineWatcher: ReturnType<typeof setInterval> | undefined;
 
 export function createBunkerRoom(visibility: BunkerRoomState["visibility"] = "private") {
   refreshStatsDay();
@@ -85,6 +87,15 @@ export function getBunkerStats() {
 }
 
 export function registerBunkerRoomSockets(io: Server) {
+  if (!phaseDeadlineWatcher) {
+    phaseDeadlineWatcher = setInterval(() => {
+      for (const room of rooms.values()) {
+        if (expireBunkerRevealRound(room)) emitRoom(io, room.code);
+      }
+    }, 500);
+    phaseDeadlineWatcher.unref();
+  }
+
   io.on("connection", (socket) => {
     socket.on("join_bunker_room", (payload: { code: string; name: string; hostKey?: string; playerId?: string }, ack) => {
       const room = getBunkerRoom(payload.code);
