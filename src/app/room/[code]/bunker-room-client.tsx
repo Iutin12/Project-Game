@@ -478,23 +478,23 @@ function BoardReadyFooter({
   const aliveCount = room.players.filter((player) => player.status === "alive").length;
   const isReady = room.readyPlayerIds.includes(room.ownPlayerId);
   return (
-    <div className="flex flex-wrap items-center gap-3 pb-1 sm:flex-nowrap sm:overflow-x-auto">
+    <div className="grid w-full grid-cols-1 gap-3 pb-1 sm:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
       <button
         type="button"
         disabled={isReady}
-        className="relative inline-flex h-16 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-[#f4eee3] shadow-[0_0_30px_rgba(255,99,92,0.16)] transition hover:scale-[1.01] disabled:opacity-75 sm:w-auto sm:min-w-72"
+        className="relative inline-flex h-16 min-w-0 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-3 py-4 text-[clamp(0.65rem,1.6vw,0.875rem)] font-black uppercase tracking-[0.1em] text-[#f4eee3] shadow-[0_0_30px_rgba(255,99,92,0.16)] transition hover:scale-[1.01] disabled:opacity-75"
         onClick={onReady}
       >
         <img src="/bunker-cards/ready-button-red.png" alt="" className="absolute inset-0 h-full w-full object-fill" />
         <span className="relative inline-flex h-9 w-9 items-center justify-center">
           <img src="/bunker-cards/ready-check.png" alt="" className="h-9 w-9 rounded-full object-cover" />
         </span>
-        <span className="relative whitespace-nowrap">{isReady ? readyLabel : actionLabel}</span>
+        <span className="relative min-w-0 whitespace-nowrap">{isReady ? readyLabel : actionLabel}</span>
       </button>
-      <div className="relative inline-flex h-16 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-[#eef8ff] [text-shadow:0_1px_4px_rgba(0,0,0,0.95)] sm:w-auto sm:min-w-56">
+      <div className="relative inline-flex h-16 min-w-0 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-3 py-4 text-[clamp(0.65rem,1.6vw,0.875rem)] font-black uppercase tracking-[0.1em] text-[#eef8ff] [text-shadow:0_1px_4px_rgba(0,0,0,0.95)]">
         <img src="/bunker-cards/ready-counter-blue.png" alt="" className="absolute inset-0 h-full w-full object-fill" />
-        <img src="/bunker-cards/ready-players.png" alt="" className="relative h-9 w-12 object-cover object-center mix-blend-screen" />
-        <span className="relative whitespace-nowrap">Готовы: {room.readyPlayerIds.length} / {aliveCount}</span>
+        <img src="/bunker-cards/ready-players.png" alt="" className="relative h-8 w-10 shrink-0 object-cover object-center mix-blend-screen" />
+        <span className="relative min-w-0 whitespace-nowrap">Готовы: {room.readyPlayerIds.length} / {aliveCount}</span>
       </div>
     </div>
   );
@@ -566,23 +566,23 @@ function ReadyFooter({
   const aliveCount = room.players.filter((player) => player.status === "alive").length;
   const isReady = room.readyPlayerIds.includes(room.ownPlayerId);
   return (
-    <div className="mt-5 flex flex-wrap items-center gap-3 sm:flex-nowrap sm:overflow-x-auto">
+    <div className="mt-5 grid w-full grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
       <button
         type="button"
         disabled={isReady}
-        className="relative inline-flex h-16 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-[#f4eee3] shadow-[0_0_30px_rgba(255,99,92,0.16)] transition hover:scale-[1.01] disabled:opacity-75 sm:w-auto sm:min-w-72"
+        className="relative inline-flex h-16 min-w-0 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-3 py-4 text-[clamp(0.65rem,1.6vw,0.875rem)] font-black uppercase tracking-[0.1em] text-[#f4eee3] shadow-[0_0_30px_rgba(255,99,92,0.16)] transition hover:scale-[1.01] disabled:opacity-75"
         onClick={onReady}
       >
         <img src="/bunker-cards/ready-button-red.png" alt="" className="absolute inset-0 h-full w-full object-fill" />
         <span className="relative inline-flex h-9 w-9 items-center justify-center">
           <img src="/bunker-cards/ready-check.png" alt="" className="h-9 w-9 rounded-full object-cover" />
         </span>
-        <span className="relative whitespace-nowrap">{isReady ? readyLabel : actionLabel}</span>
+        <span className="relative min-w-0 whitespace-nowrap">{isReady ? readyLabel : actionLabel}</span>
       </button>
-      <div className="relative inline-flex h-16 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-[#eef8ff] [text-shadow:0_1px_4px_rgba(0,0,0,0.95)] sm:w-auto sm:min-w-56">
+      <div className="relative inline-flex h-16 min-w-0 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-3 py-4 text-[clamp(0.65rem,1.6vw,0.875rem)] font-black uppercase tracking-[0.1em] text-[#eef8ff] [text-shadow:0_1px_4px_rgba(0,0,0,0.95)]">
         <img src="/bunker-cards/ready-counter-blue.png" alt="" className="absolute inset-0 h-full w-full object-fill" />
-        <img src="/bunker-cards/ready-players.png" alt="" className="relative h-9 w-12 object-cover object-center mix-blend-screen" />
-        <span className="relative whitespace-nowrap">Готовы: {room.readyPlayerIds.length} / {aliveCount}</span>
+        <img src="/bunker-cards/ready-players.png" alt="" className="relative h-8 w-10 shrink-0 object-cover object-center mix-blend-screen" />
+        <span className="relative min-w-0 whitespace-nowrap">Готовы: {room.readyPlayerIds.length} / {aliveCount}</span>
       </div>
     </div>
   );
