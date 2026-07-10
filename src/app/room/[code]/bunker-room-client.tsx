@@ -423,9 +423,9 @@ function BunkerBoard({
                 <p className="mt-3 text-base leading-7 text-[#d8e0e7]">{room.shelter?.description}</p>
                 <div className="mt-4 h-px bg-white/20" />
                 <div className="mt-4 space-y-2 text-base leading-6 text-[#d8e0e7]">
-                  <p><span className="mr-3 text-coral">▣</span>Мест: {room.bunkerSlots} · Запасов: {room.shelter?.durationMonths} мес.</p>
-                  <p className="line-clamp-1"><span className="mr-3 text-coral">⌂</span>Комнаты: {room.shelter?.rooms.join(", ")}</p>
-                  <p className="line-clamp-1"><span className="mr-3 text-coral">△</span>Проблемы: {room.shelter?.problems.join(", ")}</p>
+                  <p className="flex items-center gap-3"><img src="/bunker-cards/shelter-supplies-icon.png" alt="" className="h-6 w-6 shrink-0 object-contain" />Мест: {room.bunkerSlots} · Запасов: {room.shelter?.durationMonths} мес.</p>
+                  <p className="flex items-center gap-3 line-clamp-1"><img src="/bunker-cards/shelter-rooms-icon.png" alt="" className="h-6 w-6 shrink-0 object-contain" />Комнаты: {room.shelter?.rooms.join(", ")}</p>
+                  <p className="flex items-center gap-3 line-clamp-1"><img src="/bunker-cards/shelter-problems-icon.png" alt="" className="h-6 w-6 shrink-0 object-contain" />Проблемы: {room.shelter?.problems.join(", ")}</p>
                 </div>
               </div>
             </div>
