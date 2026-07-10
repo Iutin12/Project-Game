@@ -280,6 +280,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
           </nav>
           {error ? <p className="mt-4 rounded-2xl border border-coral/30 bg-coral/10 p-3 text-sm text-coral">{error}</p> : null}
           {room.deadlineAt ? <BunkerPhaseCountdown deadlineAt={room.deadlineAt} phase={room.phase} /> : null}
+          {ownPlayer?.status === "eliminated" && room.phase !== "GAME_OVER" ? <EliminatedPlayerBanner /> : null}
 
           {tab === "settings" ? <SettingsPanel room={room} isHost={isHost} updateSettings={(patch) => emitAction("bunker:update_settings", patch)} /> : null}
           {tab === "chat" ? <ChatPanel room={room} message={message} setMessage={setMessage} sendMessage={sendMessage} chatScrollRef={chatScrollRef} chatSectionRef={chatSectionRef} chatInputRef={chatInputRef} unreadAnchorId={unreadAnchorId} /> : null}
@@ -329,6 +330,21 @@ function BunkerPhaseCountdown({
         {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
       </span>
     </div>
+  );
+}
+
+function EliminatedPlayerBanner() {
+  return (
+    <aside className="mt-3 overflow-hidden rounded-2xl border border-coral/50 bg-gradient-to-r from-coral/25 via-coral/10 to-slate-950/5 px-4 py-4 shadow-[0_12px_34px_rgba(255,99,92,0.16)] dark:from-coral/30 dark:via-coral/10 dark:to-slate-950/70 sm:px-5">
+      <div className="flex items-center gap-4">
+        <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-coral/50 bg-coral text-2xl font-black text-white shadow-[0_0_0_6px_rgba(255,99,92,0.12)]">×</span>
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.2em] text-coral">Статус игрока</p>
+          <h2 className="mt-0.5 font-display text-2xl font-semibold text-ink dark:text-white">Вы выбыли из игры</h2>
+          <p className="mt-1 text-sm text-slate-700 dark:text-white/70">Вы больше не участвуете в выборе и голосованиях, но можете наблюдать за партией и общаться в чате.</p>
+        </div>
+      </div>
+    </aside>
   );
 }
 
