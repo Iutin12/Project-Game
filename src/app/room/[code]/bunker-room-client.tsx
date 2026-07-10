@@ -67,6 +67,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
   const [seenChatCount, setSeenChatCount] = useState(0);
   const [unreadAnchorId, setUnreadAnchorId] = useState<string | null>(null);
   const [keepUnreadDivider, setKeepUnreadDivider] = useState(false);
+  const [isEliminationModalOpen, setIsEliminationModalOpen] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const chatSectionRef = useRef<HTMLElement | null>(null);
   const chatInputRef = useRef<HTMLInputElement | null>(null);
@@ -169,6 +170,10 @@ export function BunkerRoomClient({ code }: { code: string }) {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [room]);
+
+  useEffect(() => {
+    if (ownPlayer?.status === "eliminated") setIsEliminationModalOpen(true);
+  }, [ownPlayer?.status]);
 
   function joinRoom() {
     const hostKey = window.localStorage.getItem(`hostKey:${code}`) ?? undefined;
@@ -301,6 +306,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
           ) : null}
         </div>
       </section>
+      {isEliminationModalOpen ? <EliminatedPlayerModal onClose={() => setIsEliminationModalOpen(false)} /> : null}
     </AppShell>
   );
 }
@@ -345,6 +351,23 @@ function EliminatedPlayerBanner() {
         </div>
       </div>
     </aside>
+  );
+}
+
+function EliminatedPlayerModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="bunker-elimination-title">
+      <section className="w-full max-w-lg overflow-hidden rounded-[2rem] border border-coral/50 bg-white p-6 text-ink shadow-[0_24px_90px_rgba(0,0,0,0.42)] dark:bg-slate-950 dark:text-white sm:p-8">
+        <div className="flex items-start justify-between gap-4">
+          <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.35rem] border border-coral/50 bg-coral text-4xl font-black text-white shadow-[0_0_0_8px_rgba(255,99,92,0.12)]">×</span>
+          <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-2xl text-slate-500 transition hover:border-coral hover:text-coral dark:border-white/15 dark:text-white/65" onClick={onClose} aria-label="Закрыть уведомление">×</button>
+        </div>
+        <p className="mt-6 text-sm font-black uppercase tracking-[0.22em] text-coral">Выбывание</p>
+        <h2 id="bunker-elimination-title" className="mt-2 font-display text-4xl font-semibold">Вы выбыли из игры</h2>
+        <p className="mt-4 text-base leading-7 text-slate-600 dark:text-white/70">Вас исключили из отбора в бункер. Вы больше не голосуете и не раскрываете характеристики, но можете следить за игрой и общаться в чате.</p>
+        <Button className="mt-7 w-full" onClick={onClose}>Понятно, продолжаю наблюдать</Button>
+      </section>
+    </div>
   );
 }
 
