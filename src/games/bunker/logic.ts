@@ -77,7 +77,7 @@ export function revealBunkerCard(room: BunkerRoomState, playerId: string, catego
 }
 
 export function markBunkerReady(room: BunkerRoomState, playerId: string) {
-  if (room.phase === "REVEAL_ROUND" && !room.revealedThisRoundPlayerIds.includes(playerId)) {
+  if (room.phase === "REVEAL_ROUND" && !room.revealedThisRoundPlayerIds.includes(playerId) && playerHasRevealOptions(room, playerId)) {
     return { ok: false, error: "Сначала раскройте характеристику" };
   }
   if ((room.phase === "VOTING" || room.phase === "REVOTE") && !room.votes[playerId]) {
@@ -98,7 +98,7 @@ export function allActivePlayersRevealed(room: BunkerRoomState) {
   const revealed = new Set(room.revealedThisRoundPlayerIds);
   return room.players
     .filter((player) => player.status === "alive")
-    .every((player) => revealed.has(player.id) || player.isBot);
+    .every((player) => revealed.has(player.id) || player.isBot || !playerHasRevealOptions(room, player.id));
 }
 
 export function advanceBunkerPhase(room: BunkerRoomState) {
@@ -291,6 +291,13 @@ function nextRoundOrFinish(room: BunkerRoomState) {
     finishBunkerGame(room);
     return;
   }
+  if (!hasAnyRevealOptions(room)) {
+    room.currentRevealCategory = undefined;
+    room.revealedThisRoundPlayerIds = [];
+    addEvent(room, "Все доступные характеристики раскрыты. Переходим к голосованию.");
+    setTimedPhase(room, "VOTING", room.settings.votingTimeSec);
+    return;
+  }
   room.currentRound += 1;
   room.currentRevealCategory = room.settings.revealMode === "fixed_order" ? room.revealOrder[(room.currentRound - 1) % room.revealOrder.length] : undefined;
   room.revealedThisRoundPlayerIds = [];
@@ -310,6 +317,22 @@ function buildRevealOrder(settings: BunkerSettings) {
 
 function getPlayableRevealCategories(room: BunkerRoomState) {
   return room.revealOrder.length > 0 ? room.revealOrder : buildRevealOrder(room.settings);
+}
+
+function playerHasRevealOptions(room: BunkerRoomState, playerId: string) {
+  const character = room.characters[playerId];
+  if (!character) return false;
+  return getPlayableRevealCategories(room).some(
+    (category) =>
+      room.settings.enabledCardCategories.includes(category) &&
+      !character.revealedCategories.includes(category)
+  );
+}
+
+function hasAnyRevealOptions(room: BunkerRoomState) {
+  return room.players
+    .filter((player) => player.status === "alive")
+    .some((player) => playerHasRevealOptions(room, player.id));
 }
 
 function pickScenario<T extends { id: string }>(id: string | undefined, mode: "random" | "select", items: T[]) {

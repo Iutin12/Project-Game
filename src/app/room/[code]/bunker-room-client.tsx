@@ -550,11 +550,24 @@ function ReadyFooter({
   const aliveCount = room.players.filter((player) => player.status === "alive").length;
   const isReady = room.readyPlayerIds.includes(room.ownPlayerId);
   return (
-    <div className="mt-5 flex flex-wrap items-center gap-3">
-      <Button onClick={onReady} disabled={isReady}>{isReady ? readyLabel : actionLabel}</Button>
-      <span className="rounded-full bg-slate-100 px-3 py-2 text-sm font-bold text-slate-500 dark:bg-slate-950/50 dark:text-white/60">
-        Готовы: {room.readyPlayerIds.length} / {aliveCount}
-      </span>
+    <div className="mt-5 flex flex-wrap items-center gap-3 sm:flex-nowrap sm:overflow-x-auto">
+      <button
+        type="button"
+        disabled={isReady}
+        className="relative inline-flex h-16 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-[#f4eee3] shadow-[0_0_30px_rgba(255,99,92,0.16)] transition hover:scale-[1.01] disabled:opacity-75 sm:w-auto sm:min-w-72"
+        onClick={onReady}
+      >
+        <img src="/bunker-cards/ready-button-red.png" alt="" className="absolute inset-0 h-full w-full object-fill" />
+        <span className="relative inline-flex h-9 w-9 items-center justify-center">
+          <img src="/bunker-cards/ready-check.png" alt="" className="h-9 w-9 rounded-full object-cover" />
+        </span>
+        <span className="relative whitespace-nowrap">{isReady ? readyLabel : actionLabel}</span>
+      </button>
+      <div className="relative inline-flex h-16 w-full items-center justify-center gap-3 overflow-hidden rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.12em] text-[#eef8ff] [text-shadow:0_1px_4px_rgba(0,0,0,0.95)] sm:w-auto sm:min-w-56">
+        <img src="/bunker-cards/ready-counter-blue.png" alt="" className="absolute inset-0 h-full w-full object-fill" />
+        <img src="/bunker-cards/ready-players.png" alt="" className="relative h-9 w-12 object-cover object-center mix-blend-screen" />
+        <span className="relative whitespace-nowrap">Готовы: {room.readyPlayerIds.length} / {aliveCount}</span>
+      </div>
     </div>
   );
 }
