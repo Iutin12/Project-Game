@@ -95,9 +95,7 @@ export type BunkerSpecialCardType =
   | "protect_player"
   | "reroll_card"
   | "double_vote"
-  | "reset_votes"
-  | "recover_special"
-  | "revote";
+  | "reset_votes";
 
 export type BunkerSpecialCard = BunkerCard & {
   category: "special";

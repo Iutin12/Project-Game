@@ -35,9 +35,7 @@ const bunkerSpecialCardImages: Record<BunkerSpecialCard["type"], string> = {
   protect_player: "/bunker-cards/special_protect_vote.png",
   reroll_card: "/bunker-cards/special_swap_card.png",
   double_vote: "/bunker-cards/special_revote.png",
-  reset_votes: "/bunker-cards/special_revote.png",
-  recover_special: "/bunker-cards/special_reveal_extra.png",
-  revote: "/bunker-cards/special_revote.png"
+  reset_votes: "/bunker-cards/special_revote.png"
 };
 
 type Ack = { ok: boolean; error?: string; playerId?: string };
@@ -979,8 +977,7 @@ function getSpecialCardCategoryOptions(room: PublicBunkerRoomState, card: Bunker
 }
 
 function getSpecialCardUnavailableReason(room: PublicBunkerRoomState, card: BunkerSpecialCard, targetCount: number, categoryCount: number) {
-  if ((card.type === "reset_votes" || card.type === "revote") && room.phase !== "VOTING" && room.phase !== "REVOTE") return "Эта карта доступна только во время голосования.";
-  if (card.type === "recover_special" && !room.characters[room.ownPlayerId]?.specialCards.some((item) => item.used && item.id !== card.id)) return "Сначала используйте другую спецкарту.";
+  if (card.type === "reset_votes" && room.phase !== "VOTING" && room.phase !== "REVOTE") return "Эта карта доступна только во время голосования.";
   if (card.type === "protect_vote" && room.protectedPlayerIds.includes(room.ownPlayerId)) return "Вы уже защищены.";
   if (card.type === "double_vote" && room.doubleVotePlayerIds.includes(room.ownPlayerId)) return "Ваш голос уже усилен.";
   if (["force_reveal", "swap_card", "protect_player"].includes(card.type) && targetCount === 0) return "Нет доступной цели.";

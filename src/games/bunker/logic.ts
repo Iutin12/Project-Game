@@ -222,16 +222,11 @@ export function useBunkerSpecialCard(room: BunkerRoomState, playerId: string, ca
   } else if (card.type === "double_vote") {
     if (room.doubleVotePlayerIds.includes(playerId)) return { ok: false, error: "Ваш голос уже усилен" };
     room.doubleVotePlayerIds = [...room.doubleVotePlayerIds, playerId];
-  } else if (card.type === "reset_votes" || card.type === "revote") {
+  } else if (card.type === "reset_votes") {
     if (room.phase !== "VOTING" && room.phase !== "REVOTE") return { ok: false, error: "Карту можно применить только во время голосования" };
     room.votes = {};
     room.readyPlayerIds = [];
     room.deadlineAt = room.settings.useTimer ? Date.now() + room.settings.votingTimeSec * 1000 : undefined;
-  } else if (card.type === "recover_special") {
-    const usedCards = character.specialCards.filter((item) => item.used && item.id !== card.id);
-    const usedCard = usedCards[Math.floor(Math.random() * usedCards.length)];
-    if (!usedCard) return { ok: false, error: "Нет использованной спецкарты для восстановления" };
-    usedCard.used = false;
   }
 
   card.used = true;
