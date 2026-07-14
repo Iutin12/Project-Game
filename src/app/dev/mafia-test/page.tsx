@@ -78,7 +78,7 @@ export default function MafiaTestPage() {
         </div>
       </section>
 
-      {error ? <p className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-coral">{error}</p> : null}
+      {error ? <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-coral">{error}</p> : null}
 
       {room ? (
         <section className="space-y-4 pb-10">
@@ -94,7 +94,7 @@ export default function MafiaTestPage() {
               </div>
               <a
                 href={`/room/${room.code}`}
-                className="rounded-2xl border border-line px-4 py-2 text-sm font-semibold text-ocean hover:bg-cloud hover:text-ink"
+                className="rounded-xl border border-line px-4 py-2 text-sm font-semibold text-ocean hover:bg-cloud hover:text-ink"
               >
                 Открыть обычную комнату
               </a>
@@ -162,7 +162,7 @@ function DevTabButton({ active, children, onClick }: { active: boolean; children
     <button
       type="button"
       className={[
-        "rounded-2xl px-4 py-2 text-sm font-semibold transition hover:-translate-y-0.5",
+        "rounded-xl px-4 py-2 text-sm font-semibold transition hover:-translate-y-0.5",
         active ? "bg-ocean text-white shadow-soft" : "text-slate-500 hover:bg-white/80 hover:text-ink"
       ].join(" ")}
       onClick={onClick}
@@ -226,7 +226,7 @@ function DevSettings({
       <label className="mt-3 grid gap-1 text-sm text-slate-600">
         Убийц мафии
         <select
-          className="rounded-md border border-line bg-white px-3 py-2 text-ink outline-none focus:border-ocean"
+          className="rounded-xl border border-line bg-white px-3 py-2 text-ink outline-none focus:border-ocean"
           value={room.settings.mafiaCount}
           onChange={(event) =>
             emitDev("update_settings", {

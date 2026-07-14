@@ -178,10 +178,10 @@ export function CrocodileRoomClient({ code }: { code: string }) {
       <AppShell>
         <section className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center py-12">
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-coral">Крокодил · комната {code}</p>
-          <h1 className="mt-3 font-display text-5xl font-semibold text-ink">Вход в игру</h1>
+          <h1 className="mt-3 font-display text-4xl font-semibold text-ink sm:text-5xl">Вход в игру</h1>
           <p className="mt-4 text-slate-500">Введите никнейм, чтобы присоединиться к объяснениям и угадываниям.</p>
           <input
-            className="mt-8 rounded-md border border-line bg-white px-4 py-3 text-ink shadow-soft outline-none focus:border-coral"
+            className="mt-8 rounded-xl border border-line bg-white px-4 py-3 text-ink shadow-soft outline-none focus:border-coral focus:ring-2 focus:ring-coral/15"
             placeholder="Ваш никнейм"
             value={name}
             maxLength={24}
@@ -231,15 +231,15 @@ export function CrocodileRoomClient({ code }: { code: string }) {
             </div>
           </header>
 
-          <div className="mt-5 rounded-[1.35rem] border border-line dark:border-white/10 bg-white/85 dark:bg-slate-900/70 p-2">
+          <div className="mt-5 rounded-[1.25rem] border border-line dark:border-white/10 bg-white/85 dark:bg-slate-900/70 p-2">
             <button
-              className={`rounded-2xl px-5 py-3 font-bold ${tab === "room" ? "bg-coral text-white" : "text-slate-500 dark:text-white/60"}`}
+              className={`rounded-xl px-5 py-3 font-bold ${tab === "room" ? "bg-coral text-white" : "text-slate-500 dark:text-white/60"}`}
               onClick={() => setTab("room")}
             >
               Комната
             </button>
             <button
-              className={`rounded-2xl px-5 py-3 font-bold ${tab === "settings" ? "bg-coral text-white" : "text-slate-500 dark:text-white/60"}`}
+              className={`rounded-xl px-5 py-3 font-bold ${tab === "settings" ? "bg-coral text-white" : "text-slate-500 dark:text-white/60"}`}
               onClick={() => setTab("settings")}
             >
               Настройки
@@ -333,7 +333,7 @@ function RoundPanel({
         {timeLeft !== null ? <div className="rounded-2xl bg-coral px-5 py-3 text-2xl font-black">{formatTime(timeLeft)}</div> : null}
       </div>
 
-      <div className="mt-5 rounded-[1.35rem] border border-line dark:border-white/10 bg-slate-100/80 dark:bg-slate-950/70 p-5">
+      <div className="mt-5 rounded-[1.25rem] border border-line dark:border-white/10 bg-slate-100/80 dark:bg-slate-950/70 p-5">
         <p className="text-sm font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-white/45">Слово</p>
         <h3 className="mt-2 font-display text-4xl font-semibold">{room.round?.word?.text ?? "Скрыто"}</h3>
         <p className="mt-2 text-sm text-slate-500 dark:text-white/55">
@@ -449,7 +449,7 @@ function ChatPanel({
       </div>
       <div className="mt-4 flex gap-2">
         <input
-          className="min-w-0 flex-1 rounded-2xl border border-line dark:border-white/10 bg-slate-100/80 dark:bg-slate-950/70 px-4 py-3 text-ink outline-none placeholder:text-slate-400 dark:text-white focus:border-coral"
+          className="min-w-0 flex-1 rounded-xl border border-line bg-slate-100/80 px-4 py-3 text-ink outline-none placeholder:text-slate-400 focus:border-coral focus:ring-2 focus:ring-coral/15 dark:border-white/10 dark:bg-slate-950/70 dark:text-white"
           placeholder={canGuess ? "Написать ответ..." : "Сейчас вы не угадываете"}
           value={guess}
           disabled={!canGuess}
@@ -629,7 +629,7 @@ function Segmented({
           key={option.value}
           type="button"
           disabled={disabled || option.disabled}
-          className={`rounded-2xl px-4 py-3 font-bold transition disabled:cursor-not-allowed disabled:opacity-45 ${value === option.value ? "bg-coral text-white" : "border border-line dark:border-white/10 bg-white dark:bg-slate-900 text-slate-600 dark:text-white/65 hover:text-ink dark:hover:text-white"}`}
+          className={`rounded-xl px-4 py-3 font-bold transition disabled:cursor-not-allowed disabled:opacity-45 ${value === option.value ? "bg-coral text-white" : "border border-line bg-white text-slate-600 hover:text-ink dark:border-white/10 dark:bg-slate-900 dark:text-white/65 dark:hover:text-white"}`}
           onClick={() => onChange(option.value)}
         >
           {option.label}

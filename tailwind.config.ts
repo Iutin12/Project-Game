@@ -19,6 +19,11 @@ const config: Config = {
       },
       boxShadow: {
         soft: "var(--shadow-soft)"
+      },
+      borderRadius: {
+        xl: "0.75rem",
+        "2xl": "1.25rem",
+        "3xl": "1.5rem"
       }
     }
   },

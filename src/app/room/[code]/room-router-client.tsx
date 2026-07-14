@@ -45,7 +45,7 @@ export function RoomRouterClient({ code }: { code: string }) {
       <AppShell>
         <section className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center py-12">
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-coral">Ошибка входа</p>
-          <h1 className="mt-3 font-display text-5xl font-semibold text-ink">{error}</h1>
+          <h1 className="mt-3 break-words font-display text-4xl font-semibold text-ink sm:text-5xl">{error}</h1>
           <p className="mt-4 text-slate-500">Проверьте код комнаты или попросите хоста создать новую.</p>
         </section>
       </AppShell>

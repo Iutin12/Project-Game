@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/Button";
 
 export function JoinByCode() {
   const router = useRouter();
@@ -21,34 +22,34 @@ export function JoinByCode() {
 
   if (!isOpen) {
     return (
-      <button
+      <Button
         type="button"
-        className="inline-flex shrink-0 whitespace-nowrap rounded-lg bg-ocean px-3 py-3 text-sm font-semibold text-white shadow-soft hover:brightness-95 sm:px-4"
+        className="shrink-0 whitespace-nowrap px-3 sm:px-4"
         onClick={() => setIsOpen(true)}
       >
         <span className="sm:hidden">Код</span>
         <span className="hidden sm:inline">Войти по коду</span>
-      </button>
+      </Button>
     );
   }
 
   return (
     <form className="flex min-w-0 items-center gap-2" onSubmit={submitCode}>
       <input
-        className="h-11 w-24 min-w-0 rounded-lg border border-line bg-white px-3 text-sm font-semibold uppercase tracking-[0.12em] text-ink shadow-sm outline-none placeholder:normal-case placeholder:tracking-normal focus:border-ocean sm:w-36"
+        className="h-11 w-24 min-w-0 rounded-xl border border-line bg-white px-3 text-sm font-semibold uppercase tracking-[0.12em] text-ink shadow-sm outline-none placeholder:normal-case placeholder:tracking-normal focus:border-ocean focus:ring-2 focus:ring-ocean/15 dark:bg-slate-900 dark:text-white sm:w-36"
         placeholder="Код комнаты"
         value={code}
         maxLength={8}
         autoFocus
         onChange={(event) => setCode(event.target.value)}
       />
-      <button
+      <Button
         type="submit"
-        className="h-11 shrink-0 rounded-lg bg-ocean px-3 text-sm font-semibold text-white shadow-soft hover:brightness-95 sm:px-4"
+        className="h-11 min-h-11 shrink-0 px-3 sm:px-4"
       >
         <span className="sm:hidden">→</span>
         <span className="hidden sm:inline">Войти</span>
-      </button>
+      </Button>
     </form>
   );
 }

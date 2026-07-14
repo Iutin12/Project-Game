@@ -7,8 +7,8 @@ type GameCardProps = {
 
 export function GameCard({ game }: GameCardProps) {
   const content = (
-    <article className="group relative h-full overflow-hidden rounded-xl border border-line bg-white p-4 shadow-soft transition hover:-translate-y-1 hover:border-ocean/30 hover:shadow-lg">
-      <div className="relative mb-4 h-36 overflow-hidden rounded-xl bg-slate-950">
+    <article className="group relative h-full overflow-hidden rounded-[1.5rem] border border-line bg-white p-4 shadow-soft transition hover:-translate-y-1 hover:border-ocean/30 hover:shadow-lg">
+      <div className="relative mb-4 h-36 overflow-hidden rounded-[1.25rem] bg-slate-950">
         <img
           src={game.illustration}
           alt=""

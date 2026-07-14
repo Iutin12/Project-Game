@@ -23,7 +23,7 @@ export default function BunkerTestPage() {
     <AppShell>
       <section className="py-10">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-coral">Dev режим</p>
-        <h1 className="mt-3 font-display text-5xl font-semibold text-ink">Тест Бункера</h1>
+        <h1 className="mt-3 font-display text-4xl font-semibold text-ink sm:text-5xl">Тест Бункера</h1>
         <div className="mt-6 flex flex-wrap gap-2">
           <Button onClick={() => setRoom(createBunkerTestRoom(6))}>Создать тестовую комнату</Button>
           <Button variant="secondary" onClick={() => setRoom(createBunkerTestRoom(6))}>6 ботов</Button>

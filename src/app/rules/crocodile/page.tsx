@@ -15,7 +15,7 @@ export default function CrocodileRulesPage() {
     <AppShell>
       <article className="py-10">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-ocean">Правила</p>
-        <h1 className="mt-3 font-display text-5xl font-semibold text-ink">Крокодил</h1>
+        <h1 className="mt-3 font-display text-4xl font-semibold text-ink sm:text-5xl">Крокодил</h1>
         <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">
           Крокодил — игра на объяснение слов без прямого называния. Один игрок показывает или объясняет,
           остальные пытаются угадать как можно быстрее.
@@ -45,7 +45,7 @@ export default function CrocodileRulesPage() {
           </RulesBlock>
         </section>
 
-        <section className="mt-8 rounded-2xl border border-line bg-white/90 p-5 shadow-soft">
+        <section className="mt-8 rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">
           <h2 className="font-display text-3xl font-semibold text-ink">Основные правила</h2>
           <ul className="mt-5 grid gap-3 text-sm leading-6 text-slate-600">
             {rules.map((rule) => (
@@ -60,7 +60,7 @@ export default function CrocodileRulesPage() {
 
 function RulesBlock({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-line bg-white/90 p-5 shadow-soft">
+    <section className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">
       <h2 className="font-display text-2xl font-semibold text-ink">{title}</h2>
       <div className="mt-3 text-sm leading-6 text-slate-600">{children}</div>
     </section>

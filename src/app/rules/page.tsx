@@ -7,7 +7,7 @@ export default function RulesPage() {
     <AppShell>
       <section className="py-10">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-ocean">Правила</p>
-        <h1 className="mt-3 font-display text-5xl font-semibold text-ink">Выберите игру</h1>
+        <h1 className="mt-3 font-display text-4xl font-semibold text-ink sm:text-5xl">Выберите игру</h1>
         <p className="mt-4 max-w-2xl text-slate-600">
           Откройте карточку игры, чтобы посмотреть подробные правила, роли и порядок хода.
         </p>
@@ -15,9 +15,9 @@ export default function RulesPage() {
         <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {games.map((game) => {
             const card = (
-              <article className="group h-full rounded-2xl border border-line bg-white/90 p-5 shadow-soft transition hover:-translate-y-1 hover:border-ocean/30">
+              <article className="group h-full rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft transition hover:-translate-y-1 hover:border-ocean/30">
                 <div className="flex items-start gap-4">
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-cloud">
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[1.25rem] bg-cloud">
                     <img src={game.illustration} alt="" aria-hidden="true" className="h-full w-full object-cover" />
                   </div>
                   <div>

@@ -73,13 +73,13 @@ export default function MafiaRulesPage() {
     <AppShell>
       <article className="mx-auto max-w-5xl py-12">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-ocean">Правила</p>
-        <h1 className="mt-3 font-display text-5xl font-semibold text-ink">Мафия</h1>
+        <h1 className="mt-3 font-display text-4xl font-semibold text-ink sm:text-5xl">Мафия</h1>
         <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">
           Социальная игра про подозрения, блеф и командную дедукцию. Город пытается найти мафию,
           а мафия тайно убирает игроков ночью.
         </p>
 
-        <section className="mt-8 rounded-2xl border border-line bg-white/90 p-6 shadow-soft">
+        <section className="mt-8 rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft sm:p-6">
           <h2 className="font-display text-3xl font-semibold text-ink">Кратко</h2>
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             <SummaryCard title="Цель города" text="Вычислить и выгнать всю мафию через обсуждения, проверки и голосования." />
@@ -88,7 +88,7 @@ export default function MafiaRulesPage() {
           </div>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-line bg-white/90 p-6 shadow-soft">
+        <section className="mt-6 rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft sm:p-6">
           <h2 className="font-display text-3xl font-semibold text-ink">Подробные правила</h2>
 
           <RulesBlock title="Суть партии">

@@ -232,9 +232,9 @@ export function BunkerRoomClient({ code }: { code: string }) {
       <AppShell>
         <section className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col justify-center py-12">
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-coral">Бункер · комната {code}</p>
-          <h1 className="mt-3 font-display text-5xl font-semibold text-ink">Вход в игру</h1>
+          <h1 className="mt-3 font-display text-4xl font-semibold text-ink sm:text-5xl">Вход в игру</h1>
           <p className="mt-4 text-slate-500">Введите никнейм, чтобы получить персонажа и место в обсуждении.</p>
-          <input className="mt-8 rounded-md border border-line bg-white px-4 py-3 text-ink shadow-soft outline-none focus:border-coral" placeholder="Ваш никнейм" value={name} maxLength={24} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => event.key === "Enter" && joinRoom()} />
+          <input className="mt-8 rounded-xl border border-line bg-white px-4 py-3 text-ink shadow-soft outline-none focus:border-coral focus:ring-2 focus:ring-coral/15" placeholder="Ваш никнейм" value={name} maxLength={24} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => event.key === "Enter" && joinRoom()} />
           <Button className="mt-3" onClick={joinRoom} disabled={!socket || !name.trim()}>Войти</Button>
           {error ? <p className="mt-4 text-sm text-coral">{error}</p> : null}
         </section>
@@ -267,11 +267,11 @@ export function BunkerRoomClient({ code }: { code: string }) {
             </div>
           </header> : null}
 
-          <nav className={useBunkerBoard ? "flex flex-wrap gap-2 rounded-[1.1rem] border border-line bg-white/85 p-1.5 dark:border-white/10 dark:bg-slate-900/70" : "mt-5 flex flex-wrap gap-2 rounded-[1.35rem] border border-line bg-white/85 p-2 dark:border-white/10 dark:bg-slate-900/70"}>
+          <nav className={useBunkerBoard ? "flex flex-wrap gap-2 rounded-[1.25rem] border border-line bg-white/85 p-1.5 dark:border-white/10 dark:bg-slate-900/70" : "mt-5 flex flex-wrap gap-2 rounded-[1.25rem] border border-line bg-white/85 p-2 dark:border-white/10 dark:bg-slate-900/70"}>
             {(["game", "players", "chat", "settings"] as Tab[]).map((item) => (
               <button
                 key={item}
-                className={`relative rounded-2xl font-bold ${useBunkerBoard ? "px-4 py-2 text-sm" : "px-5 py-3"} ${tab === item ? "bg-coral text-white" : "text-slate-500 dark:text-white/60"}`}
+                className={`relative rounded-xl font-bold ${useBunkerBoard ? "px-4 py-2 text-sm" : "px-5 py-3"} ${tab === item ? "bg-coral text-white" : "text-slate-500 dark:text-white/60"}`}
                 onClick={() => {
                   setTab(item);
                   if (item === "chat") {
@@ -364,7 +364,7 @@ function EliminatedPlayerModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="bunker-elimination-title">
       <section className="w-full max-w-lg overflow-hidden rounded-[2rem] border border-coral/50 bg-white p-6 text-ink shadow-[0_24px_90px_rgba(0,0,0,0.42)] dark:bg-slate-950 dark:text-white sm:p-8">
         <div className="flex items-start justify-between gap-4">
-          <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.35rem] border border-coral/50 bg-coral text-4xl font-black text-white shadow-[0_0_0_8px_rgba(255,99,92,0.12)]">×</span>
+          <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.25rem] border border-coral/50 bg-coral text-4xl font-black text-white shadow-[0_0_0_8px_rgba(255,99,92,0.12)]">×</span>
           <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line text-2xl text-slate-500 transition hover:border-coral hover:text-coral dark:border-white/15 dark:text-white/65" onClick={onClose} aria-label="Закрыть уведомление">×</button>
         </div>
         <p className="mt-6 text-sm font-black uppercase tracking-[0.22em] text-coral">Выбывание</p>
@@ -398,7 +398,7 @@ function MainGamePanel({ room, ownCharacter, isHost, emitAction }: { room: Publi
               className="flex items-center gap-3 rounded-2xl border border-line bg-slate-100/80 p-3 text-left font-bold transition hover:border-coral disabled:cursor-not-allowed disabled:opacity-45 dark:border-white/10 dark:bg-slate-950/45"
               onClick={() => emitAction("bunker:reveal_card", { category })}
             >
-              <img src={bunkerCardImages[category]} alt="" className="h-20 w-10 rounded-md object-cover shadow-sm" />
+              <img src={bunkerCardImages[category]} alt="" className="h-20 w-10 rounded-xl object-cover shadow-sm" />
               <span>Раскрыть {bunkerCategoryLabels[category]}</span>
             </button>
           ))}
@@ -431,7 +431,7 @@ function BunkerBoard({
   const phaseAction = getBoardPhaseAction(room, isHost, emitAction);
 
   return (
-    <section className="mt-2 overflow-hidden rounded-[1.55rem] border border-[#d9cbbb] bg-[#f8f1e7] p-2 text-ink shadow-[0_24px_90px_rgba(84,62,42,0.14)] dark:border-[#2c3845] dark:bg-[#070d13] dark:text-[#ede8dd] dark:shadow-[0_24px_90px_rgba(0,0,0,0.34)] xl:min-h-[50rem]">
+    <section className="mt-2 overflow-hidden rounded-[1.5rem] border border-[#d9cbbb] bg-[#f8f1e7] p-2 text-ink shadow-[0_24px_90px_rgba(84,62,42,0.14)] dark:border-[#2c3845] dark:bg-[#070d13] dark:text-[#ede8dd] dark:shadow-[0_24px_90px_rgba(0,0,0,0.34)] xl:min-h-[50rem]">
       <div className="grid h-full gap-0 overflow-hidden rounded-[1.25rem] border border-[#dfd3c4] bg-[radial-gradient(circle_at_10%_0%,rgba(255,99,92,0.13),transparent_32%),linear-gradient(135deg,#fffaf3,#eee5d8)] dark:border-white/10 dark:bg-[radial-gradient(circle_at_10%_0%,rgba(255,99,92,0.16),transparent_32%),linear-gradient(135deg,#101923,#071018)] lg:grid-cols-[0.95fr_1.05fr]">
         <div className="min-h-0 overflow-hidden border-b border-[#dfd3c4] p-4 dark:border-white/10 sm:p-5 lg:border-b-0 lg:border-r">
           <p className="text-[0.65rem] font-black uppercase tracking-[0.28em] text-coral">Сценарий</p>
@@ -442,7 +442,7 @@ function BunkerBoard({
             <span>Цель: <span className="font-medium text-slate-600 dark:text-white/72">{room.catastrophe?.survivalGoal}</span></span>
           </p>
 
-          <article className="mt-5 overflow-hidden rounded-[1.15rem] border border-white/18 bg-[#0d151d] shadow-soft">
+          <article className="mt-5 overflow-hidden rounded-[1.25rem] border border-white/18 bg-[#0d151d] shadow-soft">
             <div className="relative min-h-[22rem] p-4 pb-6 sm:p-5 sm:pb-6">
               <img src="/bunker-cards/shelter-scene.png" alt="" className="absolute inset-0 h-full w-full object-cover opacity-52" />
               <div className="absolute inset-0 bg-gradient-to-r from-[#0d151d]/96 via-[#0d151d]/78 to-[#0d151d]/18" />
@@ -794,7 +794,7 @@ function ChatPanel({
       <div className="mt-4 flex gap-2">
         <input
           ref={chatInputRef}
-          className="min-w-0 flex-1 rounded-2xl border border-line bg-slate-100/80 px-4 py-3 outline-none focus:border-coral dark:border-white/10 dark:bg-slate-950/70"
+          className="min-w-0 flex-1 rounded-xl border border-line bg-slate-100/80 px-4 py-3 outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 dark:border-white/10 dark:bg-slate-950/70"
           placeholder="Написать сообщение..."
           value={message}
           onChange={(event) => setMessage(event.target.value)}
@@ -876,7 +876,7 @@ function CustomSelect({ value, options, disabled, onChange }: { value: string; o
   }, [open]);
   return (
     <div ref={containerRef} className={`relative ${open ? "z-50" : "z-0"}`}>
-      <button type="button" disabled={disabled} className="flex w-full items-center justify-between rounded-2xl border border-line bg-white px-4 py-3 text-left font-bold text-ink shadow-sm disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-white" onClick={() => setOpen((current) => !current)}>
+      <button type="button" disabled={disabled} className="flex w-full items-center justify-between rounded-xl border border-line bg-white px-4 py-3 text-left font-bold text-ink shadow-sm disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-white" onClick={() => setOpen((current) => !current)}>
         <span>{selected?.label}</span>
         <span className="text-coral">⌄</span>
       </button>
@@ -908,7 +908,7 @@ function SpecialCardAction({
 }) {
   return (
     <article className={`grid grid-cols-[4.25rem_minmax(0,1fr)] gap-3 rounded-2xl border border-line bg-slate-100/80 p-3 dark:border-white/10 dark:bg-slate-950/45 ${compact ? "items-center" : ""}`}>
-      <img src={specialCardImage(card)} alt="" className="h-28 w-16 rounded-lg object-cover shadow-sm" />
+      <img src={specialCardImage(card)} alt="" className="h-28 w-16 rounded-xl object-cover shadow-sm" />
       <div>
         <h3 className="font-bold text-ink dark:text-white">{card.title}</h3>
         <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-white/60">{card.description}</p>
@@ -992,7 +992,7 @@ function SpecialCardPreview({ card }: { card: BunkerSpecialCard }) {
   return (
     <div className="relative h-24 w-16 shrink-0 overflow-hidden rounded-xl border border-line bg-slate-950 shadow-soft dark:border-white/10">
       <img src={specialCardImage(card)} alt="" className="h-full w-full object-cover" />
-      <div className="absolute inset-x-1 bottom-1 rounded-lg bg-black/70 p-1 text-center text-white backdrop-blur-sm">
+      <div className="absolute inset-x-1 bottom-1 rounded-xl bg-black/70 p-1 text-center text-white backdrop-blur-sm">
         <p className="text-[0.44rem] font-black uppercase leading-2">{card.title}</p>
         <p className="mt-0.5 text-[0.42rem] text-white/70">{card.used ? "исп." : "доступна"}</p>
       </div>
@@ -1003,7 +1003,7 @@ function SpecialCardPreview({ card }: { card: BunkerSpecialCard }) {
 function FeaturedProfessionCard({ character }: { character?: PublicBunkerRoomState["characters"][string] }) {
   const profession = character?.profession;
   return (
-    <article className="mt-2 grid shrink-0 overflow-hidden rounded-[0.95rem] border border-[#b8a58d]/70 bg-white/55 shadow-[0_16px_40px_rgba(91,67,44,0.14)] dark:border-[#7f6b57]/55 dark:bg-[#0c141c] dark:shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:grid-cols-[9.5rem_minmax(0,1fr)]">
+    <article className="mt-2 grid shrink-0 overflow-hidden rounded-2xl border border-[#b8a58d]/70 bg-white/55 shadow-[0_16px_40px_rgba(91,67,44,0.14)] dark:border-[#7f6b57]/55 dark:bg-[#0c141c] dark:shadow-[0_16px_40px_rgba(0,0,0,0.24)] sm:grid-cols-[9.5rem_minmax(0,1fr)]">
       <div className="relative flex h-32 items-center justify-center border-b border-[#b8a58d]/55 bg-[#eee2cf] p-3 dark:border-[#7f6b57]/35 dark:bg-[#0b1219] sm:border-b-0 sm:border-r">
         <div className="h-24 w-24 overflow-hidden rounded-full border border-[#7f6b57]/55 bg-[#eadfcb] shadow-[0_10px_24px_rgba(0,0,0,0.28)]">
           <img src={bunkerCardImages.profession} alt="" className="h-full w-full scale-[1.85] object-cover object-center opacity-95" />
@@ -1066,7 +1066,7 @@ function BoardSpecialCards({
               className="flex min-w-52 items-center gap-2 rounded-xl border border-[#b8a58d]/55 bg-[#fffaf3] p-2 text-left transition hover:border-coral hover:bg-coral/10 dark:border-white/10 dark:bg-[#111b24]"
               onClick={() => setSelectedCard(card)}
             >
-              <img src={specialCardImage(card)} alt="" className="h-16 w-11 shrink-0 rounded-md object-cover shadow-sm" />
+              <img src={specialCardImage(card)} alt="" className="h-16 w-11 shrink-0 rounded-xl object-cover shadow-sm" />
               <span>
                 <strong className="block text-xs text-ink dark:text-white">{card.title}</strong>
                 <span className="mt-1 block text-[0.65rem] font-black uppercase tracking-[0.1em] text-coral">Подробнее</span>
@@ -1104,9 +1104,9 @@ function BoardCharacterCard({
 }) {
   const isHidden = !card || "hidden" in card;
   return (
-    <article className="relative aspect-[0.7] w-full overflow-hidden rounded-[0.78rem] border border-[#7f6b57]/55 bg-[#eadfcb] p-0 text-[#1d1713] shadow-[0_16px_35px_rgba(0,0,0,0.22)]">
+    <article className="relative aspect-[0.7] w-full overflow-hidden rounded-xl border border-[#7f6b57]/55 bg-[#eadfcb] p-0 text-[#1d1713] shadow-[0_16px_35px_rgba(0,0,0,0.22)]">
       <img src={bunkerCardImages[category]} alt="" className={`absolute inset-0 h-full w-full object-fill ${isHidden ? "opacity-70 grayscale" : ""}`} />
-      <div className="absolute inset-x-1.5 bottom-1.5 rounded-md border border-[#7d6554]/50 bg-[#0d151d] px-1.5 py-1 text-center text-[#f4eee3] shadow-sm">
+      <div className="absolute inset-x-1.5 bottom-1.5 rounded-xl border border-[#7d6554]/50 bg-[#0d151d] px-1.5 py-1 text-center text-[#f4eee3] shadow-sm">
         <p className="text-[0.64rem] font-black leading-3">{cardTitle(card)}</p>
         <p className="mt-0.5 text-[0.42rem] font-black uppercase tracking-[0.12em] text-[#d9bfa6]">{revealed ? "открыто" : "скрыто"}</p>
       </div>
@@ -1156,7 +1156,7 @@ function CharacterCardTile({
   const isHidden = !card || "hidden" in card;
   const title = cardTitle(card);
   return (
-    <article className={`group relative h-72 w-36 shrink-0 snap-start overflow-hidden rounded-[1.15rem] border shadow-soft transition hover:-translate-y-1 hover:border-coral ${isHidden ? "border-line bg-slate-200 dark:border-white/10 dark:bg-slate-950" : "border-line bg-stone-100 dark:border-white/10 dark:bg-slate-950"}`}>
+    <article className={`group relative h-72 w-36 shrink-0 snap-start overflow-hidden rounded-[1.25rem] border shadow-soft transition hover:-translate-y-1 hover:border-coral ${isHidden ? "border-line bg-slate-200 dark:border-white/10 dark:bg-slate-950" : "border-line bg-stone-100 dark:border-white/10 dark:bg-slate-950"}`}>
       <img src={bunkerCardImages[category]} alt="" className={`h-full w-full object-cover ${isHidden ? "opacity-35 grayscale" : ""}`} />
       <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/65" />
       <div className="absolute left-2 right-2 top-2 rounded-xl bg-white/80 px-2 py-1 text-center text-[0.62rem] font-black uppercase tracking-[0.12em] text-slate-700 shadow-sm backdrop-blur-sm dark:bg-slate-950/75 dark:text-white/80">
@@ -1176,7 +1176,7 @@ function CardLine({ label, card, revealed, own, compact }: { label: string; card
   return (
     <div className={`flex items-center justify-between gap-3 rounded-2xl bg-slate-100/80 text-sm dark:bg-slate-950/45 ${compact ? "p-2" : "p-3"}`}>
       <div className="flex min-w-0 items-center gap-3">
-        <img src={bunkerCardImages[category]} alt="" className={`${compact ? "h-14 w-7" : "h-20 w-10"} shrink-0 rounded-md object-cover shadow-sm`} />
+        <img src={bunkerCardImages[category]} alt="" className={`${compact ? "h-14 w-7" : "h-20 w-10"} shrink-0 rounded-xl object-cover shadow-sm`} />
         <span className="font-bold text-slate-500">{label}</span>
       </div>
       <span className="text-right font-semibold">{cardTitle(card)}{own && !revealed ? " · закрыто" : ""}</span>

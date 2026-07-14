@@ -38,7 +38,7 @@ export function HomeStats() {
       <span className="flex items-center gap-2">
         <span className="text-ocean">♟</span> {stats.roomsCreatedToday.toLocaleString("ru-RU")} комнат создано сегодня
       </span>
-      <span className="h-4 w-px bg-line" />
+      <span className="hidden h-4 w-px bg-line sm:block" />
       <span className="flex items-center gap-2">
         <span className="h-3 w-3 rounded-full bg-emerald-500" /> {stats.onlinePlayers.toLocaleString("ru-RU")} игрока онлайн
       </span>

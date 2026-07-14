@@ -103,11 +103,11 @@ export function OpenRooms() {
 
   if (rooms.length === 0 && !rememberedRoom) {
     return (
-      <div className="flex min-h-[26rem] flex-col justify-between rounded-2xl border border-line bg-white p-5 shadow-soft">
+      <div className="flex min-h-[26rem] flex-col justify-between rounded-[1.5rem] border border-line bg-white p-5 shadow-soft">
         <div>
           <p className="text-sm font-semibold text-slate-500">Открытые комнаты</p>
           <h2 className="mt-6 flex items-center gap-3 text-xl font-bold text-ink">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ocean text-white">✦</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-ocean text-white">✦</span>
             Сейчас нет открытых комнат
           </h2>
           <p className="mt-4 max-w-md text-sm leading-6 text-slate-500">
@@ -122,12 +122,12 @@ export function OpenRooms() {
   }
 
   return (
-    <div className="flex h-full min-h-[26rem] max-h-[32rem] flex-col rounded-2xl border border-line bg-white p-5 shadow-soft">
+    <div className="flex h-full min-h-[26rem] max-h-[32rem] flex-col rounded-[1.5rem] border border-line bg-white p-5 shadow-soft">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-slate-500">Открытые комнаты</p>
           <h2 className="mt-6 flex items-center gap-3 text-xl font-bold text-ink">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ocean text-white">✦</span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-ocean text-white">✦</span>
             Можно войти свободно
           </h2>
         </div>
@@ -136,7 +136,7 @@ export function OpenRooms() {
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         {rememberedRoom ? (
-          <article className="rounded-2xl border border-coral/30 bg-coral/10 p-3 shadow-soft">
+          <article className="rounded-[1.25rem] border border-coral/30 bg-coral/10 p-3 shadow-soft">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-coral">Последняя комната</p>
@@ -154,10 +154,10 @@ export function OpenRooms() {
           </article>
         ) : null}
         {visibleRooms.map((room) => (
-          <article key={`${room.gameId}-${room.code}`} className="rounded-2xl border border-line bg-cloud/70 p-3">
+          <article key={`${room.gameId}-${room.code}`} className="rounded-[1.25rem] border border-line bg-cloud/70 p-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 items-start gap-3">
-                <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-ocean text-white">
+                <span className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-ocean text-white">
                   {gameIcons[room.gameId]}
                 </span>
                 <div className="min-w-0">
@@ -176,7 +176,7 @@ export function OpenRooms() {
           </article>
         ))}
         {visibleRooms.length === 0 && rememberedRoom ? (
-          <p className="rounded-2xl border border-line bg-cloud/70 p-4 text-sm text-slate-500">
+          <p className="rounded-[1.25rem] border border-line bg-cloud/70 p-4 text-sm text-slate-500">
             Других открытых комнат сейчас нет.
           </p>
         ) : null}

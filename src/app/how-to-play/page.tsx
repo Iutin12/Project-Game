@@ -11,7 +11,7 @@ export default function HowToPlayPage() {
     <AppShell>
       <section className="py-10">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-ocean">Как играть</p>
-        <h1 className="mt-3 font-display text-5xl font-semibold text-ink">Тренировка и тестовые комнаты</h1>
+        <h1 className="mt-3 break-words font-display text-4xl font-semibold text-ink sm:text-5xl">Тренировка и тестовые комнаты</h1>
         <p className="mt-4 max-w-2xl text-slate-600">
           Выберите игру, чтобы открыть тестовый режим, проверить роли и спокойно разобраться с ходом партии.
         </p>
@@ -20,9 +20,9 @@ export default function HowToPlayPage() {
           {games.map((game) => {
             const testRoute = testRoutes[game.id];
             return (
-              <article key={game.id} className="rounded-2xl border border-line bg-white/90 p-5 shadow-soft">
+              <article key={game.id} className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">
                 <div className="flex items-start gap-4">
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-cloud">
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[1.25rem] bg-cloud">
                     <img src={game.illustration} alt="" aria-hidden="true" className="h-full w-full object-cover" />
                   </div>
                   <div>
@@ -35,14 +35,14 @@ export default function HowToPlayPage() {
                 </div>
                 {testRoute ? (
                   <Link
-                    className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-ocean px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:brightness-95"
+                    className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-ocean px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:brightness-95"
                     href={testRoute}
                   >
                     Запустить тестовую игру
                   </Link>
                 ) : (
                   <button
-                    className="mt-5 inline-flex w-full cursor-not-allowed items-center justify-center rounded-lg bg-ocean px-5 py-3 text-sm font-semibold text-white opacity-45 shadow-soft"
+                    className="mt-5 inline-flex w-full cursor-not-allowed items-center justify-center rounded-xl bg-ocean px-5 py-3 text-sm font-semibold text-white opacity-45 shadow-soft"
                     disabled
                     type="button"
                   >
