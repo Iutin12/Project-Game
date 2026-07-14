@@ -26,13 +26,18 @@ const bunkerCardImages: Record<BunkerCardCategory, string> = {
   special: "/bunker-cards/special_reveal_extra.png"
 };
 
-const bunkerSpecialCardImages: Record<string, string> = {
-  special_reveal_extra: "/bunker-cards/special_reveal_extra.png",
-  special_hide_card: "/bunker-cards/special_hide_card.png",
-  special_force_reveal: "/bunker-cards/special_force_reveal.png",
-  special_swap_card: "/bunker-cards/special_swap_card.png",
-  special_protect_vote: "/bunker-cards/special_protect_vote.png",
-  special_revote: "/bunker-cards/special_revote.png"
+const bunkerSpecialCardImages: Record<BunkerSpecialCard["type"], string> = {
+  reveal_extra: "/bunker-cards/special_reveal_extra.png",
+  hide_card: "/bunker-cards/special_hide_card.png",
+  force_reveal: "/bunker-cards/special_force_reveal.png",
+  swap_card: "/bunker-cards/special_swap_card.png",
+  protect_vote: "/bunker-cards/special_protect_vote.png",
+  protect_player: "/bunker-cards/special_protect_vote.png",
+  reroll_card: "/bunker-cards/special_swap_card.png",
+  double_vote: "/bunker-cards/special_revote.png",
+  reset_votes: "/bunker-cards/special_revote.png",
+  recover_special: "/bunker-cards/special_reveal_extra.png",
+  revote: "/bunker-cards/special_revote.png"
 };
 
 type Ack = { ok: boolean; error?: string; playerId?: string };
@@ -299,7 +304,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
               <aside className="space-y-5">
                 <OwnCharacterPanel room={room} character={ownCharacter} />
                 {room.catastrophe && room.shelter ? <ScenarioSummaryPanel room={room} /> : null}
-                {room.phase !== "LOBBY" && room.phase !== "GAME_OVER" ? <QuickSpecialCardsPanel character={ownCharacter} emitAction={emitAction} /> : null}
+                {room.phase !== "LOBBY" && room.phase !== "GAME_OVER" ? <QuickSpecialCardsPanel room={room} character={ownCharacter} emitAction={emitAction} /> : null}
                 <PlayersMini players={alivePlayers} />
               </aside>
             </div>
@@ -467,7 +472,7 @@ function BunkerBoard({
           <h2 className="mt-1 font-display text-2xl font-semibold text-ink dark:text-[#f4eee3]">Ваш персонаж</h2>
           <FeaturedProfessionCard character={ownCharacter} />
           <BoardCharacterCards room={room} character={ownCharacter} />
-          <BoardSpecialCards character={ownCharacter} emitAction={emitAction} />
+          <BoardSpecialCards room={room} character={ownCharacter} emitAction={emitAction} />
         </div>
       </div>
     </section>
@@ -613,14 +618,14 @@ function ReadyFooter({
 
 function SpecialPanel({ room, ownCharacter, emitAction }: { room: PublicBunkerRoomState; ownCharacter: PublicBunkerRoomState["characters"][string] | undefined; emitAction: (event: string, payload?: unknown) => void }) {
   const cards = ownCharacter?.specialCards.filter((card) => !card.used) ?? [];
-  return <Panel title="Специальные действия" label="Спецкарты">{cards.length === 0 ? <p>У вас нет доступных спецкарт.</p> : <div className="grid gap-3">{cards.map((card) => <SpecialCardAction key={card.id} card={card} onUse={() => emitAction("bunker:use_special_card", { cardId: card.id })} />)}</div>}<Button variant="secondary" className="mt-4" onClick={() => emitAction("bunker:next_phase")}>Пропустить и голосовать</Button></Panel>;
+  return <Panel title="Специальные действия" label="Спецкарты">{cards.length === 0 ? <p>У вас нет доступных спецкарт.</p> : <div className="grid gap-3">{cards.map((card) => <SpecialCardAction key={card.id} room={room} card={card} onUse={(payload) => emitAction("bunker:use_special_card", { cardId: card.id, ...payload })} />)}</div>}<Button variant="secondary" className="mt-4" onClick={() => emitAction("bunker:next_phase")}>Пропустить и голосовать</Button></Panel>;
 }
 
 function VotingPanel({ room, isHost: _isHost, emitAction }: { room: PublicBunkerRoomState; isHost: boolean; emitAction: (event: string, payload?: unknown) => void }) {
   const candidates = room.phase === "REVOTE" && room.revoteCandidateIds?.length ? room.players.filter((player) => room.revoteCandidateIds?.includes(player.id)) : room.players.filter((player) => player.status === "alive");
   const confirmed = room.readyPlayerIds.includes(room.ownPlayerId);
   const hasVote = Boolean(room.votes[room.ownPlayerId]);
-  return <Panel title={room.phase === "REVOTE" ? "Переголосование" : "Голосование"} label="Выбор"><div className="grid gap-2 sm:grid-cols-2">{candidates.map((player) => <button key={player.id} disabled={confirmed} className={`rounded-2xl border p-3 text-left font-bold transition hover:border-coral disabled:cursor-not-allowed disabled:opacity-70 ${room.votes[room.ownPlayerId] === player.id ? "border-coral bg-coral/15" : "border-line bg-slate-100/80 dark:border-white/10 dark:bg-slate-950/50"}`} onClick={() => emitAction("bunker:cast_vote", { targetId: player.id })}>{player.name}<span className="block text-xs text-slate-400">{room.settings.votingMode === "open" ? `${Object.values(room.votes).filter((id) => id === player.id).length} голосов` : "анонимно"}</span></button>)}</div><p className="mt-3 text-sm text-slate-500">{confirmed ? "Голос подтвержден. Ожидаем остальных игроков." : "Вы можете изменить выбор до подтверждения."}</p>{hasVote ? <ReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Подтвердить голос" readyLabel="Голос подтвержден" /> : null}</Panel>;
+  return <Panel title={room.phase === "REVOTE" ? "Переголосование" : "Голосование"} label="Выбор"><div className="grid gap-2 sm:grid-cols-2">{candidates.map((player) => <button key={player.id} disabled={confirmed} className={`rounded-2xl border p-3 text-left font-bold transition hover:border-coral disabled:cursor-not-allowed disabled:opacity-70 ${room.votes[room.ownPlayerId] === player.id ? "border-coral bg-coral/15" : "border-line bg-slate-100/80 dark:border-white/10 dark:bg-slate-950/50"}`} onClick={() => emitAction("bunker:cast_vote", { targetId: player.id })}>{player.name}<span className="block text-xs text-slate-400">{room.settings.votingMode === "open" ? `${getBunkerVoteCount(room, player.id)} голосов` : "анонимно"}</span></button>)}</div><p className="mt-3 text-sm text-slate-500">{confirmed ? "Голос подтвержден. Ожидаем остальных игроков." : "Вы можете изменить выбор до подтверждения."}</p>{hasVote ? <ReadyFooter room={room} onReady={() => emitAction("bunker:ready")} actionLabel="Подтвердить голос" readyLabel="Голос подтвержден" /> : null}</Panel>;
 }
 
 function VotingResultPanel({ room, isHost: _isHost, emitAction }: { room: PublicBunkerRoomState; isHost: boolean; emitAction: (event: string, payload?: unknown) => void }) {
@@ -652,9 +657,11 @@ function OwnCharacterPanel({ room, character }: { room: PublicBunkerRoomState; c
 }
 
 function QuickSpecialCardsPanel({
+  room,
   character,
   emitAction
 }: {
+  room: PublicBunkerRoomState;
   character?: PublicBunkerRoomState["characters"][string];
   emitAction: (event: string, payload?: unknown) => void;
 }) {
@@ -666,7 +673,7 @@ function QuickSpecialCardsPanel({
       <p className="text-sm">Можно применить в подходящий момент игры отдельной кнопкой.</p>
       <div className="mt-3 space-y-2">
         {cards.map((card) => (
-          <SpecialCardAction key={card.id} card={card} compact onUse={() => emitAction("bunker:use_special_card", { cardId: card.id })} />
+          <SpecialCardAction key={card.id} room={room} card={card} compact onUse={(payload) => emitAction("bunker:use_special_card", { cardId: card.id, ...payload })} />
         ))}
       </div>
     </Panel>
@@ -886,17 +893,99 @@ function CustomSelect({ value, options, disabled, onChange }: { value: string; o
   );
 }
 function Toggle({ checked, disabled, onChange, children }: { checked: boolean; disabled: boolean; onChange: (value: boolean) => void; children: React.ReactNode }) { return <button type="button" disabled={disabled} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-white p-3 text-left font-bold disabled:opacity-50 dark:border-white/10 dark:bg-slate-900" onClick={() => onChange(!checked)}><span>{children}</span><span className={`relative h-7 w-12 rounded-full transition ${checked ? "bg-coral" : "bg-slate-300 dark:bg-slate-700"}`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition ${checked ? "left-6" : "left-1"}`} /></span></button>; }
-function SpecialCardAction({ card, onUse, compact }: { card: BunkerSpecialCard; onUse: () => void; compact?: boolean }) {
+type SpecialCardPayload = { targetPlayerId?: string; category?: BunkerCardCategory };
+
+function SpecialCardAction({
+  room,
+  card,
+  onUse,
+  compact
+}: {
+  room: PublicBunkerRoomState;
+  card: BunkerSpecialCard;
+  onUse: (payload: SpecialCardPayload) => void;
+  compact?: boolean;
+}) {
   return (
     <article className={`grid grid-cols-[4.25rem_minmax(0,1fr)] gap-3 rounded-2xl border border-line bg-slate-100/80 p-3 dark:border-white/10 dark:bg-slate-950/45 ${compact ? "items-center" : ""}`}>
       <img src={specialCardImage(card)} alt="" className="h-28 w-16 rounded-lg object-cover shadow-sm" />
       <div>
         <h3 className="font-bold text-ink dark:text-white">{card.title}</h3>
         <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-white/60">{card.description}</p>
-        <Button className="mt-3 w-full" onClick={onUse}>Применить спецкарту</Button>
+        <SpecialCardControls room={room} card={card} onUse={onUse} />
       </div>
     </article>
   );
+}
+
+function SpecialCardControls({ room, card, onUse }: { room: PublicBunkerRoomState; card: BunkerSpecialCard; onUse: (payload: SpecialCardPayload) => void }) {
+  const [targetPlayerId, setTargetPlayerId] = useState("");
+  const [category, setCategory] = useState<Exclude<BunkerCardCategory, "special"> | "">("");
+  const needsTarget = ["force_reveal", "swap_card", "protect_player"].includes(card.type);
+  const needsCategory = ["reveal_extra", "hide_card", "force_reveal", "swap_card", "reroll_card"].includes(card.type);
+  const targets = room.players.filter((player) => player.status === "alive" && player.id !== room.ownPlayerId);
+  const categories = getSpecialCardCategoryOptions(room, card, targetPlayerId);
+  const unavailableReason = getSpecialCardUnavailableReason(room, card, targets.length, categories.length);
+  const canUse = !unavailableReason && (!needsTarget || targetPlayerId) && (!needsCategory || category);
+
+  useEffect(() => {
+    if (category && !categories.includes(category)) setCategory("");
+  }, [category, categories]);
+
+  return (
+    <div className="mt-3 space-y-3">
+      {needsTarget ? (
+        <div>
+          <p className="mb-2 text-[0.68rem] font-black uppercase tracking-[0.12em] text-slate-400">Цель</p>
+          <div className="flex flex-wrap gap-2">
+            {targets.map((player) => (
+              <button key={player.id} type="button" className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${targetPlayerId === player.id ? "border-coral bg-coral text-white" : "border-line bg-white text-slate-600 hover:border-coral dark:border-white/10 dark:bg-slate-900 dark:text-white/70"}`} onClick={() => setTargetPlayerId(player.id)}>
+                {player.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {needsCategory ? (
+        <div>
+          <p className="mb-2 text-[0.68rem] font-black uppercase tracking-[0.12em] text-slate-400">Характеристика</p>
+          <div className="flex flex-wrap gap-2">
+            {categories.map((item) => (
+              <button key={item} type="button" className={`rounded-xl border px-3 py-2 text-xs font-bold transition ${category === item ? "border-coral bg-coral text-white" : "border-line bg-white text-slate-600 hover:border-coral dark:border-white/10 dark:bg-slate-900 dark:text-white/70"}`} onClick={() => setCategory(item)}>
+                {bunkerCategoryLabels[item]}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {unavailableReason ? <p className="rounded-xl bg-coral/10 p-2 text-xs font-semibold text-coral">{unavailableReason}</p> : null}
+      <Button className="w-full" disabled={!canUse} onClick={() => onUse({ targetPlayerId: targetPlayerId || undefined, category: category || undefined })}>
+        Применить спецкарту
+      </Button>
+    </div>
+  );
+}
+
+function getSpecialCardCategoryOptions(room: PublicBunkerRoomState, card: BunkerSpecialCard, targetPlayerId: string) {
+  const ownCharacter = room.characters[room.ownPlayerId];
+  const targetCharacter = targetPlayerId ? room.characters[targetPlayerId] : undefined;
+  const playable = getPlayableCharacterCategories(room, true);
+  if (!ownCharacter) return [];
+  if (card.type === "reveal_extra") return playable.filter((item) => !ownCharacter.revealedCategories.includes(item));
+  if (card.type === "hide_card") return ownCharacter.revealedCategories.filter((item): item is Exclude<BunkerCardCategory, "special"> => item !== "profession" && item !== "special");
+  if (card.type === "force_reveal") return targetCharacter ? playable.filter((item) => item !== "profession" && !targetCharacter.revealedCategories.includes(item)) : [];
+  if (card.type === "swap_card" || card.type === "reroll_card") return playable;
+  return [];
+}
+
+function getSpecialCardUnavailableReason(room: PublicBunkerRoomState, card: BunkerSpecialCard, targetCount: number, categoryCount: number) {
+  if ((card.type === "reset_votes" || card.type === "revote") && room.phase !== "VOTING" && room.phase !== "REVOTE") return "Эта карта доступна только во время голосования.";
+  if (card.type === "recover_special" && !room.characters[room.ownPlayerId]?.specialCards.some((item) => item.used && item.id !== card.id)) return "Сначала используйте другую спецкарту.";
+  if (card.type === "protect_vote" && room.protectedPlayerIds.includes(room.ownPlayerId)) return "Вы уже защищены.";
+  if (card.type === "double_vote" && room.doubleVotePlayerIds.includes(room.ownPlayerId)) return "Ваш голос уже усилен.";
+  if (["force_reveal", "swap_card", "protect_player"].includes(card.type) && targetCount === 0) return "Нет доступной цели.";
+  if (["reveal_extra", "hide_card", "reroll_card"].includes(card.type) && categoryCount === 0) return "Нет подходящей характеристики.";
+  return "";
 }
 
 function SpecialCardPreview({ card }: { card: BunkerSpecialCard }) {
@@ -950,9 +1039,11 @@ function BoardCharacterCards({ room, character }: { room: PublicBunkerRoomState;
 }
 
 function BoardSpecialCards({
+  room,
   character,
   emitAction
 }: {
+  room: PublicBunkerRoomState;
   character?: PublicBunkerRoomState["characters"][string];
   emitAction: (event: string, payload?: unknown) => void;
 }) {
@@ -993,9 +1084,7 @@ function BoardSpecialCards({
               <p className="text-xs font-black uppercase tracking-[0.2em] text-coral">Спецкарта</p>
               <h3 className="mt-2 font-display text-3xl font-semibold">{selectedCard.title}</h3>
               <p className="mt-3 text-sm leading-6 text-white/70">{selectedCard.description}</p>
-              <Button className="mt-5" onClick={() => { emitAction("bunker:use_special_card", { cardId: selectedCard.id }); setSelectedCard(null); }}>
-                Применить спецкарту
-              </Button>
+              <SpecialCardControls room={room} card={selectedCard} onUse={(payload) => { emitAction("bunker:use_special_card", { cardId: selectedCard.id, ...payload }); setSelectedCard(null); }} />
             </div>
           </article>
         </div>
@@ -1094,7 +1183,7 @@ function CardLine({ label, card, revealed, own, compact }: { label: string; card
     </div>
   );
 }
-function specialCardImage(card: BunkerSpecialCard) { return bunkerSpecialCardImages[card.id.split("_").slice(0, 3).join("_")] ?? bunkerSpecialCardImages[card.id.replace(/_[a-z0-9]+$/i, "")] ?? bunkerCardImages.special; }
+function specialCardImage(card: BunkerSpecialCard) { return bunkerSpecialCardImages[card.type] ?? bunkerCardImages.special; }
 function cardTitle(card?: PublicBunkerCard) { return !card ? "-" : "hidden" in card ? "Скрыто" : card.title; }
 function getPlayableCharacterCategories(room: PublicBunkerRoomState, includeProfession: boolean): Exclude<BunkerCardCategory, "special">[] {
   const categories = (room.revealOrder.length > 0 ? room.revealOrder : bunkerCharacteristicCategories)
@@ -1106,6 +1195,7 @@ function getPlayableCharacterCategories(room: PublicBunkerRoomState, includeProf
 function PlayersMini({ players }: { players: PublicBunkerRoomState["players"] }) { return <Panel title="Живые игроки" label="Состав"><div className="max-h-72 space-y-2 overflow-y-auto pr-1">{players.map((player) => <p key={player.id} className="rounded-2xl bg-slate-100/80 p-3 font-bold dark:bg-slate-950/45">{player.name}</p>)}</div></Panel>; }
 function Stats({ room }: { room: PublicBunkerRoomState }) { return <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl bg-slate-100/80 p-3 dark:bg-slate-950/45">Мест: {room.settings.bunkerSlots === "auto" ? "авто" : room.settings.bunkerSlots}</div><div className="rounded-2xl bg-slate-100/80 p-3 dark:bg-slate-950/45">Режим: {room.settings.gameMode === "classic" ? "классика" : "быстрый"}</div><div className="rounded-2xl bg-slate-100/80 p-3 dark:bg-slate-950/45">Спецкарты: {room.settings.useSpecialCards ? "вкл" : "выкл"}</div></div>; }
 function VoteList({ room }: { room: PublicBunkerRoomState }) { if (room.settings.votingMode === "anonymous") return <p className="mt-4 text-sm text-slate-500">Голосование было анонимным.</p>; return <div className="mt-4 space-y-2">{Object.entries(room.lastVotingResult?.votes ?? {}).map(([voterId, targetId]) => <p key={voterId} className="rounded-2xl bg-slate-100/80 p-3 text-sm dark:bg-slate-950/45">{room.players.find((p) => p.id === voterId)?.name} → {room.players.find((p) => p.id === targetId)?.name}</p>)}</div>; }
+function getBunkerVoteCount(room: PublicBunkerRoomState, targetId: string) { return Object.entries(room.votes).reduce((total, [voterId, votedForId]) => total + (votedForId === targetId ? (room.doubleVotePlayerIds.includes(voterId) ? 2 : 1) : 0), 0); }
 function canAdvanceRevealRound(room: PublicBunkerRoomState) {
   const revealed = new Set(room.revealedThisRoundPlayerIds);
   return room.players

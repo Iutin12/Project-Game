@@ -4,7 +4,7 @@ import { bunkerCards } from "./cards";
 import { bunkerCharacteristicCategories, defaultBunkerSettings, getAutoBunkerSlots } from "./settings";
 import { bunkerShelters } from "./shelters";
 import { resolveBunkerVotes } from "./voting";
-import type { BunkerCardCategory, BunkerPlayer, BunkerRoomState, BunkerSettings } from "./types";
+import type { BunkerCard, BunkerCardCategory, BunkerCharacter, BunkerPlayer, BunkerRoomState, BunkerSettings } from "./types";
 
 export { defaultBunkerSettings, getAutoBunkerSlots };
 
@@ -25,6 +25,7 @@ export function createEmptyBunkerRoom(code: string, hostKey: string, visibility:
     readyPlayerIds: [],
     votes: {},
     protectedPlayerIds: [],
+    doubleVotePlayerIds: [],
     eventLog: [],
     chatMessages: [],
     createdAt: Date.now(),
@@ -54,6 +55,7 @@ export function startBunkerGame(room: BunkerRoomState) {
   room.readyPlayerIds = [];
   room.votes = {};
   room.protectedPlayerIds = [];
+  room.doubleVotePlayerIds = [];
   room.phase = "SCENARIO_REVEAL";
   addEvent(room, "Сценарий выбран. Игроки получили персонажей.");
   return { ok: true };
@@ -175,38 +177,64 @@ export function useBunkerSpecialCard(room: BunkerRoomState, playerId: string, ca
   const character = room.characters[playerId];
   const card = character?.specialCards.find((item) => item.id === cardId && !item.used);
   if (!player || player.status !== "alive" || !character || !card) return { ok: false, error: "Спецкарта недоступна" };
-  card.used = true;
+  if (room.phase === "LOBBY" || room.phase === "GAME_OVER") return { ok: false, error: "Сейчас спецкарты применять нельзя" };
 
-  if (card.type === "protect_vote") room.protectedPlayerIds = [...new Set([...room.protectedPlayerIds, playerId])];
+  const selectedCategory = category && category !== "special" ? category : undefined;
+  const target = targetPlayerId ? room.players.find((item) => item.id === targetPlayerId && item.status === "alive") : undefined;
+  const targetCharacter = target ? room.characters[target.id] : undefined;
+  const effectCategories = getSpecialEffectCategories(room);
+
   if (card.type === "reveal_extra") {
-    const hidden = getPlayableRevealCategories(room).find((item) => !character.revealedCategories.includes(item));
-    if (hidden) character.revealedCategories = [...character.revealedCategories, hidden];
-  }
-  if (card.type === "hide_card") {
-    const hideable = character.revealedCategories.find((item) => item !== "profession");
-    if (hideable) character.revealedCategories = character.revealedCategories.filter((item) => item !== hideable);
-  }
-  if (card.type === "force_reveal") {
-    const targetId = targetPlayerId ?? room.players.find((item) => item.status === "alive" && item.id !== playerId)?.id;
-    const targetCharacter = targetId ? room.characters[targetId] : undefined;
-    const revealCategory =
-      category && category !== "special"
-        ? category
-        : getPlayableRevealCategories(room).find((item) => targetCharacter && !targetCharacter.revealedCategories.includes(item));
-    if (targetId && targetCharacter && revealCategory && getPlayableRevealCategories(room).includes(revealCategory) && !targetCharacter.revealedCategories.includes(revealCategory)) {
-      targetCharacter.revealedCategories = [...targetCharacter.revealedCategories, revealCategory];
+    if (!selectedCategory || !getPlayableRevealCategories(room).includes(selectedCategory)) return { ok: false, error: "Выберите доступную характеристику" };
+    if (character.revealedCategories.includes(selectedCategory)) return { ok: false, error: "Эта характеристика уже раскрыта" };
+    character.revealedCategories = [...character.revealedCategories, selectedCategory];
+  } else if (card.type === "hide_card") {
+    if (!selectedCategory || selectedCategory === "profession" || !character.revealedCategories.includes(selectedCategory)) {
+      return { ok: false, error: "Выберите раскрытую характеристику, кроме профессии" };
     }
-  }
-  if (card.type === "swap_card") {
-    const fresh = bunkerCards.fact[Math.floor(Math.random() * bunkerCards.fact.length)];
-    character.fact = fresh;
-    character.revealedCategories = character.revealedCategories.filter((item) => item !== "fact");
-  }
-  if (card.type === "revote" && room.lastVotingResult?.tiedPlayerIds?.length) {
-    room.revoteCandidateIds = room.lastVotingResult.tiedPlayerIds;
-    setTimedPhase(room, "REVOTE", room.settings.votingTimeSec);
+    character.revealedCategories = character.revealedCategories.filter((item) => item !== selectedCategory);
+  } else if (card.type === "force_reveal") {
+    if (!target || target.id === playerId || !targetCharacter) return { ok: false, error: "Выберите другого живого игрока" };
+    if (!selectedCategory || !getPlayableRevealCategories(room).includes(selectedCategory)) return { ok: false, error: "Выберите доступную характеристику цели" };
+    if (targetCharacter.revealedCategories.includes(selectedCategory)) return { ok: false, error: "Эта характеристика цели уже раскрыта" };
+    targetCharacter.revealedCategories = [...targetCharacter.revealedCategories, selectedCategory];
+  } else if (card.type === "swap_card") {
+    if (!target || target.id === playerId || !targetCharacter) return { ok: false, error: "Выберите другого живого игрока" };
+    if (!selectedCategory || !effectCategories.includes(selectedCategory)) return { ok: false, error: "Выберите доступную категорию для обмена" };
+    const ownCard = getCharacterCard(character, selectedCategory);
+    const otherCard = getCharacterCard(targetCharacter, selectedCategory);
+    setCharacterCard(character, selectedCategory, otherCard);
+    setCharacterCard(targetCharacter, selectedCategory, ownCard);
+  } else if (card.type === "reroll_card") {
+    if (!selectedCategory || !effectCategories.includes(selectedCategory)) return { ok: false, error: "Выберите характеристику для замены" };
+    const current = getCharacterCard(character, selectedCategory);
+    const replacement = pickReplacementCard(room, selectedCategory, current.id);
+    if (!replacement) return { ok: false, error: "Для этой категории нет другой карты" };
+    setCharacterCard(character, selectedCategory, replacement);
+    character.revealedCategories = character.revealedCategories.filter((item) => item !== selectedCategory);
+  } else if (card.type === "protect_vote") {
+    if (room.protectedPlayerIds.includes(playerId)) return { ok: false, error: "У вас уже есть защита" };
+    protectFromVoting(room, playerId);
+  } else if (card.type === "protect_player") {
+    if (!target || target.id === playerId) return { ok: false, error: "Выберите другого живого игрока" };
+    if (room.protectedPlayerIds.includes(target.id)) return { ok: false, error: "Этот игрок уже защищен" };
+    protectFromVoting(room, target.id);
+  } else if (card.type === "double_vote") {
+    if (room.doubleVotePlayerIds.includes(playerId)) return { ok: false, error: "Ваш голос уже усилен" };
+    room.doubleVotePlayerIds = [...room.doubleVotePlayerIds, playerId];
+  } else if (card.type === "reset_votes" || card.type === "revote") {
+    if (room.phase !== "VOTING" && room.phase !== "REVOTE") return { ok: false, error: "Карту можно применить только во время голосования" };
     room.votes = {};
+    room.readyPlayerIds = [];
+    room.deadlineAt = room.settings.useTimer ? Date.now() + room.settings.votingTimeSec * 1000 : undefined;
+  } else if (card.type === "recover_special") {
+    const usedCards = character.specialCards.filter((item) => item.used && item.id !== card.id);
+    const usedCard = usedCards[Math.floor(Math.random() * usedCards.length)];
+    if (!usedCard) return { ok: false, error: "Нет использованной спецкарты для восстановления" };
+    usedCard.used = false;
   }
+
+  card.used = true;
   addEvent(room, `${player.name} использовал(а) спецкарту: ${card.title}`);
   return { ok: true };
 }
@@ -219,12 +247,14 @@ export function resolveVoting(room: BunkerRoomState) {
     votes: room.votes,
     tieMode: room.settings.tieMode,
     isRevote: room.phase === "REVOTE",
-    candidates: room.phase === "REVOTE" ? room.revoteCandidateIds : undefined
+    candidates: room.phase === "REVOTE" ? room.revoteCandidateIds : undefined,
+    doubleVotePlayerIds: room.doubleVotePlayerIds
   });
   result.round = room.currentRound;
   room.lastVotingResult = result;
   room.votes = {};
   room.protectedPlayerIds = [];
+  room.doubleVotePlayerIds = [];
 
   if (result.tiedPlayerIds?.length && !result.eliminatedPlayerId && !result.noElimination) {
     room.revoteCandidateIds = result.tiedPlayerIds;
@@ -281,6 +311,7 @@ export function restartBunkerGame(room: BunkerRoomState) {
   room.lastVotingResult = undefined;
   room.winnerPlayerIds = undefined;
   room.protectedPlayerIds = [];
+  room.doubleVotePlayerIds = [];
   room.eventLog = [];
   room.deadlineAt = undefined;
   return { ok: true };
@@ -333,6 +364,37 @@ function hasAnyRevealOptions(room: BunkerRoomState) {
   return room.players
     .filter((player) => player.status === "alive")
     .some((player) => playerHasRevealOptions(room, player.id));
+}
+
+function getSpecialEffectCategories(room: BunkerRoomState): Exclude<BunkerCardCategory, "special">[] {
+  const categories = getPlayableRevealCategories(room).filter(
+    (category): category is Exclude<BunkerCardCategory, "special"> => category !== "special"
+  );
+  if (room.settings.enabledCardCategories.includes("profession") && !categories.includes("profession")) return ["profession", ...categories];
+  return categories;
+}
+
+function getCharacterCard(character: BunkerCharacter, category: Exclude<BunkerCardCategory, "special">) {
+  return character[category];
+}
+
+function setCharacterCard(character: BunkerCharacter, category: Exclude<BunkerCardCategory, "special">, value: BunkerCard) {
+  character[category] = value;
+}
+
+function pickReplacementCard(room: BunkerRoomState, category: Exclude<BunkerCardCategory, "special">, currentId: string) {
+  const usedIds = new Set(Object.values(room.characters).map((character) => getCharacterCard(character, category).id));
+  const unused = bunkerCards[category].filter((item) => item.id !== currentId && !usedIds.has(item.id));
+  const pool = unused.length > 0 ? unused : bunkerCards[category].filter((item) => item.id !== currentId);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function protectFromVoting(room: BunkerRoomState, playerId: string) {
+  room.protectedPlayerIds = [...new Set([...room.protectedPlayerIds, playerId])];
+  const affectedVoterIds = Object.entries(room.votes).filter(([, targetId]) => targetId === playerId).map(([voterId]) => voterId);
+  if (affectedVoterIds.length === 0) return;
+  room.votes = Object.fromEntries(Object.entries(room.votes).filter(([, targetId]) => targetId !== playerId));
+  room.readyPlayerIds = room.readyPlayerIds.filter((id) => !affectedVoterIds.includes(id));
 }
 
 function pickScenario<T extends { id: string }>(id: string | undefined, mode: "random" | "select", items: T[]) {

@@ -108,10 +108,25 @@ export const bunkerCards: Record<Exclude<BunkerCardCategory, "special">, BunkerC
 };
 
 export const bunkerSpecialCards: BunkerSpecialCard[] = [
-  { id: "special_reveal_extra", category: "special", type: "reveal_extra", title: "Открыть еще карту", description: "Раскройте одну дополнительную характеристику своего персонажа." },
-  { id: "special_hide_card", category: "special", type: "hide_card", title: "Скрыть карту", description: "Спрячьте одну свою раскрытую характеристику до конца раунда." },
-  { id: "special_force_reveal", category: "special", type: "force_reveal", title: "Принудительное раскрытие", description: "Заставьте выбранного игрока раскрыть одну характеристику." },
-  { id: "special_swap_card", category: "special", type: "swap_card", title: "Обмен фактами", description: "Поменяйте свою дополнительную карту факта на случайную новую." },
-  { id: "special_protect_vote", category: "special", type: "protect_vote", title: "Защита от голосования", description: "До конца текущего голосования против вас нельзя голосовать." },
-  { id: "special_revote", category: "special", type: "revote", title: "Требование переголосования", description: "После результатов запустите повторное голосование." }
+  { id: "special_reveal_extra", category: "special", type: "reveal_extra", title: "Открыть еще карту", description: "Выберите и немедленно раскройте одну дополнительную характеристику своего персонажа." },
+  { id: "special_second_chance", category: "special", type: "reveal_extra", title: "Дополнительный аргумент", description: "Раскройте еще одну доступную характеристику, чтобы усилить свою позицию." },
+  { id: "special_hide_card", category: "special", type: "hide_card", title: "Скрыть карту", description: "Выберите одну свою раскрытую характеристику, кроме профессии, и снова сделайте ее закрытой." },
+  { id: "special_classified", category: "special", type: "hide_card", title: "Засекреченные данные", description: "Верните одну раскрытую непрофессиональную характеристику в закрытое состояние." },
+  { id: "special_force_reveal", category: "special", type: "force_reveal", title: "Принудительное раскрытие", description: "Выберите игрока и одну из его доступных закрытых характеристик: она будет раскрыта всем." },
+  { id: "special_open_records", category: "special", type: "force_reveal", title: "Открытые архивы", description: "Раскройте выбранную закрытую характеристику другого живого игрока." },
+  { id: "special_swap_card", category: "special", type: "swap_card", title: "Обмен характеристиками", description: "Выберите игрока и категорию: ваши карты этой категории поменяются местами, сохранив статус раскрытия." },
+  { id: "special_trade", category: "special", type: "swap_card", title: "Взаимовыгодный обмен", description: "Обменяйтесь с выбранным игроком одной характеристикой выбранной категории." },
+  { id: "special_protect_vote", category: "special", type: "protect_vote", title: "Личный иммунитет", description: "До завершения ближайшего голосования против вас нельзя голосовать." },
+  { id: "special_safe_status", category: "special", type: "protect_vote", title: "Неприкосновенность", description: "Получите защиту от голосов до конца текущего раунда." },
+  { id: "special_protect_player", category: "special", type: "protect_player", title: "Защитить союзника", description: "Выберите другого живого игрока: до завершения ближайшего голосования против него нельзя голосовать." },
+  { id: "special_alibi", category: "special", type: "protect_player", title: "Надежное алиби", description: "Дайте выбранному игроку временный иммунитет от голосования." },
+  { id: "special_reroll_card", category: "special", type: "reroll_card", title: "Новая характеристика", description: "Выберите одну свою характеристику и замените ее случайной новой картой той же категории." },
+  { id: "special_medical_review", category: "special", type: "reroll_card", title: "Повторная экспертиза", description: "Замените выбранную собственную характеристику новой из той же колоды." },
+  { id: "special_new_identity", category: "special", type: "reroll_card", title: "Исправление анкеты", description: "Сбросьте выбранную характеристику и получите вместо нее другую случайную." },
+  { id: "special_double_vote", category: "special", type: "double_vote", title: "Решающий голос", description: "Ваш голос на ближайшем голосовании будет считаться за два." },
+  { id: "special_authority", category: "special", type: "double_vote", title: "Весомое мнение", description: "Удвойте вес своего голоса до окончания текущего раунда." },
+  { id: "special_reset_votes", category: "special", type: "reset_votes", title: "Сброс голосования", description: "Во время голосования отмените все сделанные и подтвержденные голоса. Все голосуют заново." },
+  { id: "special_revote", category: "special", type: "reset_votes", title: "Требование переголосования", description: "Очистите текущее голосование и запустите его заново с теми же кандидатами." },
+  { id: "special_recover", category: "special", type: "recover_special", title: "Вернуть спецкарту", description: "Восстановите одну случайную ранее использованную спецкарту. Эту карту восстановить нельзя." },
+  { id: "special_reserve", category: "special", type: "recover_special", title: "Скрытый резерв", description: "Сделайте снова доступной одну случайную ранее использованную спецкарту." }
 ];

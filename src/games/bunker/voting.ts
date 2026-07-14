@@ -5,21 +5,24 @@ export function resolveBunkerVotes({
   votes,
   tieMode,
   isRevote = false,
-  candidates
+  candidates,
+  doubleVotePlayerIds = []
 }: {
   players: BunkerPlayer[];
   votes: BunkerVote;
   tieMode: BunkerTieMode;
   isRevote?: boolean;
   candidates?: string[];
+  doubleVotePlayerIds?: string[];
 }): BunkerVotingResult {
   const aliveIds = new Set(players.filter((player) => player.status === "alive").map((player) => player.id));
   const candidateSet = candidates ? new Set(candidates) : aliveIds;
   const counts = new Map<string, number>();
 
-  for (const targetId of Object.values(votes)) {
+  const doubleVotes = new Set(doubleVotePlayerIds);
+  for (const [voterId, targetId] of Object.entries(votes)) {
     if (!aliveIds.has(targetId) || !candidateSet.has(targetId)) continue;
-    counts.set(targetId, (counts.get(targetId) ?? 0) + 1);
+    counts.set(targetId, (counts.get(targetId) ?? 0) + (doubleVotes.has(voterId) ? 2 : 1));
   }
 
   const maxVotes = Math.max(0, ...counts.values());

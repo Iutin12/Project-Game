@@ -92,6 +92,11 @@ export type BunkerSpecialCardType =
   | "force_reveal"
   | "swap_card"
   | "protect_vote"
+  | "protect_player"
+  | "reroll_card"
+  | "double_vote"
+  | "reset_votes"
+  | "recover_special"
   | "revote";
 
 export type BunkerSpecialCard = BunkerCard & {
@@ -175,6 +180,7 @@ export type BunkerRoomState = {
   lastVotingResult?: BunkerVotingResult;
   winnerPlayerIds?: string[];
   protectedPlayerIds: string[];
+  doubleVotePlayerIds: string[];
   eventLog: BunkerEvent[];
   chatMessages: BunkerChatMessage[];
   createdAt: number;
