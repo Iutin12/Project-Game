@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
-import { games } from "@/games/config";
+import { gamesByAvailability } from "@/games/config";
 
 const testRoutes: Record<string, string> = {
   mafia: "/dev/mafia-test"
@@ -17,7 +17,7 @@ export default function HowToPlayPage() {
         </p>
 
         <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {games.map((game) => {
+          {gamesByAvailability.map((game) => {
             const testRoute = testRoutes[game.id];
             return (
               <article key={game.id} className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">

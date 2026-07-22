@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/layout/AppShell";
-import { games } from "@/games/config";
+import { gamesByAvailability } from "@/games/config";
 
 export default function RulesPage() {
   return (
@@ -13,7 +13,7 @@ export default function RulesPage() {
         </p>
 
         <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {games.map((game) => {
+          {gamesByAvailability.map((game) => {
             const card = (
               <article className="group h-full rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft transition hover:-translate-y-1 hover:border-ocean/30">
                 <div className="flex items-start gap-4">

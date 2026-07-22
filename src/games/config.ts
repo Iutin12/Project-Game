@@ -67,3 +67,8 @@ export const games: GameConfig[] = [
     duration: "10-30 мин"
   }
 ];
+
+export const gamesByAvailability = [...games].sort((first, second) => {
+  if (first.status === second.status) return 0;
+  return first.status === "available" ? -1 : 1;
+});

@@ -5,14 +5,9 @@ import { GameCard } from "@/components/game-card/GameCard";
 import { HomeStats } from "@/components/home/HomeStats";
 import { OpenRooms } from "@/components/home/OpenRooms";
 import { QuickCreateRoom } from "@/components/layout/QuickCreateRoom";
-import { games } from "@/games/config";
+import { gamesByAvailability } from "@/games/config";
 
 export default function HomePage() {
-  const sortedGames = [...games].sort((first, second) => {
-    if (first.status === second.status) return 0;
-    return first.status === "available" ? -1 : 1;
-  });
-
   return (
     <AppShell>
       <section className="mt-6 grid gap-6 rounded-[1.5rem] border border-line bg-white/80 p-5 shadow-soft backdrop-blur sm:mt-8 lg:grid-cols-[1fr_1.05fr] lg:gap-8 lg:p-8">
@@ -48,7 +43,7 @@ export default function HomePage() {
           </Link>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-          {sortedGames.map((game) => (
+          {gamesByAvailability.map((game) => (
             <GameCard key={game.id} game={game} />
           ))}
         </div>
