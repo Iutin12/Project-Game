@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 
-type GameId = "mafia" | "crocodile" | "bunker";
+type GameId = "mafia" | "crocodile" | "bunker" | "spy";
 
 type OpenRoom = {
   code: string;
@@ -67,13 +67,15 @@ const fallbackPhaseLabels: Record<string, string> = {
 const gameTitles: Record<GameId, string> = {
   mafia: "Мафия",
   crocodile: "Крокодил",
-  bunker: "Бункер"
+  bunker: "Бункер",
+  spy: "Шпион"
 };
 
 const gameIcons: Record<GameId, string> = {
   mafia: "♟",
   crocodile: "✋",
-  bunker: "▣"
+  bunker: "▣",
+  spy: "⌖"
 };
 
 export function OpenRooms() {
@@ -191,7 +193,7 @@ async function validateRememberedRoom(setRememberedRoom: (room: RememberedRoom |
 
   try {
     const parsed = JSON.parse(raw) as RememberedRoom;
-    if (!parsed.code || (parsed.gameId !== "mafia" && parsed.gameId !== "crocodile" && parsed.gameId !== "bunker")) {
+    if (!parsed.code || (parsed.gameId !== "mafia" && parsed.gameId !== "crocodile" && parsed.gameId !== "bunker" && parsed.gameId !== "spy")) {
       window.localStorage.removeItem(LAST_LEFT_ROOM_KEY);
       return;
     }

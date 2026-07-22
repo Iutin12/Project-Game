@@ -37,7 +37,7 @@ export const games: GameConfig[] = [
     id: "spy",
     title: "Шпион",
     description: "Один игрок не знает локацию и должен не выдать себя.",
-    status: "coming_soon",
+    status: "available",
     minPlayers: 3,
     maxPlayers: 12,
     route: "/games/spy",

@@ -3,7 +3,9 @@ import { AppShell } from "@/components/layout/AppShell";
 import { gamesByAvailability } from "@/games/config";
 
 const testRoutes: Record<string, string> = {
-  mafia: "/dev/mafia-test"
+  mafia: "/dev/mafia-test",
+  bunker: "/dev/bunker-test",
+  spy: "/dev/spy-test"
 };
 
 export default function HowToPlayPage() {

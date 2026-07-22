@@ -5,10 +5,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { RoomClient as MafiaRoomClient } from "./room-client";
 import { CrocodileRoomClient } from "./crocodile-room-client";
 import { BunkerRoomClient } from "./bunker-room-client";
+import { SpyRoomClient } from "./spy-room-client";
 
 type RoomInfo = {
   code: string;
-  gameId: "mafia" | "crocodile" | "bunker";
+  gameId: "mafia" | "crocodile" | "bunker" | "spy";
   phase: string;
 };
 
@@ -64,6 +65,7 @@ export function RoomRouterClient({ code }: { code: string }) {
 
   if (roomInfo.gameId === "bunker") return <BunkerRoomClient code={code} />;
   if (roomInfo.gameId === "crocodile") return <CrocodileRoomClient code={code} />;
+  if (roomInfo.gameId === "spy") return <SpyRoomClient code={code} />;
   return <MafiaRoomClient code={code} />;
 }
 

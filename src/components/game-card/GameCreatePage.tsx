@@ -7,7 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 
 type GameCreatePageProps = {
-  gameId: "mafia" | "crocodile" | "bunker";
+  gameId: "mafia" | "crocodile" | "bunker" | "spy";
   title: string;
   description: string;
   privateDescription: string;
