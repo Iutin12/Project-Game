@@ -26,7 +26,7 @@ export function getPublicSpyState(room: SpyRoomState, viewerId: string): PublicS
 function toPublicRound(room: SpyRoomState): PublicSpyRoundState {
   const round = room.round!;
   const participantIds = [...new Set([...round.spyIds, ...Object.keys(round.rolesByPlayerId)])];
-  const activeCount = room.players.filter((player) => participantIds.includes(player.id) && (player.connected || player.isBot)).length;
+  const activeCount = room.players.filter((player) => participantIds.includes(player.id) && !round.foundSpyIds.includes(player.id) && (player.connected || player.isBot)).length;
   return {
     viewedCount: round.viewedPlayerIds.filter((id) => participantIds.includes(id)).length,
     confirmedCount: round.confirmedPlayerIds.filter((id) => participantIds.includes(id)).length,
@@ -60,7 +60,7 @@ function toPrivateState(room: SpyRoomState, viewerId: string): SpyPrivateState |
       ? location && { id: location.id, name: location.name, description: location.description }
       : undefined,
     locationRole: !isSpy || revealSecrets ? round.rolesByPlayerId[viewerId] : undefined,
-    availableLocations: canGuess || (isSpy && room.settings.showLocationList)
+    availableLocations: canGuess || room.settings.showLocationList
       ? getEnabledLocations(room)
           .filter((item) => !room.settings.hideUsedLocations || item.id === round.locationId || !room.usedLocationIds.includes(item.id))
           .map(({ id, name }) => ({ id, name }))

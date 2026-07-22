@@ -310,10 +310,6 @@ export function handleSpyDeadline(room: SpyRoomState, now = Date.now()) {
     return true;
   }
   if (room.phase === "VOTING" || room.phase === "REVOTE") {
-    const round = getRound(room);
-    Object.keys(round.votes).forEach((voterId) => {
-      if (!round.confirmedVotePlayerIds.includes(voterId)) round.confirmedVotePlayerIds.push(voterId);
-    });
     resolveSpyVoting(room);
     return true;
   }

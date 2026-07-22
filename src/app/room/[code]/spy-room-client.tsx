@@ -346,9 +346,11 @@ function SpyGuess({ room, emitAction }: { room: PublicSpyRoomState; emitAction: 
 
 function Voting({ room, emitAction }: { room: PublicSpyRoomState; emitAction: (event: string, payload?: unknown) => void }) {
   const privateState = room.privateState;
+  const ownPlayer = room.players.find((player) => player.id === room.ownPlayerId);
   const candidates = room.players.filter((player) => player.id !== room.ownPlayerId && !room.round?.foundSpyIds.includes(player.id) && (!room.round?.revoteCandidateIds || room.round.revoteCandidateIds.includes(player.id)));
   if (!privateState) return <WaitingCard title="Идет голосование" text={`${room.round?.votesSubmitted ?? 0} игроков уже подтвердили свой выбор.`} />;
-  return <div><Eyebrow>{room.phase === "REVOTE" ? "Ничья" : "Тайное голосование"}</Eyebrow><h2 className="mt-2 font-display text-4xl font-semibold">{room.phase === "REVOTE" ? "Переголосование" : "Кто шпион?"}</h2><p className="mt-3 text-slate-600 dark:text-white/60">Выбор скрыт до результата. За себя голосовать нельзя, подтвержденный голос изменить нельзя.</p><div className="mt-5 grid gap-2 sm:grid-cols-2">{candidates.map((player) => <ChoiceCard key={player.id} title={player.name} subtitle={player.connected || player.isBot ? "online" : "offline"} selected={privateState.selectedVoteId === player.id} disabled={privateState.hasConfirmedVote} onClick={() => emitAction("spy:select_vote", { targetId: player.id })} />)}</div><div className="mt-5 flex flex-wrap items-center gap-3"><Button disabled={!privateState.selectedVoteId || privateState.hasConfirmedVote} onClick={() => emitAction("spy:confirm_vote")}>{privateState.hasConfirmedVote ? "Голос подтвержден" : "Подтвердить голос"}</Button><ReadyProgress value={room.round?.votesSubmitted ?? 0} total={room.round?.activePlayersCount ?? 0} compact /></div></div>;
+  const hostResolvesTie = room.phase === "REVOTE" && room.settings.tieMode === "host" && ownPlayer?.isHost;
+  return <div><Eyebrow>{room.phase === "REVOTE" ? "Ничья" : "Тайное голосование"}</Eyebrow><h2 className="mt-2 font-display text-4xl font-semibold">{hostResolvesTie ? "Выберите кандидата" : room.phase === "REVOTE" ? "Переголосование" : "Кто шпион?"}</h2><p className="mt-3 text-slate-600 dark:text-white/60">{hostResolvesTie ? "По настройкам комнаты окончательное решение после ничьей принимает ведущий." : "Выбор скрыт до результата. За себя голосовать нельзя, подтвержденный голос изменить нельзя."}</p><div className="mt-5 grid gap-2 sm:grid-cols-2">{candidates.map((player) => hostResolvesTie ? <button key={player.id} className="rounded-xl border border-line bg-white p-4 text-left font-bold transition hover:border-coral hover:bg-coral/10 dark:border-white/10 dark:bg-slate-950/50" onClick={() => emitAction("spy:resolve_host_tie", { targetId: player.id })}>{player.name}<span className="mt-1 block text-xs text-coral">Выбрать решением ведущего</span></button> : <ChoiceCard key={player.id} title={player.name} subtitle={player.connected || player.isBot ? "online" : "offline"} selected={privateState.selectedVoteId === player.id} disabled={privateState.hasConfirmedVote} onClick={() => emitAction("spy:select_vote", { targetId: player.id })} />)}</div>{!hostResolvesTie ? <div className="mt-5 flex flex-wrap items-center gap-3"><Button disabled={!privateState.selectedVoteId || privateState.hasConfirmedVote} onClick={() => emitAction("spy:confirm_vote")}>{privateState.hasConfirmedVote ? "Голос подтвержден" : "Подтвердить голос"}</Button><ReadyProgress value={room.round?.votesSubmitted ?? 0} total={room.round?.activePlayersCount ?? 0} compact /></div> : null}</div>;
 }
 
 function RoundResult({ room, emitAction }: { room: PublicSpyRoomState; emitAction: (event: string, payload?: unknown) => void }) {
@@ -488,7 +490,7 @@ function resultReason(reason: NonNullable<PublicSpyRoomState["round"]>["result"]
 }
 
 function rememberRoom(room: PublicSpyRoomState) {
-  window.localStorage.setItem(LAST_LEFT_ROOM_KEY, JSON.stringify({ code: room.code, gameId: room.gameId, title: "Шпион", savedAt: Date.now() }));
+  window.localStorage.setItem(LAST_LEFT_ROOM_KEY, JSON.stringify({ code: room.code, gameId: room.gameId, title: "Шпион", leftAt: Date.now() }));
 }
 
 function clearRememberedRoom(code: string) {
