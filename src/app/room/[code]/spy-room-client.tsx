@@ -184,12 +184,15 @@ export function SpyRoomClient({ code }: { code: string }) {
           {error ? <ErrorBanner error={error} /> : null}
 
           {tab === "game" ? (
-            <GameTab
-              room={room}
-              roleCardOpen={roleCardOpen}
-              setRoleCardOpen={setRoleCardOpen}
-              emitAction={emitAction}
-            />
+            <>
+              {room.devMode ? <DevPanel room={room} emitAction={emitAction} /> : null}
+              <GameTab
+                room={room}
+                roleCardOpen={roleCardOpen}
+                setRoleCardOpen={setRoleCardOpen}
+                emitAction={emitAction}
+              />
+            </>
           ) : null}
           {tab === "chat" ? <ChatTab room={room} message={message} setMessage={setMessage} sendMessage={sendMessage} chatRef={chatRef} inputRef={chatInputRef} /> : null}
           {tab === "settings" ? <SettingsTab room={room} isHost={isHost} emitAction={emitAction} /> : null}
@@ -322,7 +325,7 @@ function Discussion({ room, emitAction }: { room: PublicSpyRoomState; emitAction
     <div>
       <Eyebrow>Раунд {room.currentRound}</Eyebrow><h2 className="mt-2 font-display text-4xl font-semibold">Обсуждение</h2>
       <p className="mt-3 max-w-2xl text-slate-600 dark:text-white/60">Задавайте вопросы так, чтобы проверить собеседника, но не назвать локацию слишком прямо.</p>
-      {room.settings.questionMode === "turns" ? <div className="mt-5 rounded-[1.25rem] border border-coral/30 bg-coral/8 p-5"><p className="text-xs font-black uppercase tracking-[0.18em] text-coral">Текущая пара</p><p className="mt-2 text-xl font-black">{questioner?.name ?? "—"} спрашивает {responder?.name ?? "—"}</p>{(room.ownPlayerId === questioner?.id || room.ownPlayerId === responder?.id) ? <Button className="mt-4" onClick={() => emitAction("spy:question_answered")}>Ответ получен</Button> : null}</div> : null}
+      {room.settings.questionMode === "turns" ? <div className="mt-5 rounded-[1.25rem] border border-coral/30 bg-coral/10 p-5"><p className="text-xs font-black uppercase tracking-[0.18em] text-coral">Текущая пара</p><p className="mt-2 text-xl font-black">{questioner?.name ?? "—"} спрашивает {responder?.name ?? "—"}</p>{(room.ownPlayerId === questioner?.id || room.ownPlayerId === responder?.id) ? <Button className="mt-4" onClick={() => emitAction("spy:question_answered")}>Ответ получен</Button> : null}</div> : null}
       {room.settings.showLocationList && room.privateState?.availableLocations ? <LocationList locations={room.privateState.availableLocations} /> : null}
       <div className="mt-6 flex flex-wrap gap-3">
         {room.settings.allowEarlyVoting && room.privateState ? <Button disabled={room.round?.earlyVotePlayerIds.includes(room.ownPlayerId)} onClick={() => emitAction("spy:request_voting")}>{room.round?.earlyVotePlayerIds.includes(room.ownPlayerId) ? "Голос учтен" : "Перейти к голосованию"} · {earlyVotes}</Button> : null}
@@ -365,6 +368,27 @@ function GameResult({ room, emitAction }: { room: PublicSpyRoomState; emitAction
 function PlayersPanel({ room, emitAction }: { room: PublicSpyRoomState; emitAction: (event: string, payload?: unknown) => void }) {
   const own = room.players.find((player) => player.id === room.ownPlayerId);
   return <aside className="rounded-[1.25rem] border border-line bg-white/85 p-4 dark:border-white/10 dark:bg-slate-900/65"><div className="flex items-center justify-between"><h2 className="font-display text-2xl font-semibold">Игроки</h2><span className="rounded-xl bg-slate-100 px-2.5 py-1 text-xs font-black dark:bg-white/5">{room.players.length}</span></div><div className="mt-4 max-h-[34rem] space-y-2 overflow-y-auto pr-1">{room.players.map((player) => <article key={player.id} className="rounded-xl border border-line bg-white p-3 dark:border-white/10 dark:bg-slate-950/45"><div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${player.connected || player.isBot ? "bg-mint" : "bg-coral"}`} /><p className="min-w-0 flex-1 truncate font-bold">{player.name}</p><strong className="text-sm text-coral">{player.score}</strong></div><div className="mt-1 flex items-center justify-between text-[0.68rem] font-bold uppercase tracking-[0.1em] text-slate-400"><span>{player.isHost ? "ведущий" : player.isBot ? "бот" : player.connected ? "online" : "offline"}</span>{room.round?.foundSpyIds.includes(player.id) ? <span className="text-coral">найден</span> : null}</div>{own?.isHost && player.id !== own.id && room.phase === "LOBBY" ? <div className="mt-2 flex gap-2"><button className="text-xs font-bold text-coral" onClick={() => emitAction("spy:kick_player", { playerId: player.id })}>Удалить</button><button className="text-xs font-bold text-slate-500 dark:text-white/50" onClick={() => emitAction("spy:transfer_host", { playerId: player.id })}>Сделать ведущим</button></div> : null}</article>)}</div></aside>;
+}
+
+function DevPanel({ room, emitAction }: { room: PublicSpyRoomState; emitAction: (event: string, payload?: unknown) => void }) {
+  const [locationId, setLocationId] = useState("");
+  const [spyId, setSpyId] = useState("");
+  const secrets = room.devSecrets;
+  return (
+    <section className="mt-4 rounded-[1.25rem] border border-amber-400/40 bg-amber-50/80 p-4 text-slate-900 dark:bg-amber-400/10 dark:text-white">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><p className="text-xs font-black uppercase tracking-[0.2em] text-amber-600 dark:text-amber-300">Dev / test</p><h2 className="mt-1 font-display text-2xl font-semibold">Управление симуляцией</h2></div>
+        <div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => emitAction("spy:dev_advance")}>Следующая фаза</Button><Button variant="secondary" onClick={() => emitAction("spy:dev_simulate_round")}>Весь раунд</Button><Button variant="secondary" onClick={() => emitAction("spy:dev_simulate_game")}>Игра до финала</Button></div>
+      </div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
+        <select className="rounded-xl border border-amber-400/35 bg-white px-3 py-2.5 text-sm dark:bg-slate-950" value={locationId} onChange={(event) => setLocationId(event.target.value)}><option value="">Случайная локация</option>{spyLocations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select>
+        <select className="rounded-xl border border-amber-400/35 bg-white px-3 py-2.5 text-sm dark:bg-slate-950" value={spyId} onChange={(event) => setSpyId(event.target.value)}><option value="">Случайный шпион</option>{room.players.filter((player) => player.connected || player.isBot).map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select>
+        <Button onClick={() => emitAction("spy:dev_restart_round", { locationId: locationId || undefined, spyIds: spyId ? [spyId] : undefined })}>Перезапустить раунд</Button>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2"><Button variant="ghost" onClick={() => emitAction("spy:dev_add_bot")}>+ Бот</Button><Button variant="ghost" onClick={() => emitAction("spy:dev_remove_bot")}>− Бот</Button>{room.players.filter((player) => player.isBot).map((player) => <button key={player.id} className={`rounded-xl border px-3 py-2 text-xs font-bold ${player.connected ? "border-mint/40 text-mint" : "border-coral/40 text-coral"}`} onClick={() => emitAction("spy:dev_toggle_connection", { playerId: player.id })}>{player.name}: {player.connected ? "online" : "offline"}</button>)}</div>
+      {secrets?.location ? <div className="mt-4 grid gap-2 rounded-xl bg-white/65 p-3 text-sm dark:bg-slate-950/45 sm:grid-cols-2"><p><strong>Локация:</strong> {secrets.location.name}</p><p><strong>Шпионы:</strong> {secrets.spyIds.map((id) => room.players.find((player) => player.id === id)?.name).join(", ")}</p>{room.players.filter((player) => !secrets.spyIds.includes(player.id) && secrets.rolesByPlayerId[player.id]).map((player) => <p key={player.id}><strong>{player.name}:</strong> {secrets.rolesByPlayerId[player.id]}</p>)}</div> : null}
+    </section>
+  );
 }
 
 function SettingsTab({ room, isHost, emitAction }: { room: PublicSpyRoomState; isHost: boolean; emitAction: (event: string, payload?: unknown) => void }) {

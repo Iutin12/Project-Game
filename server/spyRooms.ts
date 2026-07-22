@@ -18,6 +18,7 @@ import {
   setSpyPlayerReady,
   startSpyGame,
   startSpyLocationGuess,
+  startSpyRound,
   submitSpyLocationGuess,
   viewSpyRole
 } from "../src/games/spy/logic";
@@ -333,6 +334,28 @@ export function registerSpyRoomSockets(io: Server) {
         const botIndex = room.players.findLastIndex((player) => player.isBot);
         if (botIndex < 0) throw new Error("В комнате нет ботов.");
         room.players.splice(botIndex, 1);
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("spy:dev_restart_round", (payload: { locationId?: string; spyIds?: string[] }, ack) => {
+      const result = withHostRoom(socket, (room) => {
+        assertDevRoom(room);
+        if (room.currentRound < 1) room.currentRound = 1;
+        startSpyRound(room, { locationId: payload?.locationId, spyIds: payload?.spyIds });
+        autoProgressBots(room);
+      });
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("spy:dev_toggle_connection", (payload: { playerId: string }, ack) => {
+      const result = withHostRoom(socket, (room) => {
+        assertDevRoom(room);
+        const bot = room.players.find((player) => player.id === payload.playerId && player.isBot);
+        if (!bot) throw new Error("Бот не найден.");
+        bot.connected = !bot.connected;
       });
       ack?.(result);
       emitOwnRoom(io, socket);

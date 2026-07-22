@@ -12,7 +12,14 @@ export function getPublicSpyState(room: SpyRoomState, viewerId: string): PublicS
     ...publicRoom,
     ownPlayerId: viewerId,
     round: publicRound,
-    privateState
+    privateState,
+    devSecrets: room.devMode && room.players.find((player) => player.id === viewerId)?.isHost
+      ? {
+          location: round ? getEnabledLocations(room).find((location) => location.id === round.locationId) : undefined,
+          spyIds: round ? [...round.spyIds] : [],
+          rolesByPlayerId: round ? { ...round.rolesByPlayerId } : {}
+        }
+      : undefined
   };
 }
 

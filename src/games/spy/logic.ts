@@ -83,8 +83,10 @@ export function startSpyRound(room: SpyRoomState, forced?: { locationId?: string
     : pickRoundLocation(room, locations);
   if (!location) throw new Error("Выбранная локация недоступна.");
   const spyCount = getSpyCount(players.length, room.settings.spyCount);
-  const spyIds = forced?.spyIds?.length
-    ? forced.spyIds.filter((id) => players.some((player) => player.id === id)).slice(0, spyCount)
+  const forcedSpyIds = [...new Set(forced?.spyIds ?? [])].filter((id) => players.some((player) => player.id === id)).slice(0, spyCount);
+  const remainingPlayers = players.filter((player) => !forcedSpyIds.includes(player.id));
+  const spyIds = forcedSpyIds.length
+    ? [...forcedSpyIds, ...pickSpies(remainingPlayers, spyCount - forcedSpyIds.length, room.previousSpyIds)]
     : pickSpies(players, spyCount, room.previousSpyIds);
   if (spyIds.length !== spyCount) throw new Error("Не удалось назначить нужное количество шпионов.");
 

@@ -166,4 +166,9 @@ export type PublicSpyRoomState = Omit<SpyRoomState, "hostKey" | "round" | "previ
   ownPlayerId: string;
   round?: PublicSpyRoundState;
   privateState?: SpyPrivateState;
+  devSecrets?: {
+    location?: SpyLocation;
+    spyIds: string[];
+    rolesByPlayerId: Record<string, string>;
+  };
 };
