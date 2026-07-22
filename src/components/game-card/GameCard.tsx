@@ -7,7 +7,7 @@ type GameCardProps = {
 
 export function GameCard({ game }: GameCardProps) {
   const content = (
-    <article className="group relative h-full overflow-hidden rounded-[1.5rem] border border-line bg-white p-4 shadow-soft transition hover:-translate-y-1 hover:border-ocean/30 hover:shadow-lg">
+    <article className="group relative flex h-full flex-col overflow-hidden rounded-[1.5rem] border border-line bg-white p-4 shadow-soft transition hover:-translate-y-1 hover:border-ocean/30 hover:shadow-lg">
       <div className="relative mb-4 h-36 overflow-hidden rounded-[1.25rem] bg-slate-950">
         <img
           src={game.illustration}
@@ -28,7 +28,7 @@ export function GameCard({ game }: GameCardProps) {
         <h3 className="text-lg font-bold text-ink">{game.title}</h3>
         <p className="mt-1 text-xs leading-5 text-slate-600">{game.description}</p>
       </div>
-      <div className="relative mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold text-slate-500">
+      <div className="relative mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 pt-5 text-xs font-semibold text-slate-500">
         <span className="whitespace-nowrap">♟ {game.minPlayers}-{game.maxPlayers} игроков</span>
         <span className="whitespace-nowrap">◷ {game.duration}</span>
         {game.status === "available" ? <span className="ml-auto whitespace-nowrap text-ocean">Играть ›</span> : null}
@@ -37,8 +37,8 @@ export function GameCard({ game }: GameCardProps) {
   );
 
   if (game.status !== "available") {
-    return <div className="opacity-70">{content}</div>;
+    return <div className="h-full opacity-70">{content}</div>;
   }
 
-  return <Link href={game.route}>{content}</Link>;
+  return <Link className="block h-full" href={game.route}>{content}</Link>;
 }
