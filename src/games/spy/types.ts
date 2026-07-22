@@ -162,7 +162,7 @@ export type SpyPrivateState = {
   availableLocations?: Pick<SpyLocation, "id" | "name">[];
 };
 
-export type PublicSpyRoomState = Omit<SpyRoomState, "hostKey" | "round"> & {
+export type PublicSpyRoomState = Omit<SpyRoomState, "hostKey" | "round" | "previousSpyIds" | "usedLocationIds"> & {
   ownPlayerId: string;
   round?: PublicSpyRoundState;
   privateState?: SpyPrivateState;

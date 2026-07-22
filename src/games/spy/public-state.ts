@@ -2,8 +2,10 @@ import { getEnabledLocations } from "./logic";
 import type { PublicSpyRoomState, PublicSpyRoundState, SpyPrivateState, SpyRoomState } from "./types";
 
 export function getPublicSpyState(room: SpyRoomState, viewerId: string): PublicSpyRoomState {
-  const { hostKey: _hostKey, round, ...publicRoom } = room;
+  const { hostKey: _hostKey, round, previousSpyIds: _previousSpyIds, usedLocationIds: _usedLocationIds, ...publicRoom } = room;
   void _hostKey;
+  void _previousSpyIds;
+  void _usedLocationIds;
   const publicRound = round ? toPublicRound(room) : undefined;
   const privateState = round ? toPrivateState(room, viewerId) : undefined;
   return {
