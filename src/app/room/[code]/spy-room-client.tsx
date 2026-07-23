@@ -10,6 +10,7 @@ import type { PublicSpyRoomState, SpyLocation, SpySettings } from "@/games/spy/t
 
 type Ack = { ok: boolean; error?: string; playerId?: string };
 type Tab = "game" | "chat" | "settings";
+type SelectOption = { value: string; label: string };
 
 const LAST_LEFT_ROOM_KEY = "project-game:last-left-room";
 
@@ -38,15 +39,34 @@ export function SpyRoomClient({ code }: { code: string }) {
   const [message, setMessage] = useState("");
   const [roleCardOpen, setRoleCardOpen] = useState(true);
   const [seenMessages, setSeenMessages] = useState(0);
+  const [unreadAnchorId, setUnreadAnchorId] = useState<string | null>(null);
+  const [keepUnreadDivider, setKeepUnreadDivider] = useState(false);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const chatRef = useRef<HTMLDivElement | null>(null);
+  const chatSectionRef = useRef<HTMLElement | null>(null);
   const chatInputRef = useRef<HTMLInputElement | null>(null);
+  const previousChatCountRef = useRef(0);
 
   const ownPlayer = room?.players.find((player) => player.id === room.ownPlayerId);
   const isHost = Boolean(ownPlayer?.isHost);
   const connectedPlayers = useMemo(() => room?.players.filter((player) => player.connected || player.isBot) ?? [], [room?.players]);
   const unreadMessages = Math.max(0, (room?.chatMessages.length ?? 0) - seenMessages);
   const inviteUrl = typeof window === "undefined" ? "" : `${window.location.origin}/room/${code}`;
+
+  function scrollChatToRelevantMessage(behavior: ScrollBehavior = "smooth") {
+    requestAnimationFrame(() => {
+      const chat = chatRef.current;
+      if (!chat) return;
+      const target = unreadAnchorId
+        ? Array.from(chat.querySelectorAll<HTMLElement>("[data-chat-message-id]"))
+            .find((item) => item.dataset.chatMessageId === unreadAnchorId)
+        : null;
+      chat.scrollTo({
+        top: target ? Math.max(target.offsetTop - 18, 0) : chat.scrollHeight,
+        behavior
+      });
+    });
+  }
 
   useEffect(() => {
     const nextSocket = io({ path: "/socket.io" });
@@ -90,11 +110,42 @@ export function SpyRoomClient({ code }: { code: string }) {
   }, [room?.phase, room?.privateState?.hasViewedRole]);
 
   useEffect(() => {
-    if (tab !== "chat" || !room) return;
-    requestAnimationFrame(() => chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" }));
-    setSeenMessages(room.chatMessages.length);
-    chatInputRef.current?.focus({ preventScroll: true });
-  }, [tab, room?.chatMessages.length]);
+    const chatCount = room?.chatMessages.length ?? 0;
+    const previousCount = previousChatCountRef.current;
+
+    if (chatCount > previousCount && !unreadAnchorId) {
+      setUnreadAnchorId(room?.chatMessages[previousCount]?.id ?? null);
+      setKeepUnreadDivider(true);
+    }
+
+    if (tab === "chat" && chatCount > previousCount) {
+      requestAnimationFrame(() => {
+        chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
+      });
+    }
+
+    previousChatCountRef.current = chatCount;
+  }, [room?.chatMessages, tab, unreadAnchorId]);
+
+  useEffect(() => {
+    if (tab !== "chat" || !room) return undefined;
+    const chat = chatRef.current;
+    const markSeenIfBottom = () => {
+      const current = chatRef.current;
+      if (!current) return;
+      const isAtBottom = current.scrollHeight - current.scrollTop - current.clientHeight < 8;
+      if (!isAtBottom) return;
+      setSeenMessages(room.chatMessages.length);
+      setUnreadAnchorId(null);
+      setKeepUnreadDivider(false);
+    };
+    chat?.addEventListener("scroll", markSeenIfBottom);
+    const timer = window.setTimeout(markSeenIfBottom, keepUnreadDivider ? 1800 : 0);
+    return () => {
+      chat?.removeEventListener("scroll", markSeenIfBottom);
+      window.clearTimeout(timer);
+    };
+  }, [room, tab, keepUnreadDivider]);
 
   function joinRoom() {
     const hostKey = window.localStorage.getItem(`hostKey:${code}`) ?? undefined;
@@ -174,9 +225,22 @@ export function SpyRoomClient({ code }: { code: string }) {
           <RoomHeader room={room} copied={copied} copyInvite={copyInvite} requestLeave={requestLeave} />
           <nav className="mt-4 flex flex-wrap gap-2 rounded-[1.25rem] border border-line bg-white/80 p-1.5 dark:border-white/10 dark:bg-slate-900/70">
             {(["game", "chat", "settings"] as Tab[]).map((item) => (
-              <button key={item} className={`rounded-xl px-5 py-3 text-sm font-black transition ${tab === item ? "bg-coral text-white" : "text-slate-500 hover:bg-slate-100 dark:text-white/60 dark:hover:bg-white/5"}`} onClick={() => setTab(item)}>
+              <button
+                key={item}
+                className={`rounded-xl px-5 py-3 text-sm font-black transition ${tab === item ? "bg-coral text-white" : "text-slate-500 hover:bg-slate-100 dark:text-white/60 dark:hover:bg-white/5"}`}
+                onClick={() => {
+                  setTab(item);
+                  if (item === "chat") {
+                    window.setTimeout(() => {
+                      chatSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                      scrollChatToRelevantMessage();
+                      chatInputRef.current?.focus({ preventScroll: true });
+                    }, 0);
+                  }
+                }}
+              >
                 {item === "game" ? "Комната" : item === "chat" ? "Чат" : "Настройки"}
-                {item === "chat" && unreadMessages ? <span className="ml-2 rounded-full bg-slate-950 px-2 py-0.5 text-xs text-white dark:bg-white dark:text-slate-950">{unreadMessages}</span> : null}
+                {item === "chat" && unreadMessages ? <span className="ml-2 rounded-full bg-ocean px-2 py-0.5 text-xs text-white">{unreadMessages}</span> : null}
               </button>
             ))}
           </nav>
@@ -194,7 +258,7 @@ export function SpyRoomClient({ code }: { code: string }) {
               />
             </>
           ) : null}
-          {tab === "chat" ? <ChatTab room={room} message={message} setMessage={setMessage} sendMessage={sendMessage} chatRef={chatRef} inputRef={chatInputRef} /> : null}
+          {tab === "chat" ? <ChatTab room={room} message={message} setMessage={setMessage} sendMessage={sendMessage} chatRef={chatRef} sectionRef={chatSectionRef} inputRef={chatInputRef} unreadAnchorId={unreadAnchorId} /> : null}
           {tab === "settings" ? <SettingsTab room={room} isHost={isHost} emitAction={emitAction} /> : null}
         </div>
       </section>
@@ -383,8 +447,8 @@ function DevPanel({ room, emitAction }: { room: PublicSpyRoomState; emitAction: 
         <div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => emitAction("spy:dev_advance")}>Следующая фаза</Button><Button variant="secondary" onClick={() => emitAction("spy:dev_simulate_round")}>Весь раунд</Button><Button variant="secondary" onClick={() => emitAction("spy:dev_simulate_game")}>Игра до финала</Button></div>
       </div>
       <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
-        <select className="rounded-xl border border-amber-400/35 bg-white px-3 py-2.5 text-sm dark:bg-slate-950" value={locationId} onChange={(event) => setLocationId(event.target.value)}><option value="">Случайная локация</option>{spyLocations.map((location) => <option key={location.id} value={location.id}>{location.name}</option>)}</select>
-        <select className="rounded-xl border border-amber-400/35 bg-white px-3 py-2.5 text-sm dark:bg-slate-950" value={spyId} onChange={(event) => setSpyId(event.target.value)}><option value="">Случайный шпион</option>{room.players.filter((player) => player.connected || player.isBot).map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}</select>
+        <CustomSelect value={locationId} options={[{ value: "", label: "Случайная локация" }, ...spyLocations.map((location) => ({ value: location.id, label: location.name }))]} disabled={false} onChange={setLocationId} />
+        <CustomSelect value={spyId} options={[{ value: "", label: "Случайный шпион" }, ...room.players.filter((player) => player.connected || player.isBot).map((player) => ({ value: player.id, label: player.name }))]} disabled={false} onChange={setSpyId} />
         <Button onClick={() => emitAction("spy:dev_restart_round", { locationId: locationId || undefined, spyIds: spyId ? [spyId] : undefined })}>Перезапустить раунд</Button>
       </div>
       <div className="mt-3 flex flex-wrap gap-2"><Button variant="ghost" onClick={() => emitAction("spy:dev_add_bot")}>+ Бот</Button><Button variant="ghost" onClick={() => emitAction("spy:dev_remove_bot")}>− Бот</Button>{room.players.filter((player) => player.isBot).map((player) => <button key={player.id} className={`rounded-xl border px-3 py-2 text-xs font-bold ${player.connected ? "border-mint/40 text-mint" : "border-coral/40 text-coral"}`} onClick={() => emitAction("spy:dev_toggle_connection", { playerId: player.id })}>{player.name}: {player.connected ? "online" : "offline"}</button>)}</div>
@@ -440,8 +504,39 @@ function SettingsTab({ room, isHost, emitAction }: { room: PublicSpyRoomState; i
   );
 }
 
-function ChatTab({ room, message, setMessage, sendMessage, chatRef, inputRef }: { room: PublicSpyRoomState; message: string; setMessage: (value: string) => void; sendMessage: () => void; chatRef: React.RefObject<HTMLDivElement>; inputRef: React.RefObject<HTMLInputElement> }) {
-  return <section className="mt-4 flex min-h-[32rem] flex-col rounded-[1.25rem] border border-line bg-white/85 p-4 dark:border-white/10 dark:bg-slate-900/65"><div className="flex items-center justify-between"><h2 className="font-display text-3xl font-semibold">Чат комнаты</h2><span className="text-sm font-black text-slate-400">{room.chatMessages.length}</span></div><div ref={chatRef} className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto rounded-xl bg-slate-100/70 p-3 dark:bg-slate-950/55">{room.chatMessages.length ? room.chatMessages.map((item) => <article key={item.id} className="rounded-xl bg-white p-3 dark:bg-slate-900"><div className="flex justify-between gap-3"><strong className="text-sm text-coral">{item.playerName}</strong><time className="text-xs text-slate-400">{new Date(item.createdAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}</time></div><p className="mt-1 break-words text-sm text-slate-700 dark:text-white/70">{item.text}</p></article>) : <p className="p-4 text-center text-sm text-slate-400">Пока нет сообщений</p>}</div><div className="mt-3 flex gap-2"><input ref={inputRef} className="min-w-0 flex-1 rounded-xl border border-line bg-white px-4 py-3 outline-none focus:border-coral dark:border-white/10 dark:bg-slate-950" placeholder="Написать сообщение..." value={message} maxLength={280} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => event.key === "Enter" && sendMessage()} /><Button disabled={!message.trim()} onClick={sendMessage}>Отправить</Button></div></section>;
+function ChatTab({ room, message, setMessage, sendMessage, chatRef, sectionRef, inputRef, unreadAnchorId }: { room: PublicSpyRoomState; message: string; setMessage: (value: string) => void; sendMessage: () => void; chatRef: React.RefObject<HTMLDivElement>; sectionRef: React.RefObject<HTMLElement>; inputRef: React.RefObject<HTMLInputElement>; unreadAnchorId: string | null }) {
+  return (
+    <section ref={sectionRef} className="mt-4 flex h-[30rem] min-h-0 scroll-mt-4 flex-col rounded-[1.25rem] border border-line bg-white/85 p-4 dark:border-white/10 dark:bg-slate-900/65 sm:h-[34rem]">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-3xl font-semibold">Чат комнаты</h2>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-black text-slate-500 dark:bg-slate-950/50 dark:text-white/60">{room.chatMessages.length}</span>
+      </div>
+      <div ref={chatRef} className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain rounded-xl bg-slate-100/70 p-3 dark:bg-slate-950/55">
+        {room.chatMessages.length ? room.chatMessages.map((item) => (
+          <div key={item.id} data-chat-message-id={item.id}>
+            {unreadAnchorId === item.id ? (
+              <div className="my-3 flex items-center gap-3 text-xs font-black uppercase tracking-[0.18em] text-coral">
+                <span className="h-px flex-1 bg-coral/30" />
+                Новые сообщения
+                <span className="h-px flex-1 bg-coral/30" />
+              </div>
+            ) : null}
+            <article className="rounded-xl bg-white p-3 dark:bg-slate-900">
+              <div className="flex justify-between gap-3">
+                <strong className="text-sm text-coral">{item.playerName}</strong>
+                <time className="text-xs text-slate-400">{new Date(item.createdAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}</time>
+              </div>
+              <p className="mt-1 break-words text-sm text-slate-700 dark:text-white/70">{item.text}</p>
+            </article>
+          </div>
+        )) : <p className="p-4 text-center text-sm text-slate-400">Пока нет сообщений</p>}
+      </div>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <input ref={inputRef} className="min-w-0 flex-1 rounded-xl border border-line bg-white px-4 py-3 outline-none focus:border-coral focus:ring-2 focus:ring-coral/15 dark:border-white/10 dark:bg-slate-950" placeholder="Написать сообщение..." value={message} maxLength={280} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => event.key === "Enter" && sendMessage()} />
+        <Button disabled={!message.trim()} onClick={sendMessage}>Отправить</Button>
+      </div>
+    </section>
+  );
 }
 
 function SettingsSection({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
@@ -449,7 +544,64 @@ function SettingsSection({ title, description, children }: { title: string; desc
 }
 
 function SettingSelect({ label, help, value, options, disabled, onChange }: { label: string; help: string; value: string; options: string[][]; disabled: boolean; onChange: (value: string) => void }) {
-  return <label className="block"><span className="mb-1.5 flex items-center gap-2 text-sm font-bold">{label}<Info text={help} /></span><select className="w-full rounded-xl border border-line bg-white px-3 py-2.5 text-sm outline-none focus:border-coral dark:border-white/10 dark:bg-slate-950" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)}>{options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}</select></label>;
+  return <div><span className="mb-1.5 flex items-center gap-2 text-sm font-bold">{label}<Info text={help} /></span><CustomSelect value={value} options={options.map(([optionValue, optionLabel]) => ({ value: optionValue, label: optionLabel }))} disabled={disabled} onChange={onChange} /></div>;
+}
+
+function CustomSelect({ value, options, disabled, onChange }: { value: string; options: SelectOption[]; disabled: boolean; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const selected = options.find((option) => option.value === value) ?? options[0];
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutside = (event: PointerEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className={`relative ${open ? "z-50" : "z-0"}`}>
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={disabled}
+        className="flex w-full items-center justify-between rounded-xl border border-line bg-white px-4 py-3 text-left text-sm font-bold text-ink shadow-sm transition hover:border-coral/50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-slate-950 dark:text-white"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="truncate">{selected?.label}</span>
+        <span className={`ml-3 text-coral transition-transform ${open ? "rotate-180" : ""}`}>⌄</span>
+      </button>
+      {open && !disabled ? (
+        <div role="listbox" className="absolute left-0 top-full z-[60] mt-2 max-h-60 w-full min-w-48 overflow-y-auto rounded-2xl border border-line bg-white p-2 shadow-[0_18px_50px_rgba(15,23,42,0.28)] dark:border-white/10 dark:bg-slate-900">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              className={`w-full rounded-xl px-3 py-2 text-left text-sm font-bold transition ${option.value === value ? "bg-coral text-white" : "text-slate-600 hover:bg-slate-100 dark:text-white/70 dark:hover:bg-white/10"}`}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function Toggle({ label, help, checked, disabled, compact, onChange }: { label: string; help?: string; checked: boolean; disabled: boolean; compact?: boolean; onChange: (checked: boolean) => void }) {
