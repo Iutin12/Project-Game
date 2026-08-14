@@ -190,8 +190,6 @@ export function processAliasWord(room: AliasRoomState, playerId: string, wordId:
   turn.processedWordIds.push(word.id);
   room.usedWordIds.push(word.id);
   room.previousWordId = word.id;
-  if (result === "guessed") getPlayer(room, playerId).guessedWords += 1;
-  else getPlayer(room, playerId).skippedWords += 1;
   turn.currentWordId = pickAliasWord(room).id;
   touch(room);
 }
@@ -252,7 +250,11 @@ export function confirmAliasTurnResult(room: AliasRoomState, playerId: string) {
   applyAliasTurnScore(room);
   turn.resultConfirmed = true;
   appendTurnHistory(room);
-  getPlayer(room, turn.explainerPlayerId).explainedWords += turn.words.filter((entry) => entry.result === "guessed").length;
+  const explainer = getPlayer(room, turn.explainerPlayerId);
+  const reviewedWords = turn.words.filter((entry) => !entry.id.includes("-last-"));
+  explainer.explainedWords += 1;
+  explainer.guessedWords += reviewedWords.filter((entry) => entry.result === "guessed").length;
+  explainer.skippedWords += reviewedWords.filter((entry) => entry.result === "skipped").length;
   if (shouldFinishAliasGame(room)) {
     room.phase = "GAME_OVER";
     room.winnerTeamIds = getLeadingTeams(room).map((team) => team.id);
