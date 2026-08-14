@@ -5,7 +5,6 @@ import {
   createAliasRoomState,
   forceFinishAliasTurn,
   getAliasStartError,
-  getCurrentAliasWord,
   handleAliasDeadline,
   moveAliasPlayer,
   processAliasWord,
