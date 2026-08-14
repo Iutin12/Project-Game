@@ -34,17 +34,12 @@ export default function HomePage() {
       </section>
 
       <section className="py-8">
-        <div className="mb-5 flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-black text-ink">Каталог игр</h2>
-          </div>
-          <Link className="text-sm font-bold text-violet-600 hover:text-ink" href="/games">
-            Все игры →
-          </Link>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <h2 className="mb-5 text-2xl font-black text-ink">Каталог игр</h2>
+        <div className="-mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto px-1 pb-3 [scrollbar-width:thin]">
           {gamesByAvailability.map((game) => (
-            <GameCard key={game.id} game={game} />
+            <div key={game.id} className="w-[17rem] shrink-0 snap-start sm:w-[18rem]">
+              <GameCard game={game} />
+            </div>
           ))}
         </div>
       </section>
