@@ -16,6 +16,7 @@ import {
 } from "./bunkerRooms";
 import { createDevRoom, createRoom, getRoom, getStats, registerRoomSockets } from "./rooms";
 import { createDevSpyRoom, createSpyRoom, getSpyRoomInfo, getSpyStats, registerSpyRoomSockets } from "./spyRooms";
+import { createAliasRoom, createDevAliasRoom, getAliasRoomInfo, getAliasStats, registerAliasRoomSockets } from "./aliasRooms";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "0.0.0.0";
@@ -28,7 +29,7 @@ app.prepare().then(() => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
 
     if (req.method === "POST" && url.pathname === "/api/create-room") {
-      const body = await readJsonBody<{ gameId?: "mafia" | "crocodile" | "bunker" | "spy"; visibility?: "private" | "public" }>(req);
+      const body = await readJsonBody<{ gameId?: "mafia" | "crocodile" | "bunker" | "spy" | "alias"; visibility?: "private" | "public" }>(req);
       const visibility = body?.visibility === "public" ? "public" : "private";
       const room =
         body?.gameId === "crocodile"
@@ -37,7 +38,9 @@ app.prepare().then(() => {
             ? createBunkerRoom(visibility)
             : body?.gameId === "spy"
               ? createSpyRoom(visibility)
-              : createRoom(visibility);
+              : body?.gameId === "alias"
+                ? createAliasRoom(visibility)
+                : createRoom(visibility);
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(room));
       return;
@@ -66,6 +69,14 @@ app.prepare().then(() => {
       return;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/dev/create-alias-test-room") {
+      const body = await readJsonBody<{ playersCount?: number }>(req);
+      const room = createDevAliasRoom(body?.playersCount ?? 6);
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify(room));
+      return;
+    }
+
     if (req.method === "GET" && url.pathname === "/api/stats") {
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(getCombinedStats()));
@@ -78,9 +89,10 @@ app.prepare().then(() => {
       const crocodileRoom = code ? getCrocodileRoomInfo(code) : undefined;
       const bunkerRoom = code ? getBunkerRoomInfo(code) : undefined;
       const spyRoom = code ? getSpyRoomInfo(code) : undefined;
+      const aliasRoom = code ? getAliasRoomInfo(code) : undefined;
       const roomInfo = mafiaRoom
         ? { code: mafiaRoom.code, gameId: mafiaRoom.gameId, phase: mafiaRoom.phase }
-        : crocodileRoom ?? bunkerRoom ?? spyRoom;
+        : crocodileRoom ?? bunkerRoom ?? spyRoom ?? aliasRoom;
 
       if (!roomInfo) {
         res.writeHead(404, { "content-type": "application/json" });
@@ -104,6 +116,7 @@ app.prepare().then(() => {
   registerCrocodileRoomSockets(io);
   registerBunkerRoomSockets(io);
   registerSpyRoomSockets(io);
+  registerAliasRoomSockets(io);
 
   httpServer.listen(port, hostname, () => {
     console.log(`Project Game is running on http://localhost:${port}`);
@@ -115,12 +128,13 @@ function getCombinedStats() {
   const crocodileStats = getCrocodileStats();
   const bunkerStats = getBunkerStats();
   const spyStats = getSpyStats();
+  const aliasStats = getAliasStats();
 
   return {
-    roomsCreatedToday: mafiaStats.roomsCreatedToday + crocodileStats.roomsCreatedToday + bunkerStats.roomsCreatedToday + spyStats.roomsCreatedToday,
-    activeRooms: mafiaStats.activeRooms + crocodileStats.activeRooms + bunkerStats.activeRooms + spyStats.activeRooms,
-    onlinePlayers: mafiaStats.onlinePlayers + crocodileStats.onlinePlayers + bunkerStats.onlinePlayers + spyStats.onlinePlayers,
-    publicRooms: [...mafiaStats.publicRooms, ...crocodileStats.publicRooms, ...bunkerStats.publicRooms, ...spyStats.publicRooms].sort(
+    roomsCreatedToday: mafiaStats.roomsCreatedToday + crocodileStats.roomsCreatedToday + bunkerStats.roomsCreatedToday + spyStats.roomsCreatedToday + aliasStats.roomsCreatedToday,
+    activeRooms: mafiaStats.activeRooms + crocodileStats.activeRooms + bunkerStats.activeRooms + spyStats.activeRooms + aliasStats.activeRooms,
+    onlinePlayers: mafiaStats.onlinePlayers + crocodileStats.onlinePlayers + bunkerStats.onlinePlayers + spyStats.onlinePlayers + aliasStats.onlinePlayers,
+    publicRooms: [...mafiaStats.publicRooms, ...crocodileStats.publicRooms, ...bunkerStats.publicRooms, ...spyStats.publicRooms, ...aliasStats.publicRooms].sort(
       (first, second) => second.createdAt - first.createdAt
     )
   };

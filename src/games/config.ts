@@ -45,6 +45,17 @@ export const games: GameConfig[] = [
     duration: "10-20 мин"
   },
   {
+    id: "alias",
+    title: "Элиас",
+    description: "Объясняйте слова своей команде на время, не называя однокоренные подсказки.",
+    status: "available",
+    minPlayers: 4,
+    maxPlayers: 20,
+    route: "/games/alias",
+    illustration: "/game-cards/alias.png",
+    duration: "15-40 мин"
+  },
+  {
     id: "whoami",
     title: "Кто я?",
     description: "Угадывайте персонажа по вопросам, на которые можно отвечать только да или нет.",
