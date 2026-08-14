@@ -4,8 +4,8 @@ import type { AliasPlayer, AliasRoomState, AliasTeam, AliasTurnHistory, AliasTur
 import { aliasWords } from "./words";
 
 const MIN_PLAYERS = 4;
-const teamNames = ["Красные", "Синие", "Зеленые", "Золотые"];
-const teamColors: AliasTeam["color"][] = ["coral", "ocean", "mint", "amber"];
+const teamNames = ["Красные", "Синие", "Зеленые", "Золотые", "Фиолетовые", "Бирюзовые"];
+const teamColors: AliasTeam["color"][] = ["coral", "ocean", "mint", "amber", "violet", "cyan"];
 
 export function createAliasRoomState(input: { code: string; hostKey: string; visibility?: AliasRoomState["visibility"]; devMode?: boolean }): AliasRoomState {
   const now = Date.now();
@@ -180,8 +180,6 @@ export function processAliasWord(room: AliasRoomState, playerId: string, wordId:
   if (!turn.currentWordId || turn.currentWordId !== wordId || turn.processedWordIds.includes(wordId)) throw new Error("Это слово уже обработано.");
   if (result === "skipped") {
     if (!room.settings.allowSkipWord) throw new Error("Пропуск слов отключен.");
-    const skipped = turn.words.filter((entry) => entry.result === "skipped").length;
-    if (room.settings.maxSkipsPerTurn !== null && skipped >= room.settings.maxSkipsPerTurn) throw new Error("Лимит пропусков исчерпан.");
   }
   const word = getAliasWord(wordId);
   const points = result === "guessed" ? 1 : room.settings.skipPenalty;
@@ -211,10 +209,12 @@ export function resolveAliasLastWord(room: AliasRoomState, playerId: string, win
   assertPhase(room, "LAST_WORD");
   const turn = getTurn(room);
   const player = getPlayer(room, playerId);
-  if (turn.explainerPlayerId !== player.id && !player.isHost) throw new Error("Результат подтверждает объясняющий или хост.");
+  if (turn.explainerPlayerId !== player.id) throw new Error("Результат подтверждает только объясняющий.");
   if (winnerTeamId && !room.teams.some((team) => team.id === winnerTeamId)) throw new Error("Команда не найдена.");
   if (turn.currentWordId) {
     const word = getAliasWord(turn.currentWordId);
+    turn.lastWordId = word.id;
+    turn.lastWord = word.word;
     turn.processedWordIds.push(word.id);
     room.usedWordIds.push(word.id);
     room.previousWordId = word.id;
@@ -227,12 +227,24 @@ export function resolveAliasLastWord(room: AliasRoomState, playerId: string, win
   finishAliasTurn(room);
 }
 
+export function reassignAliasLastWord(room: AliasRoomState, playerId: string, winnerTeamId?: string) {
+  assertPhase(room, "TURN_RESULT");
+  const turn = getTurn(room);
+  if (turn.explainerPlayerId !== playerId) throw new Error("Исправить последнее слово может только объясняющий.");
+  if (turn.scoreApplied || !turn.lastWordId || !turn.lastWord) throw new Error("Последнее слово уже нельзя изменить.");
+  if (winnerTeamId && !room.teams.some((team) => team.id === winnerTeamId)) throw new Error("Команда не найдена.");
+  turn.words = turn.words.filter((entry) => !entry.id.includes("-last-"));
+  turn.lastWordWinnerTeamId = winnerTeamId;
+  if (winnerTeamId) turn.words.push({ id: `${turn.turnNumber}-last-${turn.lastWordId}`, wordId: turn.lastWordId, word: turn.lastWord, result: "guessed", points: 1 });
+  recalculateTurnDeltas(room);
+  touch(room);
+}
+
 export function toggleAliasTurnWord(room: AliasRoomState, playerId: string, entryId: string) {
   assertPhase(room, "TURN_RESULT");
   if (!room.settings.reviewWordsAfterTurn) throw new Error("Проверка слов отключена.");
   const turn = getTurn(room);
-  const player = getPlayer(room, playerId);
-  if (turn.explainerPlayerId !== player.id && !player.isHost) throw new Error("Исправлять результат может объясняющий или хост.");
+  if (turn.explainerPlayerId !== playerId) throw new Error("Исправлять результат может только объясняющий.");
   if (turn.scoreApplied) throw new Error("Счет уже зафиксирован.");
   const entry = turn.words.find((item) => item.id === entryId);
   if (!entry || entry.id.includes("-last-")) throw new Error("Слово не найдено.");
@@ -245,8 +257,7 @@ export function toggleAliasTurnWord(room: AliasRoomState, playerId: string, entr
 export function confirmAliasTurnResult(room: AliasRoomState, playerId: string) {
   assertPhase(room, "TURN_RESULT");
   const turn = getTurn(room);
-  const player = getPlayer(room, playerId);
-  if (turn.explainerPlayerId !== player.id && !player.isHost) throw new Error("Подтвердить результат может объясняющий или хост.");
+  if (turn.explainerPlayerId !== playerId) throw new Error("Подтвердить результат может только объясняющий.");
   applyAliasTurnScore(room);
   turn.resultConfirmed = true;
   appendTurnHistory(room);

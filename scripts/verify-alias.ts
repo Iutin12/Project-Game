@@ -5,13 +5,18 @@ import { createAliasRoom, registerAliasRoomSockets } from "../server/aliasRooms"
 import {
   confirmAliasTurnResult,
   forceFinishAliasTurn,
+  handleAliasDeadline,
   processAliasWord,
+  reassignAliasLastWord,
+  resolveAliasLastWord,
   setAliasPlayerReady,
   startAliasGame,
   startAliasTurn,
+  syncAliasTeams,
   toggleAliasTurnWord
 } from "../src/games/alias/game";
 import { getPublicAliasState } from "../src/games/alias/public-state";
+import { defaultAliasSettings } from "../src/games/alias/settings";
 import { createAliasTestRoom } from "../src/games/alias/simulation";
 import type { PublicAliasRoomState } from "../src/games/alias/types";
 import { aliasWords } from "../src/games/alias/words";
@@ -21,12 +26,27 @@ type Ack = { ok: boolean; error?: string; playerId?: string };
 async function main() {
   verifyEngine();
   await verifyRealtimePrivacy();
-  console.log(JSON.stringify({ ok: true, words: aliasWords.length, checks: ["engine", "review", "equal-turns", "realtime-secret", "double-click"] }));
+  console.log(JSON.stringify({ ok: true, words: aliasWords.length, checks: ["engine", "six-teams", "unlimited-skip", "review", "last-word-correction", "equal-turns", "realtime-secret", "double-click"] }));
 }
 
 function verifyEngine() {
   assert(aliasWords.length >= 400, "Word database is too small");
   assert(new Set(aliasWords.map((word) => word.word.toLocaleLowerCase("ru-RU"))).size === aliasWords.length, "Word database contains duplicates");
+  assert(defaultAliasSettings.lastWordMode === "common_guess", "Common last word must be enabled by default");
+
+  const sixTeamsRoom = createAliasTestRoom(6);
+  sixTeamsRoom.settings.teamsCount = 6;
+  sixTeamsRoom.settings.autoAssignTeams = true;
+  sixTeamsRoom.settings.allowSkipWord = true;
+  sixTeamsRoom.settings.skipPenalty = -1;
+  syncAliasTeams(sixTeamsRoom);
+  sixTeamsRoom.players.forEach((player) => setAliasPlayerReady(sixTeamsRoom, player.id, true));
+  startAliasGame(sixTeamsRoom);
+  assert(sixTeamsRoom.teams.length === 6, "Six Alias teams were not created");
+  const sixTeamsExplainer = sixTeamsRoom.currentTurn!.explainerPlayerId;
+  startAliasTurn(sixTeamsRoom, sixTeamsExplainer, 100);
+  for (let index = 0; index < 3; index += 1) processAliasWord(sixTeamsRoom, sixTeamsExplainer, sixTeamsRoom.currentTurn!.currentWordId!, "skipped", 101 + index);
+  assert(sixTeamsRoom.currentTurn!.words.filter((entry) => entry.result === "skipped").length === 3, "Skip limit was not removed");
 
   const room = createAliasTestRoom(4);
   room.settings.targetScore = 1;
@@ -47,10 +67,25 @@ function verifyEngine() {
   expectError(() => processAliasWord(room, firstExplainer, firstWordId, "guessed", 1_002), "Double click was accepted");
   forceFinishAliasTurn(room);
   const entry = room.currentTurn!.words[0];
+  expectError(() => toggleAliasTurnWord(room, outsider.id, entry.id), "Another player was allowed to edit the explainer's score");
   toggleAliasTurnWord(room, firstExplainer, entry.id);
   confirmAliasTurnResult(room, firstExplainer);
   assert(room.teams[0].score === 0, "Reviewed skipped word changed score incorrectly");
   assert(room.players.find((player) => player.id === firstExplainer)?.skippedWords === 1, "Reviewed word did not update player stats");
+
+  const lastWordRoom = createAliasTestRoom(4);
+  lastWordRoom.settings.lastWordMode = "common_guess";
+  lastWordRoom.players.forEach((player) => setAliasPlayerReady(lastWordRoom, player.id, true));
+  startAliasGame(lastWordRoom);
+  const lastExplainer = lastWordRoom.currentTurn!.explainerPlayerId;
+  startAliasTurn(lastWordRoom, lastExplainer, 1_000);
+  lastWordRoom.currentTurn!.deadlineAt = 1_001;
+  handleAliasDeadline(lastWordRoom, 1_001);
+  const firstWinner = lastWordRoom.teams[0].id;
+  const correctedWinner = lastWordRoom.teams[1].id;
+  resolveAliasLastWord(lastWordRoom, lastExplainer, firstWinner);
+  reassignAliasLastWord(lastWordRoom, lastExplainer, correctedWinner);
+  assert(lastWordRoom.currentTurn!.lastWordWinnerTeamId === correctedWinner, "Last-word winner could not be corrected");
 
   const secondExplainer = room.currentTurn!.explainerPlayerId;
   startAliasTurn(room, secondExplainer, 2_000);

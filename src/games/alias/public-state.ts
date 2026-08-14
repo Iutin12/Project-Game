@@ -27,7 +27,7 @@ export function getPublicAliasState(room: AliasRoomState, viewerId: string): Pub
     guessedCount: currentTurn.words.filter((entry) => entry.result === "guessed" && !entry.id.includes("-last-")).length,
     skippedCount: currentTurn.words.filter((entry) => entry.result === "skipped").length,
     scoreDelta: currentTurn.words.filter((entry) => !entry.id.includes("-last-")).reduce((sum, entry) => sum + entry.points, 0),
-    canReviewWords: Boolean(viewer?.isHost || currentTurn.explainerPlayerId === viewerId)
+    canReviewWords: currentTurn.explainerPlayerId === viewerId
   } : undefined;
   return {
     ...publicRoom,

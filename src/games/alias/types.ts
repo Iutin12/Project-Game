@@ -36,7 +36,7 @@ export type AliasWord = {
 
 export type AliasSettings = {
   maxPlayers: number;
-  teamsCount: 2 | 3 | 4;
+  teamsCount: 2 | 3 | 4 | 5 | 6;
   autoAssignTeams: boolean;
   turnTimeSec: 30 | 45 | 60 | 90 | 120;
   gameEndMode: AliasGameEndMode;
@@ -47,7 +47,6 @@ export type AliasSettings = {
   wordPoolMode: AliasWordPoolMode;
   selectedCategories: AliasCategory[];
   allowSkipWord: boolean;
-  maxSkipsPerTurn: number | null;
   skipPenalty: 0 | -1;
   lastWordMode: AliasLastWordMode;
   reviewWordsAfterTurn: boolean;
@@ -70,7 +69,7 @@ export type AliasPlayer = {
 export type AliasTeam = {
   id: string;
   name: string;
-  color: "coral" | "ocean" | "mint" | "amber";
+  color: "coral" | "ocean" | "mint" | "amber" | "violet" | "cyan";
   score: number;
   playerIds: string[];
 };
@@ -93,6 +92,8 @@ export type AliasTurn = {
   startedAt?: number;
   deadlineAt?: number;
   lastWordWinnerTeamId?: string;
+  lastWordId?: string;
+  lastWord?: string;
   scoreDeltasByTeamId: Record<string, number>;
   scoreApplied: boolean;
   resultConfirmed: boolean;

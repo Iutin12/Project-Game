@@ -9,6 +9,7 @@ import {
   moveAliasPlayer,
   processAliasWord,
   rebalanceAliasTeams,
+  reassignAliasLastWord,
   replaceAliasExplainer,
   resetAliasRoomToLobby,
   resolveAliasLastWord,
@@ -198,6 +199,12 @@ export function registerAliasRoomSockets(io: Server) {
 
     socket.on("alias:last_word_result", (payload: { teamId?: string }, ack) => {
       const result = withPlayerRoom(socket, (room, player) => resolveAliasLastWord(room, player.id, payload.teamId));
+      ack?.(result);
+      emitOwnRoom(io, socket);
+    });
+
+    socket.on("alias:reassign_last_word", (payload: { teamId?: string }, ack) => {
+      const result = withPlayerRoom(socket, (room, player) => reassignAliasLastWord(room, player.id, payload.teamId));
       ack?.(result);
       emitOwnRoom(io, socket);
     });

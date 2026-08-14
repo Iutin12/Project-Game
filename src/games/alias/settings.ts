@@ -14,15 +14,16 @@ export const defaultAliasSettings: AliasSettings = {
   wordPoolMode: "all",
   selectedCategories: [...defaultAliasCategories],
   allowSkipWord: true,
-  maxSkipsPerTurn: null,
   skipPenalty: 0,
-  lastWordMode: "disabled",
+  lastWordMode: "common_guess",
   reviewWordsAfterTurn: true,
   showPlayedWords: true
 };
 
 export function sanitizeAliasSettings(input: Partial<AliasSettings>, current: AliasSettings): AliasSettings {
-  const teamsCount = input.teamsCount === 3 || input.teamsCount === 4 ? input.teamsCount : input.teamsCount === 2 ? 2 : current.teamsCount;
+  const teamsCount = input.teamsCount === 2 || input.teamsCount === 3 || input.teamsCount === 4 || input.teamsCount === 5 || input.teamsCount === 6
+    ? input.teamsCount
+    : current.teamsCount;
   const selectedCategories = Array.isArray(input.selectedCategories)
     ? input.selectedCategories.filter(isAliasCategory)
     : current.selectedCategories;
@@ -32,14 +33,13 @@ export function sanitizeAliasSettings(input: Partial<AliasSettings>, current: Al
     autoAssignTeams: typeof input.autoAssignTeams === "boolean" ? input.autoAssignTeams : current.autoAssignTeams,
     turnTimeSec: isTurnTime(input.turnTimeSec) ? input.turnTimeSec : current.turnTimeSec,
     gameEndMode: input.gameEndMode === "rounds" ? "rounds" : input.gameEndMode === "score" ? "score" : current.gameEndMode,
-    targetScore: clamp(input.targetScore, 5, 200, current.targetScore),
+    targetScore: clamp(input.targetScore, 5, 999, current.targetScore),
     roundsCount: clamp(input.roundsCount, 1, 30, current.roundsCount),
     equalTurnsAtEnd: typeof input.equalTurnsAtEnd === "boolean" ? input.equalTurnsAtEnd : current.equalTurnsAtEnd,
     difficulty: input.difficulty === "easy" || input.difficulty === "medium" || input.difficulty === "hard" || input.difficulty === "mixed" ? input.difficulty : current.difficulty,
     wordPoolMode: input.wordPoolMode === "selected" ? "selected" : input.wordPoolMode === "all" ? "all" : current.wordPoolMode,
     selectedCategories: selectedCategories.length ? [...new Set(selectedCategories)] : current.selectedCategories,
     allowSkipWord: typeof input.allowSkipWord === "boolean" ? input.allowSkipWord : current.allowSkipWord,
-    maxSkipsPerTurn: input.maxSkipsPerTurn === null ? null : clamp(input.maxSkipsPerTurn, 0, 50, current.maxSkipsPerTurn ?? 3),
     skipPenalty: input.skipPenalty === -1 ? -1 : input.skipPenalty === 0 ? 0 : current.skipPenalty,
     lastWordMode: input.lastWordMode === "common_guess" ? "common_guess" : input.lastWordMode === "disabled" ? "disabled" : current.lastWordMode,
     reviewWordsAfterTurn: typeof input.reviewWordsAfterTurn === "boolean" ? input.reviewWordsAfterTurn : current.reviewWordsAfterTurn,
