@@ -22,8 +22,6 @@ RUN pnpm build
 FROM ${NODE_IMAGE} AS runner
 
 WORKDIR /app
-ENV PNPM_VERSION=9.15.9
-RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
@@ -44,4 +42,5 @@ EXPOSE 3000
 
 USER node
 
-CMD ["pnpm", "start"]
+# Bypass Corepack at runtime: the container filesystem is intentionally read-only.
+CMD ["node", "node_modules/tsx/dist/cli.mjs", "server/index.ts"]
