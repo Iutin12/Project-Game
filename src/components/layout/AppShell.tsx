@@ -45,7 +45,12 @@ export function AppShell({ children, onLogoClick }: { children: React.ReactNode;
             className="h-9 w-9 rounded-xl object-cover shadow-soft sm:h-11 sm:w-11 sm:rounded-2xl"
             priority
           />
-          <span>Lumia</span>
+          <span className="flex min-w-0 flex-col leading-none">
+            <span className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Lumia</span>
+            <span className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-white/50 sm:text-[10px]">
+              платформа совместных игр
+            </span>
+          </span>
         </Link>
         <nav className="hidden items-center gap-7 text-sm font-semibold text-slate-600 md:flex dark:text-white/65">
           {navigation.map((item) => (

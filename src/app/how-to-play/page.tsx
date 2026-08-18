@@ -19,11 +19,11 @@ export default function HowToPlayPage() {
           Выберите игру, чтобы открыть тестовый режим, проверить роли и спокойно разобраться с ходом партии.
         </p>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-8 grid auto-rows-fr gap-4 md:grid-cols-2 xl:grid-cols-3">
           {gamesByAvailability.map((game) => {
             const testRoute = testRoutes[game.id];
             return (
-              <article key={game.id} className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">
+              <article key={game.id} className="flex h-full min-h-[18rem] flex-col rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft">
                 <div className="flex items-start gap-4">
                   <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[1.25rem] bg-cloud">
                     <img src={game.illustration} alt="" aria-hidden="true" className="h-full w-full object-cover" />
@@ -38,14 +38,14 @@ export default function HowToPlayPage() {
                 </div>
                 {testRoute ? (
                   <Link
-                    className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-ocean px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:brightness-95"
+                    className="mt-auto inline-flex w-full items-center justify-center rounded-xl bg-ocean px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:brightness-95"
                     href={testRoute}
                   >
                     Запустить тестовую игру
                   </Link>
                 ) : (
                   <button
-                    className="mt-5 inline-flex w-full cursor-not-allowed items-center justify-center rounded-xl bg-ocean px-5 py-3 text-sm font-semibold text-white opacity-45 shadow-soft"
+                    className="mt-auto inline-flex w-full cursor-not-allowed items-center justify-center rounded-xl bg-ocean px-5 py-3 text-sm font-semibold text-white opacity-45 shadow-soft"
                     disabled
                     type="button"
                   >

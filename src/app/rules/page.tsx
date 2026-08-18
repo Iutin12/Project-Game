@@ -12,10 +12,10 @@ export default function RulesPage() {
           Откройте карточку игры, чтобы посмотреть подробные правила, роли и порядок хода.
         </p>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-8 grid auto-rows-fr gap-4 md:grid-cols-2 xl:grid-cols-3">
           {gamesByAvailability.map((game) => {
             const card = (
-              <article className="group h-full rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft transition hover:-translate-y-1 hover:border-ocean/30">
+              <article className="group flex h-full min-h-[20rem] flex-col rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft transition hover:-translate-y-1 hover:border-ocean/30">
                 <div className="flex items-start gap-4">
                   <div className="h-20 w-20 shrink-0 overflow-hidden rounded-[1.25rem] bg-cloud">
                     <img src={game.illustration} alt="" aria-hidden="true" className="h-full w-full object-cover" />
@@ -29,9 +29,9 @@ export default function RulesPage() {
                   </div>
                 </div>
                 {game.status === "available" ? (
-                  <p className="mt-5 text-sm font-bold text-ocean">Открыть правила ›</p>
+                  <p className="mt-auto pt-5 text-sm font-bold text-ocean">Открыть правила ›</p>
                 ) : (
-                  <p className="mt-5 text-sm font-bold text-slate-400">Правила появятся позже</p>
+                  <p className="mt-auto pt-5 text-sm font-bold text-slate-400">Правила появятся позже</p>
                 )}
               </article>
             );
