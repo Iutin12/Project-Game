@@ -20,5 +20,6 @@ services:
       CHAT_MESSAGES_PER_10_SECONDS: ${CHAT_MESSAGES_PER_10_SECONDS:-12}
       # Set to true only when a trusted reverse proxy passes the real client IP.
       TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
-    ports:
-      - "3000:3000"
+    # Available only to containers on project-game_default, including Nginx Proxy Manager.
+    expose:
+      - "3000"
