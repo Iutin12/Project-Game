@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
+import { allowRoomCreation, getRequestIp, registerSocketProtection, securityConfig } from "./security";
 import {
   createCrocodileRoom,
   getCrocodileRoomInfo,
@@ -29,6 +30,19 @@ app.prepare().then(() => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
 
     if (req.method === "POST" && url.pathname === "/api/create-room") {
+      const activeRooms = getCombinedStats().activeRooms;
+      if (activeRooms >= securityConfig.maxActiveRooms) {
+        sendJson(res, 503, { error: "Сервер временно перегружен. Попробуйте создать комнату позже." });
+        return;
+      }
+
+      const creation = allowRoomCreation(getRequestIp(req.socket.remoteAddress, req.headers));
+      if (!creation.allowed) {
+        res.setHeader("retry-after", String(creation.retryAfterSeconds));
+        sendJson(res, 429, { error: "Слишком много созданных комнат. Повторите попытку позже." });
+        return;
+      }
+
       const body = await readJsonBody<{ gameId?: "mafia" | "crocodile" | "bunker" | "spy" | "alias"; visibility?: "private" | "public" }>(req);
       const visibility = body?.visibility === "public" ? "public" : "private";
       const room =
@@ -41,8 +55,7 @@ app.prepare().then(() => {
               : body?.gameId === "alias"
                 ? createAliasRoom(visibility)
                 : createRoom(visibility);
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify(room));
+      sendJson(res, 200, room);
       return;
     }
 
@@ -109,8 +122,12 @@ app.prepare().then(() => {
   });
 
   const io = new Server(httpServer, {
-    path: "/socket.io"
+    path: "/socket.io",
+    maxHttpBufferSize: 10_000,
+    connectTimeout: 15_000
   });
+
+  registerSocketProtection(io);
 
   registerRoomSockets(io);
   registerCrocodileRoomSockets(io);
@@ -164,4 +181,9 @@ function readJsonBody<T>(req: import("node:http").IncomingMessage): Promise<T | 
 
     req.on("error", () => resolve(undefined));
   });
+}
+
+function sendJson(res: import("node:http").ServerResponse, status: number, body: unknown) {
+  res.writeHead(status, { "content-type": "application/json" });
+  res.end(JSON.stringify(body));
 }
