@@ -39,13 +39,13 @@ export function AppShell({ children, onLogoClick }: { children: React.ReactNode;
         >
           <Image
             src="/brand/project-game-logo.png"
-            alt="Project Game"
+            alt="Lumia"
             width={44}
             height={44}
             className="h-9 w-9 rounded-xl object-cover shadow-soft sm:h-11 sm:w-11 sm:rounded-2xl"
             priority
           />
-          <span>Project <span className="text-ocean">Game</span></span>
+          <span>Lumia</span>
         </Link>
         <nav className="hidden items-center gap-7 text-sm font-semibold text-slate-600 md:flex dark:text-white/65">
           {navigation.map((item) => (

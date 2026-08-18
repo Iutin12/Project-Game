@@ -7,19 +7,19 @@ const topics = [
     number: "01",
     title: "Сообщить об ошибке",
     description: "Опишите, что произошло, в какой игре и на каком устройстве. Скриншот поможет найти причину быстрее.",
-    subject: "Ошибка в Project Game"
+    subject: "Ошибка в Lumia"
   },
   {
     number: "02",
     title: "Предложить игру или идею",
     description: "Расскажите, какую игру или улучшение вы хотите видеть на платформе. Все предложения читаем.",
-    subject: "Идея для Project Game"
+    subject: "Идея для Lumia"
   },
   {
     number: "03",
     title: "Вопрос по комнате",
     description: "Если возникла проблема с игрой, ролями, настройками или приглашением друзей, напишите нам.",
-    subject: "Вопрос по Project Game"
+    subject: "Вопрос по Lumia"
   }
 ];
 
@@ -31,7 +31,7 @@ export default function SupportPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.22em] text-ocean">Поддержка</p>
           <h1 className="mt-3 font-display text-4xl font-semibold text-ink sm:text-6xl">Поможем сделать игру лучше</h1>
           <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 dark:text-white/65 sm:text-lg">
-            Сообщайте об ошибках, делитесь идеями и задавайте вопросы. Мы читаем каждое письмо и используем обратную связь для развития Project Game.
+            Сообщайте об ошибках, делитесь идеями и задавайте вопросы. Мы читаем каждое письмо и используем обратную связь для развития Lumia.
           </p>
         </div>
 
@@ -69,13 +69,13 @@ export default function SupportPage() {
 
         <section className="mt-5 rounded-[1.5rem] border border-line bg-white/90 p-6 shadow-soft dark:border-white/10 dark:bg-slate-900/80 sm:p-8">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-ocean">Поддержать проект</p>
-          <h2 className="mt-3 font-display text-3xl font-semibold text-ink">Хотите помочь развитию Project Game?</h2>
+          <h2 className="mt-3 font-display text-3xl font-semibold text-ink">Хотите помочь развитию Lumia?</h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 dark:text-white/65 sm:text-base">
             Не публикуем банковские реквизиты на сайте, чтобы защитить вас и проект от мошенничества. Напишите нам на почту - обсудим удобный и безопасный способ поддержки через платежный сервис.
           </p>
           <a
             className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl border border-line bg-white px-5 py-3 text-sm font-bold text-ink shadow-sm transition hover:-translate-y-0.5 hover:border-ocean/35 hover:bg-slate-50 dark:border-white/10 dark:bg-slate-900 dark:text-white dark:hover:bg-white/10"
-            href={`mailto:${email}?subject=${encodeURIComponent("Поддержка Project Game")}`}
+            href={`mailto:${email}?subject=${encodeURIComponent("Поддержка Lumia")}`}
           >
             Связаться по поводу поддержки
           </a>
