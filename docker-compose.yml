@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        NODE_IMAGE: ${NODE_IMAGE:-node:20-alpine}
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-alpine}
     container_name: project-game
     restart: unless-stopped
     environment:
@@ -20,6 +20,25 @@ services:
       CHAT_MESSAGES_PER_10_SECONDS: ${CHAT_MESSAGES_PER_10_SECONDS:-12}
       # Set to true only when a trusted reverse proxy passes the real client IP.
       TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
+      ENABLE_DEV_TOOLS: ${ENABLE_DEV_TOOLS:-false}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-https://game.24lumio.ru}
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    mem_limit: 768m
+    cpus: "1.5"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/stats || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
     # Available only to containers on project-game_default, including Nginx Proxy Manager.
     expose:
       - "3000"
