@@ -14,7 +14,7 @@ export function AppShell({ children, onLogoClick }: { children: React.ReactNode;
     { href: "/games", label: "Игры" },
     { href: "/rules", label: "Правила" },
     { href: "/how-to-play", label: "Как играть" },
-    { href: "/games/mafia", label: "Поддержка" }
+    { href: "/support", label: "Поддержка" }
   ];
 
   useEffect(() => {
