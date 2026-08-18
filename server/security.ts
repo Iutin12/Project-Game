@@ -44,12 +44,14 @@ export const securityConfig = {
 
 const roomCreationsByIp = new FixedWindowRateLimiter(60_000);
 const roomCreationsGlobal = new FixedWindowRateLimiter(1_000);
+const publicApiByIp = new FixedWindowRateLimiter(60_000);
 
 export function getRequestIp(remoteAddress: string | undefined, headers: IncomingHttpHeaders) {
   if (securityConfig.trustProxyHeaders) {
-    const forwarded = headers["x-forwarded-for"];
-    const firstForwarded = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(",")[0];
-    if (firstForwarded?.trim()) return firstForwarded.trim();
+    // Nginx Proxy Manager owns X-Real-IP. X-Forwarded-For can be pre-populated by a client.
+    const realIp = headers["x-real-ip"];
+    const trustedIp = Array.isArray(realIp) ? realIp[0] : realIp;
+    if (trustedIp?.trim()) return trustedIp.trim();
   }
 
   return remoteAddress || "unknown";
@@ -59,6 +61,10 @@ export function allowRoomCreation(ip: string) {
   const ipResult = roomCreationsByIp.consume(ip, securityConfig.roomCreationPerMinute);
   if (!ipResult.allowed) return ipResult;
   return roomCreationsGlobal.consume("all", securityConfig.roomCreationGlobalPerSecond);
+}
+
+export function allowPublicApiRequest(ip: string) {
+  return publicApiByIp.consume(ip, 60);
 }
 
 export function registerSocketProtection(io: Server) {
@@ -84,6 +90,14 @@ export function registerSocketProtection(io: Server) {
   io.on("connection", (socket) => {
     socket.use((packet, next) => {
       const eventName = String(packet[0] ?? "");
+      const payload = packet[1];
+      const hasPayload = packet.length > 1;
+      const isObject = typeof payload === "object" && payload !== null && !Array.isArray(payload);
+      const isJoinEvent = eventName.startsWith("join_");
+
+      if ((hasPayload && !isObject) || (isJoinEvent && (!isObject || typeof (payload as Record<string, unknown>).code !== "string" || typeof (payload as Record<string, unknown>).name !== "string"))) {
+        return next(new Error("Некорректные данные запроса."));
+      }
       const ip = String(socket.data.clientIp ?? "unknown");
       const limiter = eventName.startsWith("send_") ? chatLimiter : eventLimiter;
       const limit = eventName.startsWith("send_") ? securityConfig.chatMessagesPerTenSeconds : securityConfig.socketEventsPerTenSeconds;

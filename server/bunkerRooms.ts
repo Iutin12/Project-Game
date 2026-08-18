@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Server, Socket } from "socket.io";
+import { createReconnectToken, removeRoomSessions, verifyReconnectToken } from "./playerSessions";
 import {
   advanceBunkerPhase,
   allAliveReady,
@@ -35,6 +36,7 @@ const socketPlayers = new Map<string, { roomCode: string; playerId: string }>();
 let totalRoomsCreatedToday = 0;
 let statsDay = new Date().toDateString();
 let phaseDeadlineWatcher: ReturnType<typeof setInterval> | undefined;
+let roomReaper: ReturnType<typeof setInterval> | undefined;
 
 export function createBunkerRoom(visibility: BunkerRoomState["visibility"] = "private") {
   refreshStatsDay();
@@ -96,26 +98,35 @@ export function registerBunkerRoomSockets(io: Server) {
     }, 500);
     phaseDeadlineWatcher.unref();
   }
+  if (!roomReaper) {
+    roomReaper = setInterval(() => {
+      const expiry = Date.now() - 30 * 60 * 1000;
+      for (const room of rooms.values()) {
+        if (room.createdAt >= expiry || room.players.some((player) => player.connected && !player.isBot)) continue;
+        rooms.delete(room.code);
+        removeRoomSessions("bunker", room.code);
+      }
+    }, 60_000);
+    roomReaper.unref();
+  }
 
   io.on("connection", (socket) => {
-    socket.on("join_bunker_room", (payload: { code: string; name: string; hostKey?: string; playerId?: string }, ack) => {
+    socket.on("join_bunker_room", (payload: { code: string; name: string; hostKey?: string; playerId?: string; reconnectToken?: string }, ack) => {
       const room = getBunkerRoom(payload.code);
       const name = payload.name?.trim().slice(0, 24);
       if (!room) return ack?.({ ok: false, error: "Комната не найдена" });
 
       const existingPlayer = payload.playerId ? room.players.find((player) => player.id === payload.playerId && !player.isBot) : undefined;
-      if (existingPlayer) {
+      if (existingPlayer && verifyReconnectToken("bunker", room.code, existingPlayer.id, payload.reconnectToken)) {
         existingPlayer.connected = true;
-        if (payload.hostKey === room.hostKey) {
-          existingPlayer.isHost = true;
-          room.hostId = existingPlayer.id;
-        }
         socketPlayers.set(socket.id, { roomCode: room.code, playerId: existingPlayer.id });
         socket.join(room.code);
-        ack?.({ ok: true, playerId: existingPlayer.id });
+        ack?.({ ok: true, playerId: existingPlayer.id, reconnectToken: createReconnectToken("bunker", room.code, existingPlayer.id) });
         emitRoom(io, room.code);
         return;
       }
+
+      if (existingPlayer) return ack?.({ ok: false, error: "Не удалось подтвердить сессию игрока. Войдите под новым никнеймом." });
 
       if (!name) return ack?.({ ok: false, error: "Введите никнейм" });
       if (hasDuplicatePlayerName(room, name)) return ack?.({ ok: false, error: "Игрок с таким никнеймом уже есть в комнате" });
@@ -132,7 +143,7 @@ export function registerBunkerRoomSockets(io: Server) {
       room.players.push(player);
       socketPlayers.set(socket.id, { roomCode: room.code, playerId: player.id });
       socket.join(room.code);
-      ack?.({ ok: true, playerId: player.id });
+      ack?.({ ok: true, playerId: player.id, reconnectToken: createReconnectToken("bunker", room.code, player.id) });
       emitRoom(io, room.code);
     });
 
@@ -249,7 +260,9 @@ function emitOwnRoom(io: Server, socket: Socket) {
 function emitRoom(io: Server, roomCode: string) {
   const room = rooms.get(roomCode);
   if (!room) return;
-  for (const socket of io.sockets.sockets.values()) {
+  for (const socketId of io.sockets.adapter.rooms.get(roomCode) ?? []) {
+    const socket = io.sockets.sockets.get(socketId);
+    if (!socket) continue;
     const ref = socketPlayers.get(socket.id);
     if (ref?.roomCode === roomCode) socket.emit("bunker_room_updated", getPublicBunkerState(room, ref.playerId));
   }
@@ -322,7 +335,7 @@ function getPhaseLabel(phase: BunkerRoomState["phase"]) {
 }
 
 function makeRoomCode() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
+  return randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase();
 }
 
 function clamp(value: number, min: number, max: number) {

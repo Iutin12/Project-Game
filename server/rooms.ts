@@ -1,4 +1,5 @@
 import type { Server, Socket } from "socket.io";
+import { createReconnectToken, removeRoomSessions, verifyReconnectToken } from "./playerSessions";
 import { randomUUID } from "node:crypto";
 import {
   assignRoles,
@@ -102,7 +103,7 @@ export function getStats() {
 export function registerRoomSockets(io: Server) {
   socketServer = io;
   io.on("connection", (socket) => {
-    socket.on("join_room", (payload: { code: string; name: string; hostKey?: string; playerId?: string }, ack) => {
+    socket.on("join_room", (payload: { code: string; name: string; hostKey?: string; playerId?: string; reconnectToken?: string }, ack) => {
       const room = getRoom(payload.code);
       const name = payload.name?.trim().slice(0, 24);
 
@@ -112,18 +113,16 @@ export function registerRoomSockets(io: Server) {
         ? room.players.find((player) => player.id === payload.playerId && !player.isBot)
         : undefined;
 
-      if (existingPlayer) {
+      if (existingPlayer && verifyReconnectToken("mafia", room.code, existingPlayer.id, payload.reconnectToken)) {
         existingPlayer.connected = true;
-        if (payload.hostKey === room.hostKey) {
-          existingPlayer.isHost = true;
-          room.hostId = existingPlayer.id;
-        }
         socketPlayers.set(socket.id, { roomCode: room.code, playerId: existingPlayer.id });
         socket.join(room.code);
-        ack?.({ ok: true, playerId: existingPlayer.id });
+        ack?.({ ok: true, playerId: existingPlayer.id, reconnectToken: createReconnectToken("mafia", room.code, existingPlayer.id) });
         emitRoom(io, room.code);
         return;
       }
+
+      if (existingPlayer) return ack?.({ ok: false, error: "Не удалось подтвердить сессию игрока. Войдите под новым никнеймом." });
 
       if (!name) return ack?.({ ok: false, error: "Введите никнейм" });
       if (hasDuplicatePlayerName(room, name)) {
@@ -144,7 +143,7 @@ export function registerRoomSockets(io: Server) {
       room.players.push(player);
       socketPlayers.set(socket.id, { roomCode: room.code, playerId: player.id });
       socket.join(room.code);
-      ack?.({ ok: true, playerId: player.id });
+      ack?.({ ok: true, playerId: player.id, reconnectToken: createReconnectToken("mafia", room.code, player.id) });
       emitRoom(io, room.code);
     });
 
@@ -1035,6 +1034,7 @@ function expireLobbyRoom(roomCode: string) {
     reason: "Лобби удалено, потому что игра не была запущена в течение 30 минут."
   });
   rooms.delete(roomCode);
+  removeRoomSessions("mafia", roomCode);
   clearLobbyExpiration(roomCode);
   clearMafiaVoteTimer(roomCode);
   clearPhaseTimer(roomCode);
@@ -1628,7 +1628,9 @@ function emitRoom(io: Server, roomCode: string) {
   const room = rooms.get(roomCode);
   if (!room) return;
 
-  for (const socket of io.sockets.sockets.values()) {
+  for (const socketId of io.sockets.adapter.rooms.get(roomCode) ?? []) {
+    const socket = io.sockets.sockets.get(socketId);
+    if (!socket) continue;
     const ref = socketPlayers.get(socket.id);
     if (ref?.roomCode === roomCode) {
       socket.emit("room_updated", toPublicRoom(room, ref.playerId));
@@ -1791,7 +1793,7 @@ function sanitizeNightActions(nightActions: NightActions, canSeeAllRoles: boolea
 }
 
 function makeRoomCode() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
+  return randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase();
 }
 
 function refreshStatsDay() {

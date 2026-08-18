@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Server, Socket } from "socket.io";
+import { createReconnectToken, removeRoomSessions, verifyReconnectToken } from "./playerSessions";
 import {
   confirmAliasTurnResult,
   createAliasRoomState,
@@ -102,22 +103,23 @@ export function registerAliasRoomSockets(io: Server) {
   }
 
   io.on("connection", (socket) => {
-    socket.on("join_alias_room", (payload: { code: string; name: string; hostKey?: string; playerId?: string }, ack) => {
+    socket.on("join_alias_room", (payload: { code: string; name: string; hostKey?: string; playerId?: string; reconnectToken?: string }, ack) => {
       const room = getAliasRoom(payload.code);
       const name = cleanName(payload.name);
       if (!room) return ack?.({ ok: false, error: "Комната не найдена" });
 
       const existing = payload.playerId ? room.players.find((player) => player.id === payload.playerId && !player.isBot) : undefined;
-      if (existing) {
+      if (existing && verifyReconnectToken("alias", room.code, existing.id, payload.reconnectToken)) {
         existing.connected = true;
-        if (payload.hostKey === room.hostKey) assignHost(room, existing.id);
         room.lastActivityAt = Date.now();
         socketPlayers.set(socket.id, { roomCode: room.code, playerId: existing.id });
         socket.join(room.code);
-        ack?.({ ok: true, playerId: existing.id });
+        ack?.({ ok: true, playerId: existing.id, reconnectToken: createReconnectToken("alias", room.code, existing.id) });
         emitRoom(io, room.code);
         return;
       }
+
+      if (existing) return ack?.({ ok: false, error: "Не удалось подтвердить сессию игрока. Войдите под новым никнеймом." });
 
       if (room.phase !== "LOBBY") return ack?.({ ok: false, error: "Игра уже началась. Вернуться можно только за прежнего игрока." });
       if (!name) return ack?.({ ok: false, error: "Введите никнейм" });
@@ -140,7 +142,7 @@ export function registerAliasRoomSockets(io: Server) {
       room.lastActivityAt = Date.now();
       socketPlayers.set(socket.id, { roomCode: room.code, playerId: player.id });
       socket.join(room.code);
-      ack?.({ ok: true, playerId: player.id });
+      ack?.({ ok: true, playerId: player.id, reconnectToken: createReconnectToken("alias", room.code, player.id) });
       emitRoom(io, room.code);
     });
 
@@ -383,7 +385,9 @@ function emitOwnRoom(io: Server, socket: Socket) {
 function emitRoom(io: Server, roomCode: string) {
   const room = rooms.get(roomCode);
   if (!room) return;
-  for (const socket of io.sockets.sockets.values()) {
+  for (const socketId of io.sockets.adapter.rooms.get(roomCode) ?? []) {
+    const socket = io.sockets.sockets.get(socketId);
+    if (!socket) continue;
     const ref = socketPlayers.get(socket.id);
     if (ref?.roomCode === roomCode) socket.emit("alias_room_updated", getPublicAliasState(room, ref.playerId));
   }
@@ -503,6 +507,7 @@ function shouldDeleteRoom(room: AliasRoomState, now: number) {
 
 function deleteRoom(code: string) {
   rooms.delete(code);
+  removeRoomSessions("alias", code);
   hostDisconnectedAt.delete(code);
   for (const [socketId, ref] of socketPlayers) if (ref.roomCode === code) socketPlayers.delete(socketId);
 }
@@ -548,7 +553,7 @@ function assertDevRoom(room: AliasRoomState) {
 }
 
 function makeRoomCode() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
+  return randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase();
 }
 
 function refreshStatsDay() {

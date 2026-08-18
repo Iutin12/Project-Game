@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
-import { allowRoomCreation, getRequestIp, registerSocketProtection, securityConfig } from "./security";
+import { allowPublicApiRequest, allowRoomCreation, getRequestIp, registerSocketProtection, securityConfig } from "./security";
 import {
   createCrocodileRoom,
   getCrocodileRoomInfo,
@@ -22,6 +22,8 @@ import { createAliasRoom, createDevAliasRoom, getAliasRoomInfo, getAliasStats, r
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "0.0.0.0";
 const port = Number(process.env.PORT ?? 3000);
+const devToolsEnabled = dev || process.env.ENABLE_DEV_TOOLS === "true";
+const allowedOrigins = (process.env.ALLOWED_ORIGIN ?? "https://game.24lumio.ru").split(",").map((value) => value.trim()).filter(Boolean);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
@@ -59,14 +61,14 @@ app.prepare().then(() => {
       return;
     }
 
-    if (req.method === "POST" && url.pathname === "/api/dev/create-mafia-test-room") {
+    if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-mafia-test-room") {
       const room = createDevRoom();
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(room));
       return;
     }
 
-    if (req.method === "POST" && url.pathname === "/api/dev/create-bunker-test-room") {
+    if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-bunker-test-room") {
       const body = await readJsonBody<{ playersCount?: number }>(req);
       const room = createDevBunkerRoom(body?.playersCount ?? 6);
       res.writeHead(200, { "content-type": "application/json" });
@@ -74,7 +76,7 @@ app.prepare().then(() => {
       return;
     }
 
-    if (req.method === "POST" && url.pathname === "/api/dev/create-spy-test-room") {
+    if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-spy-test-room") {
       const body = await readJsonBody<{ playersCount?: number }>(req);
       const room = createDevSpyRoom(body?.playersCount ?? 6);
       res.writeHead(200, { "content-type": "application/json" });
@@ -82,7 +84,7 @@ app.prepare().then(() => {
       return;
     }
 
-    if (req.method === "POST" && url.pathname === "/api/dev/create-alias-test-room") {
+    if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-alias-test-room") {
       const body = await readJsonBody<{ playersCount?: number }>(req);
       const room = createDevAliasRoom(body?.playersCount ?? 6);
       res.writeHead(200, { "content-type": "application/json" });
@@ -91,12 +93,14 @@ app.prepare().then(() => {
     }
 
     if (req.method === "GET" && url.pathname === "/api/stats") {
+      if (!allowPublicApi(req, res)) return;
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(getCombinedStats()));
       return;
     }
 
     if (req.method === "GET" && url.pathname === "/api/room-info") {
+      if (!allowPublicApi(req, res)) return;
       const code = url.searchParams.get("code")?.toUpperCase();
       const mafiaRoom = code ? getRoom(code) : undefined;
       const crocodileRoom = code ? getCrocodileRoomInfo(code) : undefined;
@@ -124,7 +128,12 @@ app.prepare().then(() => {
   const io = new Server(httpServer, {
     path: "/socket.io",
     maxHttpBufferSize: 10_000,
-    connectTimeout: 15_000
+    connectTimeout: 15_000,
+    cors: {
+      origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
+      methods: ["GET", "POST"]
+    },
+    allowRequest: (request, callback) => callback(null, isAllowedOrigin(request.headers.origin))
   });
 
   registerSocketProtection(io);
@@ -186,4 +195,17 @@ function readJsonBody<T>(req: import("node:http").IncomingMessage): Promise<T | 
 function sendJson(res: import("node:http").ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { "content-type": "application/json" });
   res.end(JSON.stringify(body));
+}
+
+function allowPublicApi(req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse) {
+  const result = allowPublicApiRequest(getRequestIp(req.socket.remoteAddress, req.headers));
+  if (result.allowed) return true;
+  res.setHeader("retry-after", String(result.retryAfterSeconds));
+  sendJson(res, 429, { error: "Слишком много запросов. Повторите позже." });
+  return false;
+}
+
+function isAllowedOrigin(origin: string | undefined) {
+  if (dev) return true;
+  return Boolean(origin && allowedOrigins.includes(origin));
 }

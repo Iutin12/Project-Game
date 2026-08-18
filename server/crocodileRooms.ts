@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Server, Socket } from "socket.io";
+import { createReconnectToken, removeRoomSessions, verifyReconnectToken } from "./playerSessions";
 import {
   assignTeams,
   defaultCrocodileSettings,
@@ -35,6 +36,7 @@ const roundTimers = new Map<string, NodeJS.Timeout>();
 let socketServer: Server | undefined;
 let totalRoomsCreatedToday = 0;
 let statsDay = new Date().toDateString();
+let roomReaper: ReturnType<typeof setInterval> | undefined;
 
 export function createCrocodileRoom(visibility: CrocodileRoom["visibility"] = "private") {
   refreshStatsDay();
@@ -86,26 +88,36 @@ export function getCrocodileStats() {
 
 export function registerCrocodileRoomSockets(io: Server) {
   socketServer = io;
+  if (!roomReaper) {
+    roomReaper = setInterval(() => {
+      const expiry = Date.now() - 30 * 60 * 1000;
+      for (const room of rooms.values()) {
+        if (room.createdAt >= expiry || room.players.some((player) => player.connected)) continue;
+        clearRoundTimer(room.code);
+        rooms.delete(room.code);
+        removeRoomSessions("crocodile", room.code);
+      }
+    }, 60_000);
+    roomReaper.unref();
+  }
   io.on("connection", (socket) => {
-    socket.on("join_crocodile_room", (payload: { code: string; name: string; hostKey?: string; playerId?: string }, ack) => {
+    socket.on("join_crocodile_room", (payload: { code: string; name: string; hostKey?: string; playerId?: string; reconnectToken?: string }, ack) => {
       const room = getCrocodileRoom(payload.code);
       const name = payload.name?.trim().slice(0, 24);
 
       if (!room) return ack?.({ ok: false, error: "Комната не найдена" });
 
       const existingPlayer = payload.playerId ? room.players.find((player) => player.id === payload.playerId) : undefined;
-      if (existingPlayer) {
+      if (existingPlayer && verifyReconnectToken("crocodile", room.code, existingPlayer.id, payload.reconnectToken)) {
         existingPlayer.connected = true;
-        if (payload.hostKey === room.hostKey) {
-          existingPlayer.isHost = true;
-          room.hostId = existingPlayer.id;
-        }
         socketPlayers.set(socket.id, { roomCode: room.code, playerId: existingPlayer.id });
         socket.join(room.code);
-        ack?.({ ok: true, playerId: existingPlayer.id });
+        ack?.({ ok: true, playerId: existingPlayer.id, reconnectToken: createReconnectToken("crocodile", room.code, existingPlayer.id) });
         emitRoom(io, room.code);
         return;
       }
+
+      if (existingPlayer) return ack?.({ ok: false, error: "Не удалось подтвердить сессию игрока. Войдите под новым никнеймом." });
 
       if (!name) return ack?.({ ok: false, error: "Введите никнейм" });
       if (hasDuplicatePlayerName(room, name)) return ack?.({ ok: false, error: "Игрок с таким никнеймом уже есть в комнате" });
@@ -123,7 +135,7 @@ export function registerCrocodileRoomSockets(io: Server) {
       room.players.push(player);
       socketPlayers.set(socket.id, { roomCode: room.code, playerId: player.id });
       socket.join(room.code);
-      ack?.({ ok: true, playerId: player.id });
+      ack?.({ ok: true, playerId: player.id, reconnectToken: createReconnectToken("crocodile", room.code, player.id) });
       emitRoom(io, room.code);
     });
 
@@ -359,7 +371,9 @@ function emitRoom(io: Server, roomCode: string) {
   const room = rooms.get(roomCode);
   if (!room) return;
 
-  for (const socket of io.sockets.sockets.values()) {
+  for (const socketId of io.sockets.adapter.rooms.get(roomCode) ?? []) {
+    const socket = io.sockets.sockets.get(socketId);
+    if (!socket) continue;
     const ref = socketPlayers.get(socket.id);
     if (ref?.roomCode === roomCode) socket.emit("crocodile_room_updated", toPublicRoom(room, ref.playerId));
   }
@@ -455,7 +469,7 @@ function clearRoundTimer(roomCode: string) {
 }
 
 function makeRoomCode() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
+  return randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase();
 }
 
 function clamp(value: number, min: number, max: number) {

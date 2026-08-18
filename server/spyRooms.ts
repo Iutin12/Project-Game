@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Server, Socket } from "socket.io";
+import { createReconnectToken, removeRoomSessions, verifyReconnectToken } from "./playerSessions";
 import {
   advanceSpyQuestion,
   beginSpyVoting,
@@ -110,29 +111,30 @@ export function registerSpyRoomSockets(io: Server) {
           emitRoom(io, room.code);
         }
         transferDisconnectedHost(room, now);
-        if (shouldDeleteRoom(room, now)) rooms.delete(room.code);
+        if (shouldDeleteRoom(room, now)) deleteRoom(room.code);
       }
     }, 500);
     roomWatcher.unref();
   }
 
   io.on("connection", (socket) => {
-    socket.on("join_spy_room", (payload: { code: string; name: string; hostKey?: string; playerId?: string }, ack) => {
+    socket.on("join_spy_room", (payload: { code: string; name: string; hostKey?: string; playerId?: string; reconnectToken?: string }, ack) => {
       const room = getSpyRoom(payload.code);
       const name = cleanName(payload.name);
       if (!room) return ack?.({ ok: false, error: "Комната не найдена" });
 
       const existingPlayer = payload.playerId ? room.players.find((player) => player.id === payload.playerId && !player.isBot) : undefined;
-      if (existingPlayer) {
+      if (existingPlayer && verifyReconnectToken("spy", room.code, existingPlayer.id, payload.reconnectToken)) {
         existingPlayer.connected = true;
-        if (payload.hostKey === room.hostKey) assignHost(room, existingPlayer.id);
         room.lastActivityAt = Date.now();
         socketPlayers.set(socket.id, { roomCode: room.code, playerId: existingPlayer.id });
         socket.join(room.code);
-        ack?.({ ok: true, playerId: existingPlayer.id });
+        ack?.({ ok: true, playerId: existingPlayer.id, reconnectToken: createReconnectToken("spy", room.code, existingPlayer.id) });
         emitRoom(io, room.code);
         return;
       }
+
+      if (existingPlayer) return ack?.({ ok: false, error: "Не удалось подтвердить сессию игрока. Войдите под новым никнеймом." });
 
       if (room.phase !== "LOBBY") return ack?.({ ok: false, error: "Игра уже началась. Вернуться можно только за прежнего игрока." });
       if (!name) return ack?.({ ok: false, error: "Введите никнейм" });
@@ -152,7 +154,7 @@ export function registerSpyRoomSockets(io: Server) {
       room.lastActivityAt = Date.now();
       socketPlayers.set(socket.id, { roomCode: room.code, playerId: player.id });
       socket.join(room.code);
-      ack?.({ ok: true, playerId: player.id });
+      ack?.({ ok: true, playerId: player.id, reconnectToken: createReconnectToken("spy", room.code, player.id) });
       emitRoom(io, room.code);
     });
 
@@ -421,7 +423,9 @@ function emitOwnRoom(io: Server, socket: Socket) {
 function emitRoom(io: Server, roomCode: string) {
   const room = rooms.get(roomCode);
   if (!room) return;
-  for (const socket of io.sockets.sockets.values()) {
+  for (const socketId of io.sockets.adapter.rooms.get(roomCode) ?? []) {
+    const socket = io.sockets.sockets.get(socketId);
+    if (!socket) continue;
     const ref = socketPlayers.get(socket.id);
     if (ref?.roomCode === roomCode) socket.emit("spy_room_updated", getPublicSpyState(room, ref.playerId));
   }
@@ -555,6 +559,12 @@ function shouldDeleteRoom(room: SpyRoomState, now: number) {
   return now - room.lastActivityAt > 30 * 60 * 1000;
 }
 
+function deleteRoom(code: string) {
+  rooms.delete(code);
+  removeRoomSessions("spy", code);
+  for (const [socketId, ref] of socketPlayers) if (ref.roomCode === code) socketPlayers.delete(socketId);
+}
+
 function hasDuplicatePlayerName(room: SpyRoomState, name: string) {
   const normalizedName = normalizeName(name);
   return room.players.some((player) => normalizeName(player.name) === normalizedName);
@@ -603,7 +613,7 @@ function assertDevRoom(room: SpyRoomState) {
 }
 
 function makeRoomCode() {
-  return Math.random().toString(36).slice(2, 8).toUpperCase();
+  return randomUUID().replaceAll("-", "").slice(0, 12).toUpperCase();
 }
 
 function randomItem<T>(items: T[]) {
