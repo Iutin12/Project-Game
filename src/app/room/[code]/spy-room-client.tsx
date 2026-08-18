@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { spyLocations } from "@/games/spy/locations";
 import type { PublicSpyRoomState, SpyLocation, SpySettings } from "@/games/spy/types";
 
-type Ack = { ok: boolean; error?: string; playerId?: string };
+type Ack = { ok: boolean; error?: string; playerId?: string; reconnectToken?: string };
 type Tab = "game" | "chat" | "settings";
 type SelectOption = { value: string; label: string };
 
@@ -78,17 +78,20 @@ export function SpyRoomClient({ code }: { code: string }) {
     });
     nextSocket.on("connect", () => {
       const savedPlayerId = window.localStorage.getItem(`playerId:${code}`);
+      const reconnectToken = window.localStorage.getItem(`reconnectToken:${code}`) ?? undefined;
       const hostKey = window.localStorage.getItem(`hostKey:${code}`) ?? undefined;
       if (!savedPlayerId) {
         setIsRestoring(false);
         return;
       }
-      nextSocket.emit("join_spy_room", { code, name: "", hostKey, playerId: savedPlayerId }, (ack: Ack) => {
+      nextSocket.emit("join_spy_room", { code, name: "", hostKey, playerId: savedPlayerId, reconnectToken }, (ack: Ack) => {
         if (ack.ok) {
           setJoined(true);
           clearRememberedRoom(code);
+          if (ack.reconnectToken) window.localStorage.setItem(`reconnectToken:${code}`, ack.reconnectToken);
         } else {
           window.localStorage.removeItem(`playerId:${code}`);
+          window.localStorage.removeItem(`reconnectToken:${code}`);
         }
         setIsRestoring(false);
       });
@@ -155,6 +158,7 @@ export function SpyRoomClient({ code }: { code: string }) {
         return;
       }
       if (ack.playerId) window.localStorage.setItem(`playerId:${code}`, ack.playerId);
+      if (ack.reconnectToken) window.localStorage.setItem(`reconnectToken:${code}`, ack.reconnectToken);
       window.localStorage.setItem(`playerName:${code}`, name.trim());
       clearRememberedRoom(code);
       setJoined(true);

@@ -10,7 +10,7 @@ import type { CrocodileCategoryId, CrocodileDifficultyFilter, CrocodileSettings,
 
 const LAST_LEFT_ROOM_KEY = "project-game:last-left-room";
 
-type Ack = { ok: boolean; error?: string; playerId?: string; correct?: boolean };
+type Ack = { ok: boolean; error?: string; playerId?: string; reconnectToken?: string; correct?: boolean };
 
 type SettingsPatch = Partial<CrocodileSettings>;
 
@@ -61,6 +61,7 @@ export function CrocodileRoomClient({ code }: { code: string }) {
     nextSocket.on("crocodile_room_updated", (nextRoom: PublicCrocodileRoom) => setRoom(nextRoom));
     nextSocket.on("connect", () => {
       const savedPlayerId = window.localStorage.getItem(`playerId:${code}`);
+      const reconnectToken = window.localStorage.getItem(`reconnectToken:${code}`) ?? undefined;
       const hostKey = window.localStorage.getItem(`hostKey:${code}`) ?? undefined;
 
       if (!savedPlayerId) {
@@ -68,13 +69,15 @@ export function CrocodileRoomClient({ code }: { code: string }) {
         return;
       }
 
-      nextSocket.emit("join_crocodile_room", { code, name: "", hostKey, playerId: savedPlayerId }, (ack: Ack) => {
+      nextSocket.emit("join_crocodile_room", { code, name: "", hostKey, playerId: savedPlayerId, reconnectToken }, (ack: Ack) => {
         if (ack.ok) {
           setJoined(true);
           setError("");
           clearRememberedRoom(code);
+          if (ack.reconnectToken) window.localStorage.setItem(`reconnectToken:${code}`, ack.reconnectToken);
         } else {
           window.localStorage.removeItem(`playerId:${code}`);
+          window.localStorage.removeItem(`reconnectToken:${code}`);
         }
         setIsRestoring(false);
       });
@@ -117,6 +120,7 @@ export function CrocodileRoomClient({ code }: { code: string }) {
         return;
       }
       if (ack.playerId) window.localStorage.setItem(`playerId:${code}`, ack.playerId);
+      if (ack.reconnectToken) window.localStorage.setItem(`reconnectToken:${code}`, ack.reconnectToken);
       window.localStorage.setItem(`playerName:${code}`, name.trim());
       clearRememberedRoom(code);
       setJoined(true);

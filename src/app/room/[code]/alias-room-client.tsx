@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { aliasCategories, aliasCategoryLabels } from "@/games/alias/categories";
 import type { AliasSettings, AliasTeam, PublicAliasRoomState } from "@/games/alias/types";
 
-type Ack = { ok: boolean; error?: string; playerId?: string };
+type Ack = { ok: boolean; error?: string; playerId?: string; reconnectToken?: string };
 type Tab = "game" | "chat" | "settings";
 type SelectOption = { value: string; label: string };
 
@@ -82,13 +82,18 @@ export function AliasRoomClient({ code }: { code: string }) {
     });
     nextSocket.on("connect", () => {
       const playerId = window.localStorage.getItem(`playerId:${code}`);
+      const reconnectToken = window.localStorage.getItem(`reconnectToken:${code}`) ?? undefined;
       const hostKey = window.localStorage.getItem(`hostKey:${code}`) ?? undefined;
       if (!playerId) return setIsRestoring(false);
-      nextSocket.emit("join_alias_room", { code, name: "", hostKey, playerId }, (ack: Ack) => {
+      nextSocket.emit("join_alias_room", { code, name: "", hostKey, playerId, reconnectToken }, (ack: Ack) => {
         if (ack.ok) {
           setJoined(true);
           clearRememberedRoom(code);
-        } else window.localStorage.removeItem(`playerId:${code}`);
+          if (ack.reconnectToken) window.localStorage.setItem(`reconnectToken:${code}`, ack.reconnectToken);
+        } else {
+          window.localStorage.removeItem(`playerId:${code}`);
+          window.localStorage.removeItem(`reconnectToken:${code}`);
+        }
         setIsRestoring(false);
       });
     });
@@ -134,6 +139,7 @@ export function AliasRoomClient({ code }: { code: string }) {
     socket?.emit("join_alias_room", { code, name, hostKey }, (ack: Ack) => {
       if (!ack.ok) return setError(ack.error ?? "Не удалось войти");
       if (ack.playerId) window.localStorage.setItem(`playerId:${code}`, ack.playerId);
+      if (ack.reconnectToken) window.localStorage.setItem(`reconnectToken:${code}`, ack.reconnectToken);
       window.localStorage.setItem(`playerName:${code}`, name.trim());
       clearRememberedRoom(code);
       setJoined(true);
