@@ -24,25 +24,36 @@ const phaseLabels: Record<PublicAliasRoomState["phase"], string> = {
 
 let aliasAudioContext: AudioContext | null = null;
 
-function playAliasSignal(kind: "tick" | "last-word") {
+function unlockAliasAudio() {
   if (typeof window === "undefined") return;
   try {
     aliasAudioContext ??= new AudioContext();
+    void aliasAudioContext.resume();
+  } catch {
+    // Audio remains optional when the browser blocks it.
+  }
+}
+
+function playAliasSignal(kind: "tick" | "timeout") {
+  if (typeof window === "undefined") return;
+  try {
+    unlockAliasAudio();
     const context = aliasAudioContext;
+    if (!context) return;
     void context.resume();
     const startedAt = context.currentTime;
-    const pulses = kind === "last-word" ? [0, 0.18] : [0];
-    pulses.forEach((offset) => {
+    const pulses = kind === "timeout" ? [0, 0.16, 0.32] : [0];
+    pulses.forEach((offset, index) => {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.value = kind === "last-word" ? 880 : 660;
+      oscillator.type = kind === "timeout" ? "square" : "sine";
+      oscillator.frequency.value = kind === "timeout" ? 420 + index * 180 : 760;
       gain.gain.setValueAtTime(0.0001, startedAt + offset);
-      gain.gain.exponentialRampToValueAtTime(0.12, startedAt + offset + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, startedAt + offset + 0.11);
+      gain.gain.exponentialRampToValueAtTime(kind === "timeout" ? 0.18 : 0.14, startedAt + offset + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startedAt + offset + (kind === "timeout" ? 0.15 : 0.12));
       oscillator.connect(gain).connect(context.destination);
       oscillator.start(startedAt + offset);
-      oscillator.stop(startedAt + offset + 0.12);
+      oscillator.stop(startedAt + offset + (kind === "timeout" ? 0.16 : 0.13));
     });
   } catch {
     // Browsers can block audio before the first user interaction.
@@ -67,10 +78,21 @@ export function AliasRoomClient({ code }: { code: string }) {
   const chatSectionRef = useRef<HTMLElement | null>(null);
   const chatInputRef = useRef<HTMLInputElement | null>(null);
   const previousChatCountRef = useRef(0);
+  const previousPhaseRef = useRef<PublicAliasRoomState["phase"] | null>(null);
 
   const ownPlayer = room?.players.find((player) => player.id === room.ownPlayerId);
   const unreadMessages = Math.max(0, (room?.chatMessages.length ?? 0) - seenMessages);
   const inviteUrl = typeof window === "undefined" ? "" : `${window.location.origin}/room/${code}`;
+
+  useEffect(() => {
+    const unlock = () => unlockAliasAudio();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
 
   useEffect(() => {
     const nextSocket = io({ path: "/socket.io" });
@@ -121,6 +143,12 @@ export function AliasRoomClient({ code }: { code: string }) {
     if (count > previous && tab === "chat") requestAnimationFrame(() => chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" }));
     previousChatCountRef.current = count;
   }, [room?.chatMessages, tab, unreadAnchorId]);
+
+  useEffect(() => {
+    if (!room) return;
+    if (previousPhaseRef.current === "TURN_ACTIVE" && (room.phase === "LAST_WORD" || room.phase === "TURN_RESULT")) playAliasSignal("timeout");
+    previousPhaseRef.current = room.phase;
+  }, [room]);
 
   useEffect(() => {
     if (tab !== "chat" || !room) return;
@@ -260,15 +288,20 @@ function TurnActive({ room, emitAction }: { room: PublicAliasRoomState; emitActi
   const isExplainer = room.ownPlayerId === turn.explainerPlayerId;
   const touchStart = useRef<number | null>(null);
   const swipeFeedbackTimer = useRef<number | null>(null);
+  const actionPending = useRef(false);
   const [swipeFeedback, setSwipeFeedback] = useState<"guessed" | "skipped" | null>(null);
   const [finishConfirmationOpen, setFinishConfirmationOpen] = useState(false);
   const wordId = turn.currentWord?.id;
   const submitWord = (result: "guessed" | "skipped") => {
-    if (!wordId || (result === "skipped" && !room.settings.allowSkipWord)) return;
+    if (!wordId || actionPending.current || (result === "skipped" && !room.settings.allowSkipWord)) return;
+    actionPending.current = true;
     setSwipeFeedback(result);
     if (swipeFeedbackTimer.current) window.clearTimeout(swipeFeedbackTimer.current);
-    swipeFeedbackTimer.current = window.setTimeout(() => setSwipeFeedback(null), 500);
-    emitAction(result === "guessed" ? "alias:word_guessed" : "alias:word_skipped", { wordId });
+    swipeFeedbackTimer.current = window.setTimeout(() => {
+      emitAction(result === "guessed" ? "alias:word_guessed" : "alias:word_skipped", { wordId });
+      actionPending.current = false;
+      setSwipeFeedback(null);
+    }, 380);
   };
   useEffect(() => () => { if (swipeFeedbackTimer.current) window.clearTimeout(swipeFeedbackTimer.current); }, []);
   const handleTouchEnd = (endY: number) => {
@@ -278,13 +311,12 @@ function TurnActive({ room, emitAction }: { room: PublicAliasRoomState; emitActi
     if (difference <= -56) submitWord("guessed");
     if (difference >= 56) submitWord("skipped");
   };
-  return <div className="mx-auto max-w-3xl text-center"><Countdown deadlineAt={turn.deadlineAt} /><Eyebrow>Объясняет {explainer?.name}</Eyebrow>{isExplainer && turn.currentWord ? <><div className={`relative mt-5 touch-pan-x overflow-hidden rounded-[1.5rem] border px-5 py-10 shadow-soft transition duration-300 dark:via-slate-950 dark:to-slate-900 sm:py-12 ${swipeFeedback === "guessed" ? "-translate-y-2 border-mint bg-mint/15" : swipeFeedback === "skipped" ? "translate-y-2 border-coral bg-coral/15" : "border-coral/30 bg-gradient-to-br from-coral/15 via-white to-orange-50"}`} onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientY ?? null; }} onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientY ?? 0)}><div className={`pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/15 text-2xl font-black uppercase tracking-[0.16em] text-white transition duration-200 ${swipeFeedback ? "opacity-100" : "opacity-0"}`}>{swipeFeedback === "guessed" ? "↑ Угадано" : "↓ Пропуск"}</div><p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Секретное слово</p><h2 className="mt-4 max-w-full break-words font-display text-3xl font-semibold leading-tight [overflow-wrap:anywhere] sm:text-6xl">{turn.currentWord.word}</h2><p className="mt-5 text-xs font-bold text-slate-400 sm:hidden">Свайп вверх — угадали, вниз — пропуск</p></div><div className="mt-5 grid grid-cols-2 gap-3"><button className="min-h-24 rounded-[1.25rem] bg-mint px-4 text-xl font-black text-white shadow-soft transition active:scale-[0.98]" onClick={() => submitWord("guessed")}>УГАДАЛИ<br/><span className="text-sm opacity-80">+1 очко</span></button><button className="min-h-24 rounded-[1.25rem] border border-line bg-white px-4 text-xl font-black text-slate-600 shadow-soft transition active:scale-[0.98] disabled:opacity-40 dark:border-white/10 dark:bg-slate-950 dark:text-white/70" disabled={!room.settings.allowSkipWord} onClick={() => submitWord("skipped")}>ПРОПУСТИТЬ<br/><span className="text-sm opacity-60">{room.settings.skipPenalty === -1 ? "−1 очко" : "без штрафа"}</span></button></div></> : <Waiting title="Слушайте объясняющего" text="Секретное слово видно только игроку, который сейчас объясняет." />}<div className="mt-5 flex justify-center gap-3"><Badge>Угадано: {turn.guessedCount}</Badge><Badge>Пропущено: {turn.skippedCount}</Badge>{room.players.find((player) => player.id === room.ownPlayerId)?.isHost ? <Button variant="ghost" onClick={() => setFinishConfirmationOpen(true)}>Завершить ход</Button> : null}</div>{finishConfirmationOpen ? <Modal title="Завершить ход досрочно?" onClose={() => setFinishConfirmationOpen(false)}><p className="text-slate-600 dark:text-white/65">Таймер остановится, а текущие результаты хода будут показаны всем игрокам.</p><div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => { emitAction("alias:force_finish_turn"); setFinishConfirmationOpen(false); }}>Завершить ход</Button><Button variant="secondary" onClick={() => setFinishConfirmationOpen(false)}>Продолжить играть</Button></div></Modal> : null}</div>;
+  return <div className="mx-auto max-w-3xl text-center"><Countdown deadlineAt={turn.deadlineAt} /><Eyebrow>Объясняет {explainer?.name}</Eyebrow>{isExplainer && turn.currentWord ? <><div className="relative mt-5 overflow-hidden rounded-[1.5rem]"><div className={`touch-pan-x rounded-[1.5rem] border px-5 py-10 shadow-soft dark:via-slate-950 dark:to-slate-900 sm:py-12 ${swipeFeedback === "guessed" ? "animate-alias-card-out-up border-mint bg-mint/15" : swipeFeedback === "skipped" ? "animate-alias-card-out-down border-coral bg-coral/15" : "border-coral/30 bg-gradient-to-br from-coral/15 via-white to-orange-50"}`} onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientY ?? null; }} onTouchEnd={(event) => handleTouchEnd(event.changedTouches[0]?.clientY ?? 0)}><div className={`pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/20 text-2xl font-black uppercase tracking-[0.16em] text-white transition duration-150 ${swipeFeedback ? "opacity-100" : "opacity-0"}`}>{swipeFeedback === "guessed" ? "↑ Угадано" : "↓ Пропуск"}</div><p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Секретное слово</p><h2 className="mt-4 max-w-full break-words font-display text-3xl font-semibold leading-tight [overflow-wrap:anywhere] sm:text-6xl">{turn.currentWord.word}</h2><p className="mt-5 text-xs font-bold text-slate-400 sm:hidden">Свайп вверх — угадали, вниз — пропуск</p></div></div><div className="mt-5 grid grid-cols-2 gap-3"><button className="min-h-24 rounded-[1.25rem] bg-mint px-4 text-xl font-black text-white shadow-soft transition active:scale-[0.98]" onClick={() => submitWord("guessed")}>УГАДАЛИ<br/><span className="text-sm opacity-80">+1 очко</span></button><button className="min-h-24 rounded-[1.25rem] border border-line bg-white px-4 text-xl font-black text-slate-600 shadow-soft transition active:scale-[0.98] disabled:opacity-40 dark:border-white/10 dark:bg-slate-950 dark:text-white/70" disabled={!room.settings.allowSkipWord} onClick={() => submitWord("skipped")}>ПРОПУСТИТЬ<br/><span className="text-sm opacity-60">{room.settings.skipPenalty === -1 ? "−1 очко" : "без штрафа"}</span></button></div></> : <Waiting title="Слушайте объясняющего" text="Секретное слово видно только игроку, который сейчас объясняет." />}<div className="mt-5 flex justify-center gap-3"><Badge>Угадано: {turn.guessedCount}</Badge><Badge>Пропущено: {turn.skippedCount}</Badge>{room.players.find((player) => player.id === room.ownPlayerId)?.isHost ? <Button variant="ghost" onClick={() => setFinishConfirmationOpen(true)}>Завершить ход</Button> : null}</div>{finishConfirmationOpen ? <Modal title="Завершить ход досрочно?" onClose={() => setFinishConfirmationOpen(false)}><p className="text-slate-600 dark:text-white/65">Таймер остановится, а текущие результаты хода будут показаны всем игрокам.</p><div className="mt-6 flex flex-wrap gap-3"><Button onClick={() => { emitAction("alias:force_finish_turn"); setFinishConfirmationOpen(false); }}>Завершить ход</Button><Button variant="secondary" onClick={() => setFinishConfirmationOpen(false)}>Продолжить играть</Button></div></Modal> : null}</div>;
 }
 
 function LastWord({ room, emitAction }: { room: PublicAliasRoomState; emitAction: (event: string, payload?: unknown) => void }) {
   const turn = room.currentTurn!;
   const canResolve = turn.explainerPlayerId === room.ownPlayerId;
-  useEffect(() => { playAliasSignal("last-word"); }, []);
   return <div className="mx-auto max-w-3xl text-center"><Eyebrow>Общее слово</Eyebrow><h2 className="mt-2 font-display text-4xl font-semibold">Последний шанс для всех команд</h2><p className="mt-3 text-slate-600 dark:text-white/60">Сигнал прозвучал: теперь слово могут угадывать все.</p>{turn.currentWord ? <div className="mt-5 rounded-[1.5rem] border border-coral/30 bg-coral/10 px-5 py-10"><p className="text-xs font-black uppercase tracking-[0.18em] text-coral">Слово</p><p className="mt-3 break-words font-display text-4xl font-semibold [overflow-wrap:anywhere] sm:text-5xl">{turn.currentWord.word}</p></div> : <p className="mt-5 text-slate-500 dark:text-white/55">Слово видит только объясняющий.</p>}{canResolve ? <div className="mt-5 grid gap-2 sm:grid-cols-2">{room.teams.map((team) => <Button key={team.id} variant="secondary" onClick={() => emitAction("alias:last_word_result", { teamId: team.id })}>Угадали: {team.name}</Button>)}<Button variant="ghost" onClick={() => emitAction("alias:last_word_result", {})}>Никто не угадал</Button></div> : <Badge>Ждем результат объясняющего</Badge>}</div>;
 }
 
