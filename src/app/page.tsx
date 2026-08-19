@@ -12,8 +12,8 @@ export default function HomePage() {
     <AppShell>
       <section className="mt-6 grid gap-6 rounded-[1.5rem] border border-line bg-white/80 p-5 shadow-soft backdrop-blur sm:mt-8 lg:grid-cols-[1fr_1.05fr] lg:gap-8 lg:p-8">
         <div className="flex min-w-0 flex-col justify-center py-5 sm:py-8">
-          <p className="mb-5 w-fit rounded-full bg-violet-50 px-4 py-2 text-xs font-bold uppercase tracking-[0.22em] text-violet-600">
-            party games online
+          <p className="mb-5 w-fit rounded-full border border-coral/15 bg-coral/10 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-coral">
+            Бета-тест · возможны ошибки
           </p>
           <h1 className="max-w-2xl text-4xl font-black leading-tight tracking-tight text-ink sm:text-6xl">
             Онлайн-игры для компании <span className="text-ocean">друзей</span>
