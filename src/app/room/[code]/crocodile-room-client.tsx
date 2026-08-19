@@ -59,7 +59,12 @@ export function CrocodileRoomClient({ code }: { code: string }) {
     const nextSocket = io({ path: "/socket.io" });
     setSocket(nextSocket);
     nextSocket.on("crocodile_room_updated", (nextRoom: PublicCrocodileRoom) => setRoom(nextRoom));
+    nextSocket.on("connect_error", () => {
+      setIsRestoring(false);
+      setError("Не удалось подключиться к комнате. Проверьте соединение и повторите попытку.");
+    });
     nextSocket.on("connect", () => {
+      setError("");
       const savedPlayerId = window.localStorage.getItem(`playerId:${code}`);
       const reconnectToken = window.localStorage.getItem(`reconnectToken:${code}`) ?? undefined;
       const hostKey = window.localStorage.getItem(`hostKey:${code}`) ?? undefined;

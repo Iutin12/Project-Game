@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import type { IncomingHttpHeaders } from "node:http";
 import next from "next";
 import { Server } from "socket.io";
 import { allowPublicApiRequest, allowRoomCreation, getRequestIp, registerSocketProtection, securityConfig } from "./security";
@@ -24,6 +25,15 @@ const hostname = process.env.HOSTNAME ?? "0.0.0.0";
 const port = Number(process.env.PORT ?? 3000);
 const devToolsEnabled = dev || process.env.ENABLE_DEV_TOOLS === "true";
 const allowedOrigins = (process.env.ALLOWED_ORIGIN ?? "https://game.24lumio.ru").split(",").map((value) => value.trim()).filter(Boolean);
+const allowedHosts = new Set(
+  allowedOrigins.flatMap((origin) => {
+    try {
+      return [new URL(origin).host.toLowerCase()];
+    } catch {
+      return [];
+    }
+  })
+);
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
@@ -133,7 +143,7 @@ app.prepare().then(() => {
       origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
       methods: ["GET", "POST"]
     },
-    allowRequest: (request, callback) => callback(null, isAllowedOrigin(request.headers.origin))
+    allowRequest: (request, callback) => callback(null, isAllowedSocketRequest(request.headers))
   });
 
   registerSocketProtection(io);
@@ -208,4 +218,16 @@ function allowPublicApi(req: import("node:http").IncomingMessage, res: import("n
 function isAllowedOrigin(origin: string | undefined) {
   if (dev) return true;
   return Boolean(origin && allowedOrigins.includes(origin));
+}
+
+function isAllowedSocketRequest(headers: IncomingHttpHeaders) {
+  if (dev) return true;
+
+  const origin = Array.isArray(headers.origin) ? headers.origin[0] : headers.origin;
+  if (origin) return isAllowedOrigin(origin);
+
+  // Some reverse proxies omit Origin during the WebSocket handshake. Accept
+  // only the explicitly configured public host in that case.
+  const host = Array.isArray(headers.host) ? headers.host[0] : headers.host;
+  return Boolean(host && allowedHosts.has(host.toLowerCase()));
 }

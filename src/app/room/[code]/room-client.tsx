@@ -49,7 +49,12 @@ export function RoomClient({ code }: { code: string }) {
       setIsRestoring(false);
       setError(payload.reason ?? "Лобби удалено, потому что игра не была запущена.");
     });
+    nextSocket.on("connect_error", () => {
+      setIsRestoring(false);
+      setError("Не удалось подключиться к комнате. Проверьте соединение и повторите попытку.");
+    });
     nextSocket.on("connect", () => {
+      setError("");
       const savedPlayerId = window.localStorage.getItem(`playerId:${code}`);
       const reconnectToken = window.localStorage.getItem(`reconnectToken:${code}`) ?? undefined;
       const hostKey = window.localStorage.getItem(`hostKey:${code}`) ?? undefined;

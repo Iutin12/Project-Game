@@ -80,7 +80,12 @@ export function AliasRoomClient({ code }: { code: string }) {
       window.localStorage.removeItem(`playerId:${code}`);
       router.push("/");
     });
+    nextSocket.on("connect_error", () => {
+      setIsRestoring(false);
+      setError("Не удалось подключиться к комнате. Проверьте соединение и повторите попытку.");
+    });
     nextSocket.on("connect", () => {
+      setError("");
       const playerId = window.localStorage.getItem(`playerId:${code}`);
       const reconnectToken = window.localStorage.getItem(`reconnectToken:${code}`) ?? undefined;
       const hostKey = window.localStorage.getItem(`hostKey:${code}`) ?? undefined;
