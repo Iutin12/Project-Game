@@ -37,7 +37,7 @@ export default function BunkerTestPage() {
           <Button variant="ghost" onClick={() => setRoom(createBunkerTestRoom(6))}>Сбросить</Button>
         </div>
 
-        <div className="mt-8 grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
+        <div className="mt-8 max-w-3xl">
           <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
             <h2 className="font-display text-3xl font-semibold text-ink">Состояние</h2>
             <p className="mt-3 text-slate-600">Фаза: {room.phase} · Раунд: {room.currentRound} · Мест: {room.bunkerSlots || "-"}</p>
@@ -61,11 +61,6 @@ export default function BunkerTestPage() {
                 );
               })}
             </div>
-          </section>
-
-          <section className="rounded-2xl border border-line bg-white p-5 shadow-soft">
-            <h2 className="font-display text-3xl font-semibold text-ink">JSON</h2>
-            <pre className="mt-4 max-h-[48rem] overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-white">{JSON.stringify(room, null, 2)}</pre>
           </section>
         </div>
       </section>

@@ -46,9 +46,11 @@ export function AppShell({ children, onLogoClick }: { children: React.ReactNode;
             priority
           />
           <span className="flex min-w-0 flex-col leading-none">
-            <span className="flex items-center gap-2"><span className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Lumia</span><span className="rounded-full border border-coral/25 bg-coral/10 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.1em] text-coral sm:text-[9px]">beta</span></span>
-            <span className="mt-1 text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-white/50 sm:text-[10px]">
-              совместные игры · возможны ошибки
+            <span className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Lumia</span>
+            <span className="mt-1 flex items-center gap-1.5 whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-white/50 sm:text-[10px]">
+              <span>совместные игры</span>
+              <span className="rounded-full border border-coral/25 bg-coral/10 px-1.5 py-0.5 text-[8px] font-black tracking-[0.1em] text-coral sm:text-[9px]">beta</span>
+              <span className="hidden sm:inline">· возможны ошибки</span>
             </span>
           </span>
         </Link>
