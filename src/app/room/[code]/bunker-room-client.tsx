@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { AppShell } from "@/components/layout/AppShell";
+import { LeaveGameModal } from "@/components/room/LeaveGameModal";
 import { Button } from "@/components/ui/Button";
 import { bunkerCatastrophes } from "@/games/bunker/catastrophes";
 import { bunkerShelters } from "@/games/bunker/shelters";
@@ -66,6 +67,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
   const [isRestoring, setIsRestoring] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("game");
   const [seenChatCount, setSeenChatCount] = useState(0);
   const [unreadAnchorId, setUnreadAnchorId] = useState<string | null>(null);
@@ -230,6 +232,14 @@ export function BunkerRoomClient({ code }: { code: string }) {
     router.push("/");
   }
 
+  function requestLeave() {
+    if (!room || room.phase === "GAME_OVER") {
+      leaveRoom();
+      return;
+    }
+    setLeaveModalOpen(true);
+  }
+
   if (isRestoring) {
     return <AppShell><section className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center py-12 text-slate-600">Возвращаем вас в комнату Бункера...</section></AppShell>;
   }
@@ -252,7 +262,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
   if (!room) return null;
 
   return (
-    <AppShell onLogoClick={leaveRoom}>
+    <AppShell onLogoClick={requestLeave}>
       <section className={useBunkerBoard ? "py-2" : "py-6"}>
         <div className={useBunkerBoard ? "rounded-[1.5rem] border border-line bg-white/80 p-2 text-ink shadow-soft dark:border-slate-700 dark:bg-slate-950 dark:text-white" : "rounded-[2rem] border border-line bg-white/80 p-4 text-ink shadow-soft dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:p-6"}>
           {!useBunkerBoard ? <header className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft dark:border-white/10 dark:bg-slate-900/80">
@@ -270,6 +280,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
               <div className="flex flex-wrap gap-3">
                 <Button variant="ghost" className="border-line bg-transparent text-ink hover:bg-slate-100 dark:border-white/15 dark:text-white" onClick={copyInvite}>{copied ? "Ссылка скопирована" : "Пригласить"}</Button>
                 {room.phase === "LOBBY" && isHost ? <Button onClick={() => emitAction("bunker:start_game")}>Начать игру</Button> : null}
+                <Button variant="ghost" onClick={requestLeave}>Выйти</Button>
               </div>
             </div>
           </header> : null}
@@ -319,6 +330,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
         </div>
       </section>
       {isEliminationModalOpen ? <EliminatedPlayerModal onClose={() => setIsEliminationModalOpen(false)} /> : null}
+      {leaveModalOpen ? <LeaveGameModal onConfirm={leaveRoom} onCancel={() => setLeaveModalOpen(false)} /> : null}
     </AppShell>
   );
 }

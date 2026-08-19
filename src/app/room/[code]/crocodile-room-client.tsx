@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { AppShell } from "@/components/layout/AppShell";
+import { LeaveGameModal } from "@/components/room/LeaveGameModal";
 import { Button } from "@/components/ui/Button";
 import { crocodileCategories } from "@/games/crocodile/categories";
 import type { CrocodileCategoryId, CrocodileDifficultyFilter, CrocodileSettings, PublicCrocodileRoom } from "@/games/crocodile/types";
@@ -38,6 +39,7 @@ export function CrocodileRoomClient({ code }: { code: string }) {
   const [isRestoring, setIsRestoring] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [tab, setTab] = useState<"room" | "settings">("room");
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
@@ -165,6 +167,14 @@ export function CrocodileRoomClient({ code }: { code: string }) {
     router.push("/");
   }
 
+  function requestLeave() {
+    if (!room || room.phase === "GAME_OVER") {
+      leaveRoom();
+      return;
+    }
+    setLeaveModalOpen(true);
+  }
+
   const sortedPlayers = useMemo(() => {
     return [...(room?.players ?? [])].sort((first, second) => {
       if (first.connected !== second.connected) return first.connected ? -1 : 1;
@@ -214,7 +224,7 @@ export function CrocodileRoomClient({ code }: { code: string }) {
   const isRoundActive = room.phase === "ROUND_ACTIVE";
 
   return (
-    <AppShell onLogoClick={leaveRoom}>
+    <AppShell onLogoClick={requestLeave}>
       <section className="py-6">
         <div className="rounded-[2rem] border border-slate-700/30 bg-white/80 p-4 text-ink shadow-soft dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:p-6">
           <header className="rounded-[1.5rem] border border-line dark:border-white/10 bg-white/90 dark:bg-slate-900/80 p-5 shadow-soft">
@@ -236,6 +246,7 @@ export function CrocodileRoomClient({ code }: { code: string }) {
                 {room.phase === "LOBBY" && isHost ? (
                   <Button onClick={() => emitAction("start_crocodile_game")}>Начать игру</Button>
                 ) : null}
+                <Button variant="ghost" onClick={requestLeave}>Выйти</Button>
               </div>
             </div>
           </header>
@@ -294,6 +305,7 @@ export function CrocodileRoomClient({ code }: { code: string }) {
           )}
         </div>
       </section>
+      {leaveModalOpen ? <LeaveGameModal onConfirm={leaveRoom} onCancel={() => setLeaveModalOpen(false)} /> : null}
     </AppShell>
   );
 }
