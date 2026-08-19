@@ -73,6 +73,10 @@ export function getAliasRoom(code: string) {
   return rooms.get(code.toUpperCase());
 }
 
+export function getAliasRoomCount() {
+  return rooms.size;
+}
+
 export function getAliasRoomInfo(code: string) {
   const room = getAliasRoom(code);
   return room ? { code: room.code, gameId: room.gameId, phase: room.phase } : undefined;

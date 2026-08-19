@@ -82,6 +82,10 @@ export function getRoom(code: string) {
   return rooms.get(code.toUpperCase());
 }
 
+export function getMafiaRoomCount() {
+  return rooms.size;
+}
+
 export function getStats() {
   refreshStatsDay();
   const gameRooms = [...rooms.values()].filter((room) => !room.devMode);

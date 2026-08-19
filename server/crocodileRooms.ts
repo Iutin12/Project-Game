@@ -66,6 +66,10 @@ export function getCrocodileRoom(code: string) {
   return rooms.get(code.toUpperCase());
 }
 
+export function getCrocodileRoomCount() {
+  return rooms.size;
+}
+
 export function getCrocodileRoomInfo(code: string) {
   const room = getCrocodileRoom(code);
   return room ? { code: room.code, gameId: room.gameId, phase: room.phase } : undefined;

@@ -6,6 +6,7 @@ import { Server } from "socket.io";
 import { allowPublicApiRequest, allowRoomCreation, getRequestIp, registerSocketProtection, securityConfig } from "./security";
 import {
   createCrocodileRoom,
+  getCrocodileRoomCount,
   getCrocodileRoomInfo,
   getCrocodileStats,
   registerCrocodileRoomSockets
@@ -13,13 +14,14 @@ import {
 import {
   createBunkerRoom,
   createDevBunkerRoom,
+  getBunkerRoomCount,
   getBunkerRoomInfo,
   getBunkerStats,
   registerBunkerRoomSockets
 } from "./bunkerRooms";
-import { createDevRoom, createRoom, getRoom, getStats, registerRoomSockets } from "./rooms";
-import { createDevSpyRoom, createSpyRoom, getSpyRoomInfo, getSpyStats, registerSpyRoomSockets } from "./spyRooms";
-import { createAliasRoom, createDevAliasRoom, getAliasRoomInfo, getAliasStats, registerAliasRoomSockets } from "./aliasRooms";
+import { createDevRoom, createRoom, getMafiaRoomCount, getRoom, getStats, registerRoomSockets } from "./rooms";
+import { createDevSpyRoom, createSpyRoom, getSpyRoomCount, getSpyRoomInfo, getSpyStats, registerSpyRoomSockets } from "./spyRooms";
+import { createAliasRoom, createDevAliasRoom, getAliasRoomCount, getAliasRoomInfo, getAliasStats, registerAliasRoomSockets } from "./aliasRooms";
 import { getCompletionStats } from "./completionStats";
 
 const dev = process.env.NODE_ENV !== "production";
@@ -44,18 +46,7 @@ app.prepare().then(() => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
 
     if (req.method === "POST" && url.pathname === "/api/create-room") {
-      const activeRooms = getCombinedStats().activeRooms;
-      if (activeRooms >= securityConfig.maxActiveRooms) {
-        sendJson(res, 503, { error: "Сервер временно перегружен. Попробуйте создать комнату позже." });
-        return;
-      }
-
-      const creation = allowRoomCreation(getRequestIp(req.socket.remoteAddress, req.headers));
-      if (!creation.allowed) {
-        res.setHeader("retry-after", String(creation.retryAfterSeconds));
-        sendJson(res, 429, { error: "Слишком много созданных комнат. Повторите попытку позже." });
-        return;
-      }
+      if (!allowNewRoom(req, res)) return;
 
       const body = await readJsonBody<{ gameId?: "mafia" | "crocodile" | "bunker" | "spy" | "alias"; visibility?: "private" | "public" }>(req);
       const visibility = body?.visibility === "public" ? "public" : "private";
@@ -81,6 +72,7 @@ app.prepare().then(() => {
     }
 
     if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-mafia-test-room") {
+      if (!allowNewRoom(req, res)) return;
       const room = createDevRoom();
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(room));
@@ -88,24 +80,27 @@ app.prepare().then(() => {
     }
 
     if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-bunker-test-room") {
+      if (!allowNewRoom(req, res)) return;
       const body = await readJsonBody<{ playersCount?: number }>(req);
-      const room = createDevBunkerRoom(body?.playersCount ?? 6);
+      const room = createDevBunkerRoom(clampDevPlayers(body?.playersCount, 4, 16));
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(room));
       return;
     }
 
     if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-spy-test-room") {
+      if (!allowNewRoom(req, res)) return;
       const body = await readJsonBody<{ playersCount?: number }>(req);
-      const room = createDevSpyRoom(body?.playersCount ?? 6);
+      const room = createDevSpyRoom(clampDevPlayers(body?.playersCount, 3, 12));
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(room));
       return;
     }
 
     if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-alias-test-room") {
+      if (!allowNewRoom(req, res)) return;
       const body = await readJsonBody<{ playersCount?: number }>(req);
-      const room = createDevAliasRoom(body?.playersCount ?? 6);
+      const room = createDevAliasRoom(clampDevPlayers(body?.playersCount, 4, 12));
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(room));
       return;
@@ -192,6 +187,28 @@ function getCombinedStats() {
       (first, second) => second.createdAt - first.createdAt
     )
   };
+}
+
+function getTotalRoomCount() {
+  return getMafiaRoomCount() + getCrocodileRoomCount() + getBunkerRoomCount() + getSpyRoomCount() + getAliasRoomCount();
+}
+
+function allowNewRoom(req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse) {
+  if (getTotalRoomCount() >= securityConfig.maxActiveRooms) {
+    sendJson(res, 503, { error: "Сервер временно перегружен. Попробуйте создать комнату позже." });
+    return false;
+  }
+
+  const creation = allowRoomCreation(getRequestIp(req.socket.remoteAddress, req.headers));
+  if (creation.allowed) return true;
+  res.setHeader("retry-after", String(creation.retryAfterSeconds));
+  sendJson(res, 429, { error: "Слишком много созданных комнат. Повторите попытку позже." });
+  return false;
+}
+
+function clampDevPlayers(value: unknown, min: number, max: number) {
+  const playersCount = typeof value === "number" && Number.isFinite(value) ? Math.round(value) : 6;
+  return Math.min(max, Math.max(min, playersCount));
 }
 
 function readJsonBody<T>(req: import("node:http").IncomingMessage): Promise<T | undefined> {

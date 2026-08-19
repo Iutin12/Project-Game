@@ -82,6 +82,10 @@ export function getSpyRoom(code: string) {
   return rooms.get(code.toUpperCase());
 }
 
+export function getSpyRoomCount() {
+  return rooms.size;
+}
+
 export function getSpyRoomInfo(code: string) {
   const room = getSpyRoom(code);
   return room ? { code: room.code, gameId: room.gameId, phase: room.phase } : undefined;

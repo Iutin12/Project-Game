@@ -70,6 +70,10 @@ export function getBunkerRoom(code: string) {
   return rooms.get(code.toUpperCase());
 }
 
+export function getBunkerRoomCount() {
+  return rooms.size;
+}
+
 export function getBunkerRoomInfo(code: string) {
   const room = getBunkerRoom(code);
   return room ? { code: room.code, gameId: room.gameId, phase: room.phase } : undefined;

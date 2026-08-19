@@ -1,5 +1,6 @@
 import { RoomRouterClient } from "./room-router-client";
 
-export default function RoomPage({ params }: { params: { code: string } }) {
-  return <RoomRouterClient code={params.code.toUpperCase()} />;
+export default async function RoomPage({ params }: { params: Promise<{ code: string }> }) {
+  const { code } = await params;
+  return <RoomRouterClient code={code.toUpperCase()} />;
 }
