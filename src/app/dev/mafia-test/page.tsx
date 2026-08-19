@@ -32,7 +32,10 @@ export default function MafiaTestPage() {
 
     try {
       const response = await fetch("/api/dev/create-mafia-test-room", { method: "POST" });
-      if (!response.ok) throw new Error("Не удалось создать dev-комнату");
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Не удалось создать dev-комнату");
+      }
       const data = (await response.json()) as { code: string; hostKey: string };
       socket?.emit("join_room", { code: data.code, name: "Dev Host", hostKey: data.hostKey }, (ack: Ack) => {
         if (!ack.ok) {

@@ -20,7 +20,10 @@ export default function AliasTestPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ playersCount })
       });
-      if (!response.ok) throw new Error("Не удалось создать тестовую комнату");
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(payload?.error ?? "Не удалось создать тестовую комнату");
+      }
       const data = await response.json() as { code: string; hostKey: string; playerId: string };
       window.localStorage.setItem(`hostKey:${data.code}`, data.hostKey);
       window.localStorage.setItem(`playerId:${data.code}`, data.playerId);

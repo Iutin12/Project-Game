@@ -71,6 +71,13 @@ app.prepare().then(() => {
       return;
     }
 
+    if (req.method === "POST" && url.pathname.startsWith("/api/dev/") && !devToolsEnabled) {
+      sendJson(res, 403, {
+        error: "Тестовые комнаты отключены на сервере. Включите ENABLE_DEV_TOOLS=true, чтобы использовать этот режим."
+      });
+      return;
+    }
+
     if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-mafia-test-room") {
       const room = createDevRoom();
       res.writeHead(200, { "content-type": "application/json" });
