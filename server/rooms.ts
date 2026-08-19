@@ -1,5 +1,6 @@
 import type { Server, Socket } from "socket.io";
 import { createReconnectToken, removeRoomSessions, verifyReconnectToken } from "./playerSessions";
+import { trackCompletedGame } from "./completionStats";
 import { randomUUID } from "node:crypto";
 import {
   assignRoles,
@@ -1627,6 +1628,7 @@ function emitOwnRoom(io: Server, socket: Socket) {
 function emitRoom(io: Server, roomCode: string) {
   const room = rooms.get(roomCode);
   if (!room) return;
+  if (!room.devMode) trackCompletedGame(room);
 
   for (const socketId of io.sockets.adapter.rooms.get(roomCode) ?? []) {
     const socket = io.sockets.sockets.get(socketId);

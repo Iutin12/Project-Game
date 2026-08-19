@@ -22,6 +22,9 @@ services:
       TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
       # Public test rooms let visitors try each available game before joining a real room.
       ENABLE_DEV_TOOLS: ${ENABLE_DEV_TOOLS:-true}
+      # Required to open the private completed-games dashboard.
+      ADMIN_STATS_TOKEN: ${ADMIN_STATS_TOKEN:-}
+      GAME_STATS_FILE: /app/data/completion-stats.json
       ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-https://game.24lumio.ru}
     init: true
     read_only: true
@@ -43,3 +46,8 @@ services:
     # Available only to containers on project-game_default, including Nginx Proxy Manager.
     expose:
       - "3000"
+    volumes:
+      - project-game-stats:/app/data
+
+volumes:
+  project-game-stats:

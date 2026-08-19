@@ -35,6 +35,16 @@ git pull
 docker compose up -d --build
 ```
 
+## Приватная статистика завершенных игр
+
+Перед первым запуском добавьте в `.env` рядом с `docker-compose.yml` длинный секретный токен:
+
+```dotenv
+ADMIN_STATS_TOKEN=replace-with-a-long-random-secret
+```
+
+После перезапуска контейнера откройте `/admin/game-stats` и введите этот токен. Статистика учитывает завершенные партии и участия реальных игроков, не считает ботов и dev-комнаты. Она хранится в Docker volume `project-game-stats`, поэтому не пропадает при пересоздании контейнера.
+
 ## Nginx reverse proxy
 
 Если домен смотрит на Nginx, проксируйте и обычный HTTP, и WebSocket:

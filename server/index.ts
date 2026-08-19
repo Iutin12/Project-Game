@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import type { IncomingHttpHeaders } from "node:http";
+import { timingSafeEqual } from "node:crypto";
 import next from "next";
 import { Server } from "socket.io";
 import { allowPublicApiRequest, allowRoomCreation, getRequestIp, registerSocketProtection, securityConfig } from "./security";
@@ -19,6 +20,7 @@ import {
 import { createDevRoom, createRoom, getRoom, getStats, registerRoomSockets } from "./rooms";
 import { createDevSpyRoom, createSpyRoom, getSpyRoomInfo, getSpyStats, registerSpyRoomSockets } from "./spyRooms";
 import { createAliasRoom, createDevAliasRoom, getAliasRoomInfo, getAliasStats, registerAliasRoomSockets } from "./aliasRooms";
+import { getCompletionStats } from "./completionStats";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "0.0.0.0";
@@ -113,6 +115,15 @@ app.prepare().then(() => {
       if (!allowPublicApi(req, res)) return;
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify(getCombinedStats()));
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/admin/completed-games") {
+      if (!isAdminRequest(req)) {
+        sendJson(res, 401, { error: "Недостаточно прав" });
+        return;
+      }
+      sendJson(res, 200, getCompletionStats());
       return;
     }
 
@@ -212,6 +223,16 @@ function readJsonBody<T>(req: import("node:http").IncomingMessage): Promise<T | 
 function sendJson(res: import("node:http").ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { "content-type": "application/json" });
   res.end(JSON.stringify(body));
+}
+
+function isAdminRequest(req: import("node:http").IncomingMessage) {
+  const expectedToken = process.env.ADMIN_STATS_TOKEN;
+  const providedToken = req.headers["x-admin-token"];
+  const token = Array.isArray(providedToken) ? providedToken[0] : providedToken;
+  if (!expectedToken || !token) return false;
+  const expected = Buffer.from(expectedToken);
+  const provided = Buffer.from(token);
+  return expected.length === provided.length && timingSafeEqual(expected, provided);
 }
 
 function allowPublicApi(req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse) {
