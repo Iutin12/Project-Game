@@ -10,6 +10,10 @@ export type GameConfig = {
   duration: string;
 };
 
+// Changing this revision forces browsers to replace an outdated cached game cover.
+const GAME_CARD_ASSET_REVISION = "20260819";
+const gameCard = (name: string) => `/game-cards/${name}.png?v=${GAME_CARD_ASSET_REVISION}`;
+
 export const games: GameConfig[] = [
   {
     id: "mafia",
@@ -19,7 +23,7 @@ export const games: GameConfig[] = [
     minPlayers: 5,
     maxPlayers: 15,
     route: "/games/mafia",
-    illustration: "/game-cards/mafia.png",
+    illustration: gameCard("mafia"),
     duration: "10-30 мин"
   },
   {
@@ -30,7 +34,7 @@ export const games: GameConfig[] = [
     minPlayers: 4,
     maxPlayers: 16,
     route: "/games/bunker",
-    illustration: "/game-cards/bunker.png",
+    illustration: gameCard("bunker"),
     duration: "15-30 мин"
   },
   {
@@ -41,7 +45,7 @@ export const games: GameConfig[] = [
     minPlayers: 3,
     maxPlayers: 12,
     route: "/games/spy",
-    illustration: "/game-cards/spy.png",
+    illustration: gameCard("spy"),
     duration: "10-20 мин"
   },
   {
@@ -52,7 +56,7 @@ export const games: GameConfig[] = [
     minPlayers: 4,
     maxPlayers: 20,
     route: "/games/alias",
-    illustration: "/game-cards/alias.png",
+    illustration: gameCard("alias"),
     duration: "15-40 мин"
   },
   {
@@ -63,7 +67,7 @@ export const games: GameConfig[] = [
     minPlayers: 3,
     maxPlayers: 12,
     route: "/games/whoami",
-    illustration: "/game-cards/whoami.png",
+    illustration: gameCard("whoami"),
     duration: "10-15 мин"
   },
   {
@@ -74,7 +78,7 @@ export const games: GameConfig[] = [
     minPlayers: 3,
     maxPlayers: 20,
     route: "/games/crocodile",
-    illustration: "/game-cards/crocodile.png",
+    illustration: gameCard("crocodile"),
     duration: "10-30 мин"
   }
 ];
