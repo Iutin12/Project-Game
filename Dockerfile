@@ -3,7 +3,7 @@ ARG NODE_IMAGE=node:22-alpine
 FROM ${NODE_IMAGE} AS deps
 
 WORKDIR /app
-ENV PNPM_VERSION=9.15.9
+ENV PNPM_VERSION=11.19.0
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -12,7 +12,7 @@ RUN pnpm install --frozen-lockfile
 FROM ${NODE_IMAGE} AS builder
 
 WORKDIR /app
-ENV PNPM_VERSION=9.15.9
+ENV PNPM_VERSION=11.19.0
 RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 
 COPY --from=deps /app/node_modules ./node_modules
