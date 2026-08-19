@@ -20,7 +20,8 @@ services:
       CHAT_MESSAGES_PER_10_SECONDS: ${CHAT_MESSAGES_PER_10_SECONDS:-12}
       # Set to true only when a trusted reverse proxy passes the real client IP.
       TRUST_PROXY_HEADERS: ${TRUST_PROXY_HEADERS:-false}
-      ENABLE_DEV_TOOLS: ${ENABLE_DEV_TOOLS:-false}
+      # Public test rooms let visitors try each available game before joining a real room.
+      ENABLE_DEV_TOOLS: ${ENABLE_DEV_TOOLS:-true}
       ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-https://game.24lumio.ru}
     init: true
     read_only: true
