@@ -93,11 +93,13 @@ p {
   100% {
     box-shadow: 0 0 0 rgba(239, 61, 61, 0);
     filter: brightness(1);
+    transform: translateY(0) scale(1);
   }
 
   50% {
     box-shadow: 0 0 0 5px rgba(239, 61, 61, 0.13), 0 10px 24px rgba(239, 61, 61, 0.12);
-    filter: brightness(1.035);
+    filter: brightness(1.07);
+    transform: translateY(-1px) scale(1.012);
   }
 }
 
