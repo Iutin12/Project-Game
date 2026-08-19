@@ -85,7 +85,30 @@ p {
     color 220ms ease,
     box-shadow 260ms ease,
     opacity 220ms ease,
-    filter 220ms ease;
+  filter 220ms ease;
+}
+
+@keyframes ready-attention {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(239, 61, 61, 0);
+    filter: brightness(1);
+  }
+
+  50% {
+    box-shadow: 0 0 0 5px rgba(239, 61, 61, 0.13), 0 10px 24px rgba(239, 61, 61, 0.12);
+    filter: brightness(1.035);
+  }
+}
+
+.ready-attention:not(:disabled) {
+  animation: ready-attention 2.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ready-attention:not(:disabled) {
+    animation: none;
+  }
 }
 
 ::view-transition-old(root),

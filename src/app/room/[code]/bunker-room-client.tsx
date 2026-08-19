@@ -517,7 +517,7 @@ function BoardReadyFooter({
       <button
         type="button"
         disabled={isReady}
-        className="relative inline-flex h-16 min-w-0 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-3 py-4 text-[clamp(0.65rem,1.6vw,0.875rem)] font-black uppercase tracking-[0.1em] text-[#f4eee3] shadow-[0_0_30px_rgba(255,99,92,0.16)] transition hover:scale-[1.01] disabled:opacity-75"
+        className={`relative inline-flex h-16 min-w-0 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-3 py-4 text-[clamp(0.65rem,1.6vw,0.875rem)] font-black uppercase tracking-[0.1em] text-[#f4eee3] shadow-[0_0_30px_rgba(255,99,92,0.16)] transition hover:scale-[1.01] disabled:opacity-75 ${isReady ? "" : "ready-attention"}`}
         onClick={onReady}
       >
         <img src="/bunker-cards/ready-button-red.png" alt="" className="absolute -left-[4%] -top-[12%] h-[124%] w-[108%] max-w-none object-fill" />
@@ -605,7 +605,7 @@ function ReadyFooter({
       <button
         type="button"
         disabled={isReady}
-        className="relative inline-flex h-16 min-w-0 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-3 py-4 text-[clamp(0.65rem,1.6vw,0.875rem)] font-black uppercase tracking-[0.1em] text-[#f4eee3] shadow-[0_0_30px_rgba(255,99,92,0.16)] transition hover:scale-[1.01] disabled:opacity-75"
+        className={`relative inline-flex h-16 min-w-0 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-3 py-4 text-[clamp(0.65rem,1.6vw,0.875rem)] font-black uppercase tracking-[0.1em] text-[#f4eee3] shadow-[0_0_30px_rgba(255,99,92,0.16)] transition hover:scale-[1.01] disabled:opacity-75 ${isReady ? "" : "ready-attention"}`}
         onClick={onReady}
       >
         <img src="/bunker-cards/ready-button-red.png" alt="" className="absolute -left-[4%] -top-[12%] h-[124%] w-[108%] max-w-none object-fill" />

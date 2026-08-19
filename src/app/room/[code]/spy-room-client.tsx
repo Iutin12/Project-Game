@@ -353,7 +353,7 @@ function Lobby({ room, emitAction }: { room: PublicSpyRoomState; emitAction: (ev
           ))}
         </div>
         <div className="mt-5 flex flex-wrap gap-3">
-          <Button onClick={() => emitAction("spy:ready", { ready: !own?.ready })}>{own?.ready ? "Отменить готовность" : "Я готов"}</Button>
+          <Button className={own?.ready ? undefined : "ready-attention"} onClick={() => emitAction("spy:ready", { ready: !own?.ready })}>{own?.ready ? "Отменить готовность" : "Я готов"}</Button>
           {own?.isHost ? <Button variant="secondary" disabled={!canStart} onClick={() => emitAction("spy:start_game")}>Начать игру</Button> : null}
         </div>
       </section>
@@ -386,7 +386,7 @@ function RoleConfirmation({ room, emitAction }: { room: PublicSpyRoomState; emit
   const confirmed = room.round?.confirmedCount ?? 0;
   const total = room.round?.activePlayersCount ?? 0;
   const ownConfirmed = room.privateState?.hasConfirmedRole;
-  return <WaitingCard title="Все посмотрели роли" text="Подтвердите готовность, и обсуждение начнется автоматически после ответа всех игроков."><ReadyProgress value={confirmed} total={total} />{room.privateState ? <Button disabled={ownConfirmed} onClick={() => emitAction("spy:confirm_role")}>{ownConfirmed ? "Готовность подтверждена" : "Готов к обсуждению"}</Button> : null}</WaitingCard>;
+  return <WaitingCard title="Все посмотрели роли" text="Подтвердите готовность, и обсуждение начнется автоматически после ответа всех игроков."><ReadyProgress value={confirmed} total={total} />{room.privateState ? <Button className={ownConfirmed ? undefined : "ready-attention"} disabled={ownConfirmed} onClick={() => emitAction("spy:confirm_role")}>{ownConfirmed ? "Готовность подтверждена" : "Готов к обсуждению"}</Button> : null}</WaitingCard>;
 }
 
 function Discussion({ room, emitAction }: { room: PublicSpyRoomState; emitAction: (event: string, payload?: unknown) => void }) {

@@ -467,7 +467,7 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
         </p>
         {!canStartSoon ? <p className="mt-1 text-xs text-slate-500">Для старта нужно минимум 5 игроков.</p> : null}
         <Button
-          className={ownReady ? "mt-4 w-full" : "mt-4 w-full animate-pulse ring-2 ring-ocean/25"}
+          className={ownReady ? "mt-4 w-full" : "mt-4 w-full ready-attention ring-2 ring-ocean/25"}
           variant={ownReady ? "secondary" : "primary"}
           onClick={() => emitAction("set_lobby_ready", { ready: !ownReady })}
         >
@@ -579,7 +579,7 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
           Ознакомились: {readyPlayers.length} / {activePlayers.length}
         </p>
         <Button
-          className={ownReady ? "mt-4 w-full" : "mt-4 w-full animate-pulse ring-2 ring-ocean/25"}
+          className={ownReady ? "mt-4 w-full" : "mt-4 w-full ready-attention ring-2 ring-ocean/25"}
           disabled={ownReady}
           onClick={() => emitAction("acknowledge_role")}
         >
@@ -601,7 +601,7 @@ function ActionPanel({ room, emitAction }: { room: PublicRoom; emitAction: (even
           Готовы к голосованию: {readyPlayers.length} / {alivePlayers.length}
         </p>
         <Button
-          className={ownReady ? "mt-4 w-full" : "mt-4 w-full animate-pulse ring-2 ring-ocean/25"}
+          className={ownReady ? "mt-4 w-full" : "mt-4 w-full ready-attention ring-2 ring-ocean/25"}
           disabled={ownReady}
           onClick={() => emitAction("ready_for_voting")}
         >
@@ -711,7 +711,7 @@ function TieChallengePanel({ room, emitAction }: { room: PublicRoom; emitAction:
           </p>
           {isCandidate ? (
             <Button
-              className={ownReady ? "mt-3 w-full" : "mt-3 w-full animate-pulse ring-2 ring-ocean/25"}
+              className={ownReady ? "mt-3 w-full" : "mt-3 w-full ready-attention ring-2 ring-ocean/25"}
               disabled={ownReady}
               onClick={() => emitAction("ready_for_tie_challenge")}
             >
