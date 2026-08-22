@@ -5,10 +5,19 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 
 type Stats = {
+  roomsCreated: number;
   completedGames: number;
   completedPlayerParticipations: number;
   uniqueVisitors: number;
-  byGame: Record<string, { completedGames: number; completedPlayerParticipations: number }>;
+  byGame: Record<string, { roomsCreated: number; completedGames: number; completedPlayerParticipations: number }>;
+  daily: {
+    date: string;
+    roomsCreated: number;
+    completedGames: number;
+    completedPlayerParticipations: number;
+    uniqueVisitors: number;
+    byGame: Record<string, { roomsCreated: number; completedGames: number; completedPlayerParticipations: number }>;
+  };
   updatedAt: number;
 };
 
@@ -53,8 +62,8 @@ export default function GameStatsPage() {
     <AppShell>
       <section className="mx-auto w-full max-w-4xl py-10 sm:py-14">
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-coral">Только для владельца</p>
-        <h1 className="mt-3 font-display text-4xl font-semibold text-ink sm:text-5xl">Завершённые игры</h1>
-        <p className="mt-4 max-w-2xl leading-7 text-slate-600 dark:text-white/65">Учитываются только доигранные партии и реальные участники. Боты и тестовые комнаты не попадают в статистику.</p>
+        <h1 className="mt-3 font-display text-4xl font-semibold text-ink sm:text-5xl">Статистика платформы</h1>
+        <p className="mt-4 max-w-2xl leading-7 text-slate-600 dark:text-white/65">Учитываются обычные комнаты, доигранные партии и реальные участники. Боты и тестовые комнаты не попадают в статистику.</p>
 
         <form className="mt-8 flex flex-col gap-3 rounded-2xl border border-line bg-white/80 p-5 shadow-soft sm:flex-row dark:bg-slate-900/75" onSubmit={loadStats}>
           <input
@@ -70,18 +79,26 @@ export default function GameStatsPage() {
         {error ? <p className="mt-3 text-sm font-semibold text-coral">{error}</p> : null}
 
         {stats ? (
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            <StatCard label="Уникальных посетителей" value={stats.uniqueVisitors} />
-            <StatCard label="Завершённых партий" value={stats.completedGames} />
-            <StatCard label="Участий игроков" value={stats.completedPlayerParticipations} />
-            {Object.entries(stats.byGame).map(([gameId, game]) => (
-              <article key={gameId} className="rounded-2xl border border-line bg-white/80 p-5 shadow-soft dark:bg-slate-900/75">
-                <h2 className="font-display text-2xl font-semibold text-ink">{gameNames[gameId] ?? gameId}</h2>
-                <p className="mt-3 text-3xl font-black text-ocean">{game.completedGames}</p>
-                <p className="mt-1 text-sm text-slate-600 dark:text-white/65">завершённых партий</p>
-                <p className="mt-4 text-sm font-semibold text-ink">{game.completedPlayerParticipations} участий игроков</p>
-              </article>
-            ))}
+          <div className="mt-8 space-y-8">
+            <StatsSection title={`Сегодня, ${formatDate(stats.daily.date)}`} stats={stats.daily} />
+            <StatsSection title="За всё время" stats={stats} />
+            <section>
+              <h2 className="font-display text-3xl font-semibold text-ink">По играм</h2>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                {Object.entries(stats.byGame).map(([gameId, game]) => {
+                  const today = stats.daily.byGame[gameId] ?? { roomsCreated: 0, completedGames: 0, completedPlayerParticipations: 0 };
+                  return (
+                    <article key={gameId} className="rounded-2xl border border-line bg-white/80 p-5 shadow-soft dark:bg-slate-900/75">
+                      <h3 className="font-display text-2xl font-semibold text-ink">{gameNames[gameId] ?? gameId}</h3>
+                      <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                        <GameMetric label="Сегодня" rooms={today.roomsCreated} games={today.completedGames} participants={today.completedPlayerParticipations} />
+                        <GameMetric label="Всего" rooms={game.roomsCreated} games={game.completedGames} participants={game.completedPlayerParticipations} />
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
           </div>
         ) : null}
       </section>
@@ -89,11 +106,29 @@ export default function GameStatsPage() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatsSection({ title, stats }: { title: string; stats: Pick<Stats, "roomsCreated" | "completedGames" | "completedPlayerParticipations" | "uniqueVisitors"> }) {
   return (
-    <article className="rounded-2xl border border-line bg-white/80 p-5 shadow-soft dark:bg-slate-900/75">
-      <p className="text-sm font-semibold text-slate-600 dark:text-white/65">{label}</p>
-      <p className="mt-2 font-display text-5xl font-semibold text-ink">{value}</p>
-    </article>
+    <section>
+      <h2 className="font-display text-3xl font-semibold text-ink">{title}</h2>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Уникальных посетителей" value={stats.uniqueVisitors} />
+        <StatCard label="Созданных комнат" value={stats.roomsCreated} />
+        <StatCard label="Завершённых партий" value={stats.completedGames} />
+        <StatCard label="Участий игроков" value={stats.completedPlayerParticipations} />
+      </div>
+    </section>
   );
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return <article className="rounded-2xl border border-line bg-white/80 p-5 shadow-soft dark:bg-slate-900/75"><p className="text-sm font-semibold text-slate-600 dark:text-white/65">{label}</p><p className="mt-2 font-display text-5xl font-semibold text-ink">{value}</p></article>;
+}
+
+function GameMetric({ label, rooms, games, participants }: { label: string; rooms: number; games: number; participants: number }) {
+  return <div><p className="font-bold text-ocean">{label}</p><p className="mt-2 text-slate-600 dark:text-white/65">Комнат: {rooms}</p><p className="mt-1 text-slate-600 dark:text-white/65">Партий: {games}</p><p className="mt-1 text-slate-600 dark:text-white/65">Участий: {participants}</p></div>;
+}
+
+function formatDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }

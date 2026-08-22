@@ -22,7 +22,7 @@ import {
 import { createDevRoom, createRoom, getMafiaRoomCount, getRoom, getStats, registerRoomSockets } from "./rooms";
 import { createDevSpyRoom, createSpyRoom, getSpyRoomCount, getSpyRoomInfo, getSpyStats, registerSpyRoomSockets } from "./spyRooms";
 import { createAliasRoom, createDevAliasRoom, getAliasRoomCount, getAliasRoomInfo, getAliasStats, registerAliasRoomSockets } from "./aliasRooms";
-import { getCompletionStats, trackUniqueVisitor } from "./completionStats";
+import { getCompletionStats, trackRoomCreated, trackUniqueVisitor } from "./completionStats";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "0.0.0.0";
@@ -81,6 +81,7 @@ app.prepare().then(() => {
                 : body?.gameId === "alias"
                   ? createAliasRoom(visibility)
                   : createRoom(visibility);
+        trackRoomCreated(body?.gameId ?? "mafia");
         sendJson(res, 200, room);
         return;
       }
