@@ -2,6 +2,11 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Game artwork is already served from /public. Avoid a runtime image cache so
+  // the hardened read-only production container never needs to write to .next.
+  images: {
+    unoptimized: true
+  },
   async headers() {
     return [
       {
