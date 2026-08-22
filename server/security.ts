@@ -31,7 +31,7 @@ class FixedWindowRateLimiter {
 }
 
 export const securityConfig = {
-  maxActiveRooms: envInteger("MAX_ACTIVE_ROOMS", 2000, 1, 100_000),
+  maxActiveRooms: envInteger("MAX_ACTIVE_ROOMS", 500, 1, 100_000),
   roomCreationPerMinute: envInteger("ROOM_CREATION_LIMIT_PER_MINUTE", 10, 1, 1_000),
   roomCreationGlobalPerSecond: envInteger("ROOM_CREATION_GLOBAL_PER_SECOND", 5, 1, 1_000),
   socketConnectionsPerMinute: envInteger("SOCKET_CONNECTIONS_PER_MINUTE", 60, 1, 10_000),

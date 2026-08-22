@@ -2,12 +2,28 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { JoinByCode } from "@/components/layout/JoinByCode";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export function AppShell({ children, onLogoClick }: { children: React.ReactNode; onLogoClick?: () => void }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const storageKey = "lumia-anonymous-visitor-id";
+    let visitorId = window.localStorage.getItem(storageKey);
+    if (!visitorId) {
+      visitorId = window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      window.localStorage.setItem(storageKey, visitorId);
+    }
+
+    void fetch("/api/track-visit", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ visitorId }),
+      keepalive: true
+    });
+  }, []);
 
   const navigation = [
     { href: "/games", label: "Игры" },

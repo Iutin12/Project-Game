@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import type { IncomingHttpHeaders } from "node:http";
-import { timingSafeEqual } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import next from "next";
 import { Server } from "socket.io";
 import { allowPublicApiRequest, allowRoomCreation, getRequestIp, registerSocketProtection, securityConfig } from "./security";
@@ -22,7 +22,7 @@ import {
 import { createDevRoom, createRoom, getMafiaRoomCount, getRoom, getStats, registerRoomSockets } from "./rooms";
 import { createDevSpyRoom, createSpyRoom, getSpyRoomCount, getSpyRoomInfo, getSpyStats, registerSpyRoomSockets } from "./spyRooms";
 import { createAliasRoom, createDevAliasRoom, getAliasRoomCount, getAliasRoomInfo, getAliasStats, registerAliasRoomSockets } from "./aliasRooms";
-import { getCompletionStats } from "./completionStats";
+import { getCompletionStats, trackUniqueVisitor } from "./completionStats";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "0.0.0.0";
@@ -49,6 +49,20 @@ app.prepare().then(() => {
       if (req.method === "GET" && url.pathname === "/api/health") {
         // Keep Docker's liveness probe independent of room lists and rate limits.
         sendJson(res, 200, { ok: true, uptimeSeconds: Math.floor(process.uptime()) });
+        return;
+      }
+
+      if (req.method === "POST" && url.pathname === "/api/track-visit") {
+        if (!allowPublicApi(req, res)) return;
+        const body = await readJsonBody<{ visitorId?: unknown }>(req);
+        const visitorId = typeof body?.visitorId === "string" ? body.visitorId : "";
+        if (!isValidVisitorId(visitorId)) {
+          sendJson(res, 400, { error: "Некорректный идентификатор посетителя" });
+          return;
+        }
+        trackUniqueVisitor(visitorId);
+        res.writeHead(204);
+        res.end();
         return;
       }
 
@@ -252,6 +266,10 @@ function readJsonBody<T>(req: import("node:http").IncomingMessage): Promise<T | 
 function sendJson(res: import("node:http").ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { "content-type": "application/json" });
   res.end(JSON.stringify(body));
+}
+
+function isValidVisitorId(value: string) {
+  return /^[a-z0-9-]{20,80}$/i.test(value);
 }
 
 function isAdminRequest(req: import("node:http").IncomingMessage) {

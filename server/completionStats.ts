@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
@@ -6,13 +7,28 @@ export type CompletedGameId = "mafia" | "crocodile" | "bunker" | "spy" | "alias"
 type CompletionStats = {
   completedGames: number;
   completedPlayerParticipations: number;
+  uniqueVisitors: number;
   byGame: Record<CompletedGameId, { completedGames: number; completedPlayerParticipations: number }>;
   updatedAt: number;
+  visitorHashes: string[];
 };
 
 const statsFile = process.env.GAME_STATS_FILE ?? "/app/data/completion-stats.json";
 const finalPhases = new WeakSet<object>();
 let stats = loadStats();
+let visitorHashes = new Set(stats.visitorHashes);
+
+export function trackUniqueVisitor(visitorId: string) {
+  const visitorHash = createHash("sha256").update(visitorId).digest("hex");
+  if (visitorHashes.has(visitorHash)) return false;
+
+  visitorHashes.add(visitorHash);
+  stats.uniqueVisitors = visitorHashes.size;
+  stats.visitorHashes = [...visitorHashes];
+  stats.updatedAt = Date.now();
+  saveStats();
+  return true;
+}
 
 export function trackCompletedGame(room: { gameId: CompletedGameId; phase: string; players: object[] }) {
   const roomRef = room as object;
@@ -35,7 +51,8 @@ export function trackCompletedGame(room: { gameId: CompletedGameId; phase: strin
 }
 
 export function getCompletionStats() {
-  return structuredClone(stats);
+  const { visitorHashes: _, ...publicStats } = stats;
+  return structuredClone(publicStats);
 }
 
 function loadStats(): CompletionStats {
@@ -44,6 +61,7 @@ function loadStats(): CompletionStats {
     return {
       completedGames: Number.isFinite(parsed.completedGames) ? Number(parsed.completedGames) : 0,
       completedPlayerParticipations: Number.isFinite(parsed.completedPlayerParticipations) ? Number(parsed.completedPlayerParticipations) : 0,
+      uniqueVisitors: Number.isFinite(parsed.uniqueVisitors) ? Number(parsed.uniqueVisitors) : 0,
       byGame: {
         mafia: normalizeGameStats(parsed.byGame?.mafia),
         crocodile: normalizeGameStats(parsed.byGame?.crocodile),
@@ -51,7 +69,8 @@ function loadStats(): CompletionStats {
         spy: normalizeGameStats(parsed.byGame?.spy),
         alias: normalizeGameStats(parsed.byGame?.alias)
       },
-      updatedAt: Number.isFinite(parsed.updatedAt) ? Number(parsed.updatedAt) : 0
+      updatedAt: Number.isFinite(parsed.updatedAt) ? Number(parsed.updatedAt) : 0,
+      visitorHashes: Array.isArray(parsed.visitorHashes) ? parsed.visitorHashes.filter((value): value is string => typeof value === "string" && /^[a-f0-9]{64}$/.test(value)) : []
     };
   } catch {
     return createEmptyStats();
@@ -62,6 +81,7 @@ function createEmptyStats(): CompletionStats {
   return {
     completedGames: 0,
     completedPlayerParticipations: 0,
+    uniqueVisitors: 0,
     byGame: {
       mafia: { completedGames: 0, completedPlayerParticipations: 0 },
       crocodile: { completedGames: 0, completedPlayerParticipations: 0 },
@@ -69,7 +89,8 @@ function createEmptyStats(): CompletionStats {
       spy: { completedGames: 0, completedPlayerParticipations: 0 },
       alias: { completedGames: 0, completedPlayerParticipations: 0 }
     },
-    updatedAt: 0
+    updatedAt: 0,
+    visitorHashes: []
   };
 }
 

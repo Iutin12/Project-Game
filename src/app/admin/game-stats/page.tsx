@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 type Stats = {
   completedGames: number;
   completedPlayerParticipations: number;
+  uniqueVisitors: number;
   byGame: Record<string, { completedGames: number; completedPlayerParticipations: number }>;
   updatedAt: number;
 };
@@ -70,6 +71,7 @@ export default function GameStatsPage() {
 
         {stats ? (
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            <StatCard label="Уникальных посетителей" value={stats.uniqueVisitors} />
             <StatCard label="Завершённых партий" value={stats.completedGames} />
             <StatCard label="Участий игроков" value={stats.completedPlayerParticipations} />
             {Object.entries(stats.byGame).map(([gameId, game]) => (
