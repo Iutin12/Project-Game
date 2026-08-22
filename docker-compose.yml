@@ -10,7 +10,8 @@ services:
       NODE_ENV: production
       HOSTNAME: 0.0.0.0
       PORT: 3000
-      MAX_ACTIVE_ROOMS: ${MAX_ACTIVE_ROOMS:-2000}
+      # In-memory rooms are intentionally capped to keep the server responsive.
+      MAX_ACTIVE_ROOMS: ${MAX_ACTIVE_ROOMS:-500}
       ROOM_CREATION_LIMIT_PER_MINUTE: ${ROOM_CREATION_LIMIT_PER_MINUTE:-10}
       ROOM_CREATION_GLOBAL_PER_SECOND: ${ROOM_CREATION_GLOBAL_PER_SECOND:-5}
       SOCKET_CONNECTIONS_PER_MINUTE: ${SOCKET_CONNECTIONS_PER_MINUTE:-60}
@@ -38,7 +39,7 @@ services:
     mem_limit: 768m
     cpus: "1.5"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/stats || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3

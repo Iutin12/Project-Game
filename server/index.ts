@@ -43,109 +43,121 @@ const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
   const httpServer = createServer(async (req, res) => {
-    const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+    try {
+      const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
 
-    if (req.method === "POST" && url.pathname === "/api/create-room") {
-      if (!allowNewRoom(req, res)) return;
-
-      const body = await readJsonBody<{ gameId?: "mafia" | "crocodile" | "bunker" | "spy" | "alias"; visibility?: "private" | "public" }>(req);
-      const visibility = body?.visibility === "public" ? "public" : "private";
-      const room =
-        body?.gameId === "crocodile"
-          ? createCrocodileRoom(visibility)
-          : body?.gameId === "bunker"
-            ? createBunkerRoom(visibility)
-            : body?.gameId === "spy"
-              ? createSpyRoom(visibility)
-              : body?.gameId === "alias"
-                ? createAliasRoom(visibility)
-                : createRoom(visibility);
-      sendJson(res, 200, room);
-      return;
-    }
-
-    if (req.method === "POST" && url.pathname.startsWith("/api/dev/") && !devToolsEnabled) {
-      sendJson(res, 403, {
-        error: "Тестовые комнаты отключены на сервере. Включите ENABLE_DEV_TOOLS=true, чтобы использовать этот режим."
-      });
-      return;
-    }
-
-    if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-mafia-test-room") {
-      if (!allowNewRoom(req, res)) return;
-      const room = createDevRoom();
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify(room));
-      return;
-    }
-
-    if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-bunker-test-room") {
-      if (!allowNewRoom(req, res)) return;
-      const body = await readJsonBody<{ playersCount?: number }>(req);
-      const room = createDevBunkerRoom(clampDevPlayers(body?.playersCount, 4, 16));
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify(room));
-      return;
-    }
-
-    if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-spy-test-room") {
-      if (!allowNewRoom(req, res)) return;
-      const body = await readJsonBody<{ playersCount?: number }>(req);
-      const room = createDevSpyRoom(clampDevPlayers(body?.playersCount, 3, 12));
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify(room));
-      return;
-    }
-
-    if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-alias-test-room") {
-      if (!allowNewRoom(req, res)) return;
-      const body = await readJsonBody<{ playersCount?: number }>(req);
-      const room = createDevAliasRoom(clampDevPlayers(body?.playersCount, 4, 12));
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify(room));
-      return;
-    }
-
-    if (req.method === "GET" && url.pathname === "/api/stats") {
-      if (!allowPublicApi(req, res)) return;
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify(getCombinedStats()));
-      return;
-    }
-
-    if (req.method === "GET" && url.pathname === "/api/admin/completed-games") {
-      if (!isAdminRequest(req)) {
-        sendJson(res, 401, { error: "Недостаточно прав" });
-        return;
-      }
-      sendJson(res, 200, getCompletionStats());
-      return;
-    }
-
-    if (req.method === "GET" && url.pathname === "/api/room-info") {
-      if (!allowPublicApi(req, res)) return;
-      const code = url.searchParams.get("code")?.toUpperCase();
-      const mafiaRoom = code ? getRoom(code) : undefined;
-      const crocodileRoom = code ? getCrocodileRoomInfo(code) : undefined;
-      const bunkerRoom = code ? getBunkerRoomInfo(code) : undefined;
-      const spyRoom = code ? getSpyRoomInfo(code) : undefined;
-      const aliasRoom = code ? getAliasRoomInfo(code) : undefined;
-      const roomInfo = mafiaRoom
-        ? { code: mafiaRoom.code, gameId: mafiaRoom.gameId, phase: mafiaRoom.phase }
-        : crocodileRoom ?? bunkerRoom ?? spyRoom ?? aliasRoom;
-
-      if (!roomInfo) {
-        res.writeHead(404, { "content-type": "application/json" });
-        res.end(JSON.stringify({ error: "Комната не найдена" }));
+      if (req.method === "GET" && url.pathname === "/api/health") {
+        // Keep Docker's liveness probe independent of room lists and rate limits.
+        sendJson(res, 200, { ok: true, uptimeSeconds: Math.floor(process.uptime()) });
         return;
       }
 
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify(roomInfo));
-      return;
-    }
+      if (req.method === "POST" && url.pathname === "/api/create-room") {
+        if (!allowNewRoom(req, res)) return;
 
-    await handle(req, res);
+        const body = await readJsonBody<{ gameId?: "mafia" | "crocodile" | "bunker" | "spy" | "alias"; visibility?: "private" | "public" }>(req);
+        const visibility = body?.visibility === "public" ? "public" : "private";
+        const room =
+          body?.gameId === "crocodile"
+            ? createCrocodileRoom(visibility)
+            : body?.gameId === "bunker"
+              ? createBunkerRoom(visibility)
+              : body?.gameId === "spy"
+                ? createSpyRoom(visibility)
+                : body?.gameId === "alias"
+                  ? createAliasRoom(visibility)
+                  : createRoom(visibility);
+        sendJson(res, 200, room);
+        return;
+      }
+
+      if (req.method === "POST" && url.pathname.startsWith("/api/dev/") && !devToolsEnabled) {
+        sendJson(res, 403, {
+          error: "Тестовые комнаты отключены на сервере. Включите ENABLE_DEV_TOOLS=true, чтобы использовать этот режим."
+        });
+        return;
+      }
+
+      if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-mafia-test-room") {
+        if (!allowNewRoom(req, res)) return;
+        const room = createDevRoom();
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(room));
+        return;
+      }
+
+      if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-bunker-test-room") {
+        if (!allowNewRoom(req, res)) return;
+        const body = await readJsonBody<{ playersCount?: number }>(req);
+        const room = createDevBunkerRoom(clampDevPlayers(body?.playersCount, 4, 16));
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(room));
+        return;
+      }
+
+      if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-spy-test-room") {
+        if (!allowNewRoom(req, res)) return;
+        const body = await readJsonBody<{ playersCount?: number }>(req);
+        const room = createDevSpyRoom(clampDevPlayers(body?.playersCount, 3, 12));
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(room));
+        return;
+      }
+
+      if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-alias-test-room") {
+        if (!allowNewRoom(req, res)) return;
+        const body = await readJsonBody<{ playersCount?: number }>(req);
+        const room = createDevAliasRoom(clampDevPlayers(body?.playersCount, 4, 12));
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(room));
+        return;
+      }
+
+      if (req.method === "GET" && url.pathname === "/api/stats") {
+        if (!allowPublicApi(req, res)) return;
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(getCombinedStats()));
+        return;
+      }
+
+
+      if (req.method === "GET" && url.pathname === "/api/admin/completed-games") {
+        if (!isAdminRequest(req)) {
+          sendJson(res, 401, { error: "Недостаточно прав" });
+          return;
+        }
+        sendJson(res, 200, getCompletionStats());
+        return;
+      }
+
+      if (req.method === "GET" && url.pathname === "/api/room-info") {
+        if (!allowPublicApi(req, res)) return;
+        const code = url.searchParams.get("code")?.toUpperCase();
+        const mafiaRoom = code ? getRoom(code) : undefined;
+        const crocodileRoom = code ? getCrocodileRoomInfo(code) : undefined;
+        const bunkerRoom = code ? getBunkerRoomInfo(code) : undefined;
+        const spyRoom = code ? getSpyRoomInfo(code) : undefined;
+        const aliasRoom = code ? getAliasRoomInfo(code) : undefined;
+        const roomInfo = mafiaRoom
+          ? { code: mafiaRoom.code, gameId: mafiaRoom.gameId, phase: mafiaRoom.phase }
+          : crocodileRoom ?? bunkerRoom ?? spyRoom ?? aliasRoom;
+
+        if (!roomInfo) {
+          res.writeHead(404, { "content-type": "application/json" });
+          res.end(JSON.stringify({ error: "Комната не найдена" }));
+          return;
+        }
+
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(roomInfo));
+        return;
+      }
+
+      await handle(req, res);
+    } catch (error) {
+      console.error("HTTP request failed", { url: req.url, error });
+      if (!res.headersSent && !res.writableEnded) sendJson(res, 500, { error: "Внутренняя ошибка сервера" });
+    }
   });
 
   const io = new Server(httpServer, {
