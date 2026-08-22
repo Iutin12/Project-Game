@@ -200,7 +200,7 @@ export function AliasRoomClient({ code }: { code: string }) {
   }
 
   function requestLeave() {
-    if (room && room.phase !== "LOBBY" && room.phase !== "GAME_OVER") return setLeaveModalOpen(true);
+    if (room && room.phase !== "GAME_OVER") return setLeaveModalOpen(true);
     leaveRoom();
   }
 

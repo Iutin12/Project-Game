@@ -195,7 +195,7 @@ export function SpyRoomClient({ code }: { code: string }) {
   }
 
   function requestLeave() {
-    if (room && room.phase !== "LOBBY" && room.phase !== "GAME_RESULT") {
+    if (room && room.phase !== "GAME_RESULT") {
       setLeaveModalOpen(true);
       return;
     }
