@@ -37,7 +37,10 @@ export function GameCreatePage({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ gameId, visibility })
       });
-      if (!response.ok) throw new Error("Не удалось создать комнату");
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { error?: unknown } | null;
+        throw new Error(typeof payload?.error === "string" ? payload.error : "Не удалось создать комнату");
+      }
       const data = (await response.json()) as { code: string; hostKey: string };
       window.localStorage.setItem(`hostKey:${data.code}`, data.hostKey);
       router.push(`/room/${data.code}`);

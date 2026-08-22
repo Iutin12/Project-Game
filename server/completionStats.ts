@@ -222,8 +222,13 @@ function isVisitorHash(value: unknown): value is string {
 }
 
 function saveStats() {
-  mkdirSync(dirname(statsFile), { recursive: true });
-  const temporaryFile = `${statsFile}.tmp`;
-  writeFileSync(temporaryFile, JSON.stringify(stats), "utf8");
-  renameSync(temporaryFile, statsFile);
+  try {
+    mkdirSync(dirname(statsFile), { recursive: true });
+    const temporaryFile = `${statsFile}.tmp`;
+    writeFileSync(temporaryFile, JSON.stringify(stats), "utf8");
+    renameSync(temporaryFile, statsFile);
+  } catch (error) {
+    // Statistics must never prevent players from creating or finishing a game.
+    console.error("Unable to persist platform statistics", error);
+  }
 }
