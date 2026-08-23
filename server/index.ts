@@ -200,6 +200,7 @@ app.prepare().then(() => {
 });
 
 function getCombinedStats() {
+  const platformStats = getCompletionStats();
   const mafiaStats = getStats();
   const crocodileStats = getCrocodileStats();
   const bunkerStats = getBunkerStats();
@@ -207,7 +208,8 @@ function getCombinedStats() {
   const aliasStats = getAliasStats();
 
   return {
-    roomsCreatedToday: mafiaStats.roomsCreatedToday + crocodileStats.roomsCreatedToday + bunkerStats.roomsCreatedToday + spyStats.roomsCreatedToday + aliasStats.roomsCreatedToday,
+    // Keep the public homepage and private dashboard on one persistent daily counter.
+    roomsCreatedToday: platformStats.daily.roomsCreated,
     activeRooms: mafiaStats.activeRooms + crocodileStats.activeRooms + bunkerStats.activeRooms + spyStats.activeRooms + aliasStats.activeRooms,
     onlinePlayers: mafiaStats.onlinePlayers + crocodileStats.onlinePlayers + bunkerStats.onlinePlayers + spyStats.onlinePlayers + aliasStats.onlinePlayers,
     publicRooms: [...mafiaStats.publicRooms, ...crocodileStats.publicRooms, ...bunkerStats.publicRooms, ...spyStats.publicRooms, ...aliasStats.publicRooms].sort(
