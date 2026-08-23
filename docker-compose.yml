@@ -48,7 +48,6 @@ services:
     expose:
       - "3000"
     volumes:
-      - project-game-stats:/app/data
-
-volumes:
-  project-game-stats:
+      # Keep production statistics beside the project instead of an implicit Docker volume.
+      # This survives container recreation and `docker compose down -v`.
+      - ./data:/app/data
