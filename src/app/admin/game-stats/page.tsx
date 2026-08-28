@@ -21,6 +21,14 @@ type Stats = {
   updatedAt: number;
 };
 
+type ProductAnalytics = {
+  daily: { totals: ProductTotals; devices: Record<string, number>; byGame: Record<string, ProductTotals> };
+  allTime: { totals: ProductTotals; devices: Record<string, number>; byGame: Record<string, ProductTotals> };
+};
+
+type ProductTotals = { phase_changed: number; report_opened: number; report_sent: number };
+type GameReport = { createdAt: string; gameId: string; phase?: string; message: string };
+
 const gameNames: Record<string, string> = {
   mafia: "Мафия",
   crocodile: "Крокодил",
@@ -32,6 +40,8 @@ const gameNames: Record<string, string> = {
 export default function GameStatsPage() {
   const [token, setToken] = useState("");
   const [stats, setStats] = useState<Stats | null>(null);
+  const [productAnalytics, setProductAnalytics] = useState<ProductAnalytics | null>(null);
+  const [reports, setReports] = useState<GameReport[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -45,13 +55,21 @@ export default function GameStatsPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/admin/completed-games", { headers: { "x-admin-token": token } });
+      const [response, productResponse, reportsResponse] = await Promise.all([
+        fetch("/api/admin/completed-games", { headers: { "x-admin-token": token } }),
+        fetch("/api/admin/product-analytics", { headers: { "x-admin-token": token } }),
+        fetch("/api/admin/reports", { headers: { "x-admin-token": token } })
+      ]);
       if (!response.ok) throw new Error("Неверный токен или статистика ещё не настроена.");
       const nextStats = await response.json() as Stats;
+      if (productResponse.ok) setProductAnalytics(await productResponse.json() as ProductAnalytics);
+      if (reportsResponse.ok) setReports((await reportsResponse.json() as { reports: GameReport[] }).reports);
       window.sessionStorage.setItem("lumia-admin-stats-token", token);
       setStats(nextStats);
     } catch (reason) {
       setStats(null);
+      setProductAnalytics(null);
+      setReports([]);
       setError(reason instanceof Error ? reason.message : "Не удалось загрузить статистику.");
     } finally {
       setLoading(false);
@@ -82,6 +100,8 @@ export default function GameStatsPage() {
           <div className="mt-8 space-y-8">
             <StatsSection title={`Сегодня, ${formatDate(stats.daily.date)}`} stats={stats.daily} />
             <StatsSection title="За всё время" stats={stats} />
+            {productAnalytics ? <ProductAnalyticsSection analytics={productAnalytics} /> : null}
+            <ReportsSection reports={reports} />
             <section>
               <h2 className="font-display text-3xl font-semibold text-ink">По играм</h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -104,6 +124,34 @@ export default function GameStatsPage() {
       </section>
     </AppShell>
   );
+}
+
+function ReportsSection({ reports }: { reports: GameReport[] }) {
+  return <section><h2 className="font-display text-3xl font-semibold text-ink">Репорты из игр</h2>{reports.length ? <div className="mt-4 space-y-3">{reports.map((report, index) => <article key={`${report.createdAt}-${index}`} className="rounded-2xl border border-line bg-white/80 p-4 shadow-soft dark:bg-slate-900/75"><p className="text-xs font-bold uppercase tracking-[0.12em] text-coral">{gameNames[report.gameId] ?? report.gameId} · {report.phase ?? "без фазы"} · {new Date(report.createdAt).toLocaleString("ru-RU")}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-ink">{report.message}</p></article>)}</div> : <p className="mt-3 text-sm text-slate-600 dark:text-white/65">Репортов пока нет.</p>}</section>;
+}
+
+function ProductAnalyticsSection({ analytics }: { analytics: ProductAnalytics }) {
+  return (
+    <section>
+      <h2 className="font-display text-3xl font-semibold text-ink">Анонимная продуктовая аналитика</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-white/65">Только агрегированные события: смены фаз, открытие формы репорта и отправленные репорты. Имена, IP-адреса и содержимое комнат не собираются.</p>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ProductMetric label="Смен фаз сегодня" value={analytics.daily.totals.phase_changed} />
+        <ProductMetric label="Репортов сегодня" value={analytics.daily.totals.report_sent} />
+        <ProductMetric label="Смен фаз всего" value={analytics.allTime.totals.phase_changed} />
+      </div>
+      <div className="mt-4 rounded-2xl border border-line bg-white/80 p-5 shadow-soft dark:bg-slate-900/75">
+        <h3 className="font-bold text-ink">Устройства за всё время</h3>
+        <div className="mt-3 flex flex-wrap gap-3 text-sm text-slate-600 dark:text-white/65">
+          <span>Телефоны: {analytics.allTime.devices.mobile ?? 0}</span><span>Планшеты: {analytics.allTime.devices.tablet ?? 0}</span><span>Компьютеры: {analytics.allTime.devices.desktop ?? 0}</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProductMetric({ label, value }: { label: string; value: number }) {
+  return <article className="rounded-2xl border border-line bg-white/80 p-5 shadow-soft dark:bg-slate-900/75"><p className="text-sm font-semibold text-slate-600 dark:text-white/65">{label}</p><p className="mt-2 font-display text-4xl font-semibold text-ink">{value}</p></article>;
 }
 
 function StatsSection({ title, stats }: { title: string; stats: Pick<Stats, "roomsCreated" | "completedGames" | "completedPlayerParticipations" | "uniqueVisitors"> }) {

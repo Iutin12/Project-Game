@@ -24,6 +24,8 @@ import { createDevRoom, createRoom, getMafiaRoomCount, getRoom, getStats, regist
 import { createDevSpyRoom, createSpyRoom, getSpyRoomCount, getSpyRoomInfo, getSpyStats, registerSpyRoomSockets } from "./spyRooms";
 import { createAliasRoom, createDevAliasRoom, getAliasRoomCount, getAliasRoomInfo, getAliasStats, registerAliasRoomSockets } from "./aliasRooms";
 import { getCompletionStats, trackRoomCreated, trackUniqueVisitor } from "./completionStats";
+import { getProductAnalytics, isProductDevice, isProductEvent, isProductGame, trackProductEvent } from "./productAnalytics";
+import { getRecentGameReports, saveGameReport } from "./userReports";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME ?? "0.0.0.0";
@@ -64,6 +66,35 @@ app.prepare().then(() => {
         trackUniqueVisitor(visitorId);
         res.writeHead(204);
         res.end();
+        return;
+      }
+
+      if (req.method === "POST" && url.pathname === "/api/track-event") {
+        if (!allowPublicApi(req, res)) return;
+        const body = await readJsonBody<{ event?: unknown; gameId?: unknown; device?: unknown }>(req);
+        if (!isProductEvent(body?.event) || !isProductGame(body?.gameId) || !isProductDevice(body?.device)) {
+          sendJson(res, 400, { error: "Некорректное событие" });
+          return;
+        }
+        trackProductEvent(body.event, body.gameId, body.device);
+        res.writeHead(204);
+        res.end();
+        return;
+      }
+
+      if (req.method === "POST" && url.pathname === "/api/report") {
+        if (!allowPublicApi(req, res)) return;
+        const body = await readJsonBody<{ gameId?: unknown; phase?: unknown; message?: unknown }>(req);
+        if (typeof body?.gameId !== "string" || typeof body?.message !== "string") {
+          sendJson(res, 400, { error: "Некорректный репорт" });
+          return;
+        }
+        try {
+          saveGameReport({ gameId: body.gameId, phase: typeof body.phase === "string" ? body.phase : undefined, message: body.message });
+          sendJson(res, 201, { ok: true });
+        } catch {
+          sendJson(res, 400, { error: "Репорт должен содержать от 8 до 700 символов" });
+        }
         return;
       }
 
@@ -152,6 +183,24 @@ app.prepare().then(() => {
           return;
         }
         sendJson(res, 200, getCompletionStats());
+        return;
+      }
+
+      if (req.method === "GET" && url.pathname === "/api/admin/product-analytics") {
+        if (!isAdminRequest(req)) {
+          sendJson(res, 401, { error: "Недостаточно прав" });
+          return;
+        }
+        sendJson(res, 200, getProductAnalytics());
+        return;
+      }
+
+      if (req.method === "GET" && url.pathname === "/api/admin/reports") {
+        if (!isAdminRequest(req)) {
+          sendJson(res, 401, { error: "Недостаточно прав" });
+          return;
+        }
+        sendJson(res, 200, { reports: getRecentGameReports() });
         return;
       }
 

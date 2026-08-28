@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { AppShell } from "@/components/layout/AppShell";
 import { LeaveGameModal } from "@/components/room/LeaveGameModal";
+import { RoomExperienceTools, useRoomExperience } from "@/components/room/RoomExperience";
 import { Button } from "@/components/ui/Button";
 import { crocodileCategories } from "@/games/crocodile/categories";
 import type { CrocodileCategoryId, CrocodileDifficultyFilter, CrocodileSettings, PublicCrocodileRoom } from "@/games/crocodile/types";
@@ -222,10 +223,11 @@ export function CrocodileRoomClient({ code }: { code: string }) {
 
   const connectedCount = room.players.filter((player) => player.connected).length;
   const isRoundActive = room.phase === "ROUND_ACTIVE";
+  const { phaseClassName } = useRoomExperience("crocodile", room.phase);
 
   return (
     <AppShell onLogoClick={requestLeave}>
-      <section className="py-6">
+      <section className={`py-6 ${phaseClassName}`}>
         <div className="rounded-[2rem] border border-slate-700/30 bg-white/80 p-4 text-ink shadow-soft dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:p-6">
           <header className="rounded-[1.5rem] border border-line dark:border-white/10 bg-white/90 dark:bg-slate-900/80 p-5 shadow-soft">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -251,7 +253,7 @@ export function CrocodileRoomClient({ code }: { code: string }) {
             </div>
           </header>
 
-          <div className="mt-5 rounded-[1.25rem] border border-line dark:border-white/10 bg-white/85 dark:bg-slate-900/70 p-2">
+          <div className="room-mobile-tabs mt-5 rounded-[1.25rem] border border-line dark:border-white/10 bg-white/85 dark:bg-slate-900/70 p-2">
             <button
               className={`rounded-xl px-5 py-3 font-bold ${tab === "room" ? "bg-coral text-white" : "text-slate-500 dark:text-white/60"}`}
               onClick={() => setTab("room")}
@@ -265,6 +267,7 @@ export function CrocodileRoomClient({ code }: { code: string }) {
               Настройки
             </button>
           </div>
+          <RoomExperienceTools gameId="crocodile" phase={room.phase} />
 
           {error ? <p className="mt-4 rounded-2xl border border-coral/30 bg-coral/10 p-3 text-sm text-coral">{error}</p> : null}
 

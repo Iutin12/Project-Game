@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { AppShell } from "@/components/layout/AppShell";
 import { LeaveGameModal } from "@/components/room/LeaveGameModal";
+import { RoomExperienceTools, useRoomExperience } from "@/components/room/RoomExperience";
 import { Button } from "@/components/ui/Button";
 import { bunkerCatastrophes } from "@/games/bunker/catastrophes";
 import { bunkerShelters } from "@/games/bunker/shelters";
@@ -86,6 +87,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
   const connectedCount = room?.players.filter((player) => player.connected).length ?? 0;
   const unreadChatCount = Math.max(0, (room?.chatMessages.length ?? 0) - seenChatCount);
   const useBunkerBoard = tab === "game" && room && room.phase !== "LOBBY" && room.phase !== "GAME_OVER";
+  const { phaseClassName } = useRoomExperience("bunker", room?.phase);
 
   function scrollChatToRelevantMessage(behavior: ScrollBehavior = "smooth") {
     requestAnimationFrame(() => {
@@ -263,7 +265,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
 
   return (
     <AppShell onLogoClick={requestLeave}>
-      <section className={useBunkerBoard ? "py-2" : "py-6"}>
+      <section className={`${useBunkerBoard ? "py-2" : "py-6"} ${phaseClassName}`}>
         <div className={useBunkerBoard ? "rounded-[1.5rem] border border-line bg-white/80 p-2 text-ink shadow-soft dark:border-slate-700 dark:bg-slate-950 dark:text-white" : "rounded-[2rem] border border-line bg-white/80 p-4 text-ink shadow-soft dark:border-slate-700 dark:bg-slate-950 dark:text-white sm:p-6"}>
           {!useBunkerBoard ? <header className="rounded-[1.5rem] border border-line bg-white/90 p-5 shadow-soft dark:border-white/10 dark:bg-slate-900/80">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
@@ -285,7 +287,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
             </div>
           </header> : null}
 
-          <nav className={useBunkerBoard ? "flex flex-wrap gap-2 rounded-[1.25rem] border border-line bg-white/85 p-1.5 dark:border-white/10 dark:bg-slate-900/70" : "mt-5 flex flex-wrap gap-2 rounded-[1.25rem] border border-line bg-white/85 p-2 dark:border-white/10 dark:bg-slate-900/70"}>
+          <nav className={useBunkerBoard ? "room-mobile-tabs flex flex-wrap gap-2 rounded-[1.25rem] border border-line bg-white/85 p-1.5 dark:border-white/10 dark:bg-slate-900/70" : "room-mobile-tabs mt-5 flex flex-wrap gap-2 rounded-[1.25rem] border border-line bg-white/85 p-2 dark:border-white/10 dark:bg-slate-900/70"}>
             {(["game", "players", "chat", "settings"] as Tab[]).map((item) => (
               <button
                 key={item}
@@ -306,6 +308,7 @@ export function BunkerRoomClient({ code }: { code: string }) {
               </button>
             ))}
           </nav>
+          <RoomExperienceTools gameId="bunker" phase={room.phase} />
           {error ? <p className="mt-4 rounded-2xl border border-coral/30 bg-coral/10 p-3 text-sm text-coral">{error}</p> : null}
           {room.deadlineAt ? <BunkerPhaseCountdown deadlineAt={room.deadlineAt} phase={room.phase} /> : null}
           {ownPlayer?.status === "eliminated" && room.phase !== "GAME_OVER" ? <EliminatedPlayerBanner /> : null}

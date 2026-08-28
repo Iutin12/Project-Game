@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { AppShell } from "@/components/layout/AppShell";
+import { RoomExperienceTools, useRoomExperience } from "@/components/room/RoomExperience";
 import { Button } from "@/components/ui/Button";
 import { spyLocations } from "@/games/spy/locations";
 import type { PublicSpyRoomState, SpyLocation, SpySettings } from "@/games/spy/types";
@@ -48,6 +49,7 @@ export function SpyRoomClient({ code }: { code: string }) {
   const previousChatCountRef = useRef(0);
 
   const ownPlayer = room?.players.find((player) => player.id === room.ownPlayerId);
+  const { phaseClassName } = useRoomExperience("spy", room?.phase);
   const isHost = Boolean(ownPlayer?.isHost);
   const connectedPlayers = useMemo(() => room?.players.filter((player) => player.connected || player.isBot) ?? [], [room?.players]);
   const unreadMessages = Math.max(0, (room?.chatMessages.length ?? 0) - seenMessages);
@@ -229,10 +231,10 @@ export function SpyRoomClient({ code }: { code: string }) {
 
   return (
     <AppShell onLogoClick={requestLeave}>
-      <section className="py-6">
+      <section className={`py-6 ${phaseClassName}`}>
         <div className="rounded-[1.5rem] border border-line bg-white/80 p-3 text-ink shadow-soft dark:border-white/10 dark:bg-slate-950/75 dark:text-white sm:p-5">
           <RoomHeader room={room} copied={copied} copyInvite={copyInvite} requestLeave={requestLeave} />
-          <nav className="mt-4 flex flex-wrap gap-2 rounded-[1.25rem] border border-line bg-white/80 p-1.5 dark:border-white/10 dark:bg-slate-900/70">
+          <nav className="room-mobile-tabs mt-4 flex flex-wrap gap-2 rounded-[1.25rem] border border-line bg-white/80 p-1.5 dark:border-white/10 dark:bg-slate-900/70">
             {(["game", "chat", "settings"] as Tab[]).map((item) => (
               <button
                 key={item}
@@ -253,6 +255,7 @@ export function SpyRoomClient({ code }: { code: string }) {
               </button>
             ))}
           </nav>
+          <RoomExperienceTools gameId="spy" phase={room.phase} />
           {room.deadlineAt ? <Countdown deadlineAt={room.deadlineAt} phase={room.phase} /> : null}
           {error ? <ErrorBanner error={error} /> : null}
 

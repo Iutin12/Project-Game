@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } 
 import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { AppShell } from "@/components/layout/AppShell";
+import { RoomExperienceTools, useRoomExperience } from "@/components/room/RoomExperience";
 import { Button } from "@/components/ui/Button";
 import { aliasCategories, aliasCategoryLabels } from "@/games/alias/categories";
 import type { AliasSettings, AliasTeam, PublicAliasRoomState } from "@/games/alias/types";
@@ -81,6 +82,7 @@ export function AliasRoomClient({ code }: { code: string }) {
   const previousPhaseRef = useRef<PublicAliasRoomState["phase"] | null>(null);
 
   const ownPlayer = room?.players.find((player) => player.id === room.ownPlayerId);
+  const { phaseClassName } = useRoomExperience("alias", room?.phase);
   const unreadMessages = Math.max(0, (room?.chatMessages.length ?? 0) - seenMessages);
   const inviteUrl = typeof window === "undefined" ? "" : `${window.location.origin}/room/${code}`;
 
@@ -227,12 +229,13 @@ export function AliasRoomClient({ code }: { code: string }) {
 
   return (
     <AppShell onLogoClick={requestLeave}>
-      <section className="py-6">
+      <section className={`py-6 ${phaseClassName}`}>
         <div className="rounded-[1.5rem] border border-line bg-white/80 p-3 text-ink shadow-soft dark:border-white/10 dark:bg-slate-950/75 dark:text-white sm:p-5">
           <RoomHeader room={room} copied={copied} onCopy={async () => { await navigator.clipboard.writeText(inviteUrl); setCopied(true); window.setTimeout(() => setCopied(false), 1400); }} onLeave={requestLeave} />
-          <nav className="mt-4 flex flex-wrap gap-2 rounded-[1.25rem] border border-line bg-white/80 p-1.5 dark:border-white/10 dark:bg-slate-900/70">
+          <nav className="room-mobile-tabs mt-4 flex flex-wrap gap-2 rounded-[1.25rem] border border-line bg-white/80 p-1.5 dark:border-white/10 dark:bg-slate-900/70">
             {(["game", "chat", "settings"] as Tab[]).map((item) => <button key={item} className={`rounded-xl px-5 py-3 text-sm font-black transition ${tab === item ? "bg-coral text-white" : "text-slate-500 hover:bg-slate-100 dark:text-white/60 dark:hover:bg-white/5"}`} onClick={() => item === "chat" ? openChat() : setTab(item)}>{item === "game" ? "Игра" : item === "chat" ? "Чат" : "Настройки"}{item === "chat" && unreadMessages ? <span className="ml-2 rounded-full bg-ocean px-2 py-0.5 text-xs text-white">{unreadMessages}</span> : null}</button>)}
           </nav>
+          <RoomExperienceTools gameId="alias" phase={room.phase} />
           {error ? <ErrorBanner error={error} /> : null}
           {tab === "game" ? <GameTab room={room} emitAction={emitAction} /> : null}
           {tab === "chat" ? <ChatTab room={room} message={message} setMessage={setMessage} send={() => { const text = message.trim(); if (text) emitAction("send_alias_chat_message", { text }, () => setMessage("")); }} chatRef={chatRef} sectionRef={chatSectionRef} inputRef={chatInputRef} unreadAnchorId={unreadAnchorId} /> : null}

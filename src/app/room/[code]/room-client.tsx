@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type Dispatch, type ReactNode, ty
 import { useRouter } from "next/navigation";
 import { io, type Socket } from "socket.io-client";
 import { AppShell } from "@/components/layout/AppShell";
+import { RoomExperienceTools, useRoomExperience } from "@/components/room/RoomExperience";
 import { Button } from "@/components/ui/Button";
 import { phaseLabels } from "@/games/mafia/phases";
 import { roleDescriptions, roleLabels } from "@/games/mafia/roles";
@@ -35,6 +36,7 @@ export function RoomClient({ code }: { code: string }) {
   const alivePlayers = room?.players.filter((player) => player.alive && !player.isSpectator) ?? [];
   const deadPlayers = room?.players.filter((player) => !player.alive && !player.isSpectator) ?? [];
   const spectators = room?.players.filter((player) => player.isSpectator) ?? [];
+  const { phaseClassName } = useRoomExperience("mafia", room?.phase);
 
   useEffect(() => {
     const nextSocket = io({ path: "/socket.io" });
@@ -226,7 +228,7 @@ export function RoomClient({ code }: { code: string }) {
 
   return (
     <AppShell onLogoClick={requestLeaveRoom}>
-      <section className="py-6">
+      <section className={`py-6 ${phaseClassName}`}>
         <div className="rounded-[2rem] border border-line bg-white/85 p-3 shadow-soft backdrop-blur md:p-4">
           <div className="relative overflow-hidden rounded-[1.5rem] border border-line bg-[radial-gradient(circle_at_0%_0%,rgba(239,61,61,0.14),transparent_16rem),linear-gradient(135deg,var(--color-surface),var(--color-surface-muted))] p-3 md:p-4">
             <div className="relative z-10 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -265,7 +267,7 @@ export function RoomClient({ code }: { code: string }) {
 
               {error ? <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-coral">{error}</p> : null}
 
-              <div className="flex flex-wrap gap-2 rounded-[1.5rem] border border-line bg-cloud/70 p-2">
+              <div className="room-mobile-tabs flex flex-wrap gap-2 rounded-[1.5rem] border border-line bg-cloud/70 p-2">
                 <RoomTabButton active={roomTab === "room"} onClick={openRoomTab}>
                   Комната
                   {chatUnreadCount > 0 ? <span className="ml-2 rounded-full bg-white/70 px-2 py-0.5 text-xs">{chatUnreadCount}</span> : null}
@@ -274,6 +276,7 @@ export function RoomClient({ code }: { code: string }) {
                   Настройки
                 </RoomTabButton>
               </div>
+              <RoomExperienceTools gameId="mafia" phase={room.phase} />
 
               {roomTab === "room" ? (
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.9fr)]">
