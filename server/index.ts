@@ -6,6 +6,7 @@ import { Server } from "socket.io";
 import { allowPublicApiRequest, allowRoomCreation, getRequestIp, registerSocketProtection, securityConfig } from "./security";
 import {
   createCrocodileRoom,
+  createDevCrocodileRoom,
   getCrocodileRoomCount,
   getCrocodileRoomInfo,
   getCrocodileStats,
@@ -105,6 +106,15 @@ app.prepare().then(() => {
         if (!allowNewRoom(req, res)) return;
         const body = await readJsonBody<{ playersCount?: number }>(req);
         const room = createDevBunkerRoom(clampDevPlayers(body?.playersCount, 4, 16));
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(room));
+        return;
+      }
+
+      if (devToolsEnabled && req.method === "POST" && url.pathname === "/api/dev/create-crocodile-test-room") {
+        if (!allowNewRoom(req, res)) return;
+        const body = await readJsonBody<{ playersCount?: number }>(req);
+        const room = createDevCrocodileRoom(clampDevPlayers(body?.playersCount, 3, 20));
         res.writeHead(200, { "content-type": "application/json" });
         res.end(JSON.stringify(room));
         return;

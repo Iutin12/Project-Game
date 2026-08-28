@@ -62,6 +62,36 @@ export function createCrocodileRoom(visibility: CrocodileRoom["visibility"] = "p
   return { code, hostKey: room.hostKey };
 }
 
+export function createDevCrocodileRoom(playersCount = 6) {
+  let code = makeRoomCode();
+  while (rooms.has(code)) code = makeRoomCode();
+
+  const hostKey = randomUUID();
+  const room: CrocodileRoom = {
+    code,
+    gameId: "crocodile",
+    visibility: "private",
+    hostKey,
+    phase: "LOBBY",
+    players: Array.from({ length: clamp(playersCount, 3, 20) }, (_, index) => ({
+      id: randomUUID(),
+      name: index === 0 ? "Тестовый хост" : `Бот ${index}`,
+      connected: true,
+      isHost: index === 0,
+      isBot: index !== 0,
+      score: 0
+    })),
+    settings: { ...defaultCrocodileSettings },
+    usedWordIds: [],
+    chatMessages: [],
+    createdAt: Date.now(),
+    devMode: true
+  };
+  room.hostId = room.players[0]?.id;
+  rooms.set(code, room);
+  return { code, hostKey, playerId: room.players[0]?.id };
+}
+
 export function getCrocodileRoom(code: string) {
   return rooms.get(code.toUpperCase());
 }
@@ -77,7 +107,7 @@ export function getCrocodileRoomInfo(code: string) {
 
 export function getCrocodileStats() {
   refreshStatsDay();
-  const gameRooms = [...rooms.values()];
+  const gameRooms = [...rooms.values()].filter((room) => !room.devMode);
   const publicRooms = gameRooms.filter((room) => {
     const connectedPlayers = room.players.filter((player) => player.connected);
     return room.visibility === "public" && room.phase === "LOBBY" && connectedPlayers.length > 0;
@@ -97,7 +127,7 @@ export function registerCrocodileRoomSockets(io: Server) {
     roomReaper = setInterval(() => {
       const expiry = Date.now() - 30 * 60 * 1000;
       for (const room of rooms.values()) {
-        if (room.createdAt >= expiry || room.players.some((player) => player.connected)) continue;
+      if (room.createdAt >= expiry || room.players.some((player) => player.connected && !player.isBot)) continue;
         clearRoundTimer(room.code);
         rooms.delete(room.code);
         removeRoomSessions("crocodile", room.code);
@@ -112,7 +142,7 @@ export function registerCrocodileRoomSockets(io: Server) {
 
       if (!room) return ack?.({ ok: false, error: "Комната не найдена" });
 
-      const existingPlayer = payload.playerId ? room.players.find((player) => player.id === payload.playerId) : undefined;
+      const existingPlayer = payload.playerId ? room.players.find((player) => player.id === payload.playerId && !player.isBot) : undefined;
       if (existingPlayer && verifyReconnectToken("crocodile", room.code, existingPlayer.id, payload.reconnectToken)) {
         existingPlayer.connected = true;
         socketPlayers.set(socket.id, { roomCode: room.code, playerId: existingPlayer.id });
@@ -126,7 +156,7 @@ export function registerCrocodileRoomSockets(io: Server) {
 
       if (!name) return ack?.({ ok: false, error: "Введите никнейм" });
       if (hasDuplicatePlayerName(room, name)) return ack?.({ ok: false, error: "Игрок с таким никнеймом уже есть в комнате" });
-      if (room.players.length >= 20) return ack?.({ ok: false, error: "Комната заполнена" });
+      if (room.players.filter((player) => !player.isBot).length >= 20) return ack?.({ ok: false, error: "Комната заполнена" });
 
       const player: CrocodilePlayer = {
         id: randomUUID(),

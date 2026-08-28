@@ -54,6 +54,7 @@ export type CrocodilePlayer = {
   name: string;
   connected: boolean;
   isHost: boolean;
+  isBot?: boolean;
   teamId?: string;
   score: number;
 };
@@ -95,6 +96,7 @@ export type CrocodileRoom = {
   createdAt: number;
   winnerIds?: string[];
   winningTeamId?: string;
+  devMode?: boolean;
 };
 
 export type PublicCrocodileRoom = Omit<CrocodileRoom, "hostKey" | "players" | "round"> & {

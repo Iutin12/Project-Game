@@ -4,6 +4,7 @@ import { gamesByAvailability } from "@/games/config";
 
 const testRoutes: Record<string, string> = {
   mafia: "/dev/mafia-test",
+  crocodile: "/dev/crocodile-test",
   bunker: "/dev/bunker-test",
   spy: "/dev/spy-test",
   alias: "/dev/alias-test"
